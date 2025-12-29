@@ -1,5 +1,6 @@
 // lib/productVersionsRepo.ts
 import { sql } from "./db";
+import type { Sql } from "postgres";
 
 // JSONValue type for Drizzle/postgres JSON column typing
 type JSONValue =
@@ -9,6 +10,14 @@ type JSONValue =
   | null
   | { [key: string]: JSONValue }
   | JSONValue[];
+
+/**
+ * Join SQL fragments with a separator.
+ * (Our postgres library's `sql` tag does not expose `sql.join`.)
+ */
+function joinSql(chunks: Sql[], sep: Sql): Sql {
+  return chunks.reduce((acc, cur, i) => (i === 0 ? cur : sql`${acc}${sep}${cur}`));
+}
 
 export type EvidenceInsert = {
   id?: string;
@@ -110,7 +119,7 @@ export async function saveProductDraft(args: {
         insert into product_field_evidence
           (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
         values
-          ${sql.join(
+          ${joinSql(
             evidence.map(
               (e) => sql`(
                 ${draftVersionId},
@@ -317,7 +326,7 @@ export async function publishCurrentDraft(args: {
         insert into product_field_evidence
           (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
         values
-          ${sql.join(
+          ${joinSql(
             evidence.map(
               (e) => sql`(
                 ${publishedVersionId},
