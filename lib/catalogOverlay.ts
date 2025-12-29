@@ -6,6 +6,7 @@ import {
 } from "./catalog";
 import { mergeWithOverlay } from "./adminStore";
 import { sql } from "./db";
+import { getLatestPublishedVersionsForProducts } from "./productVersionsRepo";
 
 /**
  * Neon row shape for bender_overlays.
@@ -215,14 +216,34 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
   // 2) Neon overlays (async).
   const neonMap = await fetchNeonOverlays();
 
+  // 3) Published version overlays (async).
+  // These must be the final authority for public reads.
+  const ids = baseWithJsonOverlay
+    .map((p: any) => (p as any).id as string | undefined)
+    .filter(Boolean) as string[];
+
+  const publishedRows = await getLatestPublishedVersionsForProducts(ids);
+  const publishedMap: Record<string, any> = {};
+  for (const row of publishedRows as any[]) {
+    const pid = String((row as any).product_id ?? "");
+    if (!pid) continue;
+    publishedMap[pid] = (row as any).fields_json ?? {};
+  }
+
   return baseWithJsonOverlay.map((raw) => {
     const id = (raw as any).id as string | undefined;
     const neonOverlay = id ? neonMap[id] ?? null : null;
 
+    const publishedOverlay = id ? (publishedMap[id] ?? null) : null;
+
     // Order matters:
-    //   base product → JSON overlay → Neon overlay
-    // so Neon always wins when present.
-    const merged = neonOverlay ? { ...raw, ...neonOverlay } : raw;
+    //   base product → JSON overlay → legacy Neon overlay → published version overlay
+    // Published version must win so admin Publish actually affects public pages + scoring.
+    const merged = {
+      ...(raw as any),
+      ...(neonOverlay ?? {}),
+      ...(publishedOverlay ?? {}),
+    };
 
     const b = { ...merged } as Product & { highlights?: unknown };
 

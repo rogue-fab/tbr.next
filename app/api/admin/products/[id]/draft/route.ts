@@ -4,12 +4,15 @@ import { ok, badRequest } from "../../../../../../lib/http";
 import {
   getClientId,
   ratelimitAdminRead,
+  ratelimitAdminWrite,
   enforceRateLimit,
 } from "../../../../../../lib/rateLimit";
 import {
   getLatestDraftVersion,
   getEvidenceForVersion,
+  saveProductDraft,
 } from "../../../../../../lib/productVersionsRepo";
+import { adminDraftSchema } from "../../../../../../lib/adminDraftSchema";
 
 const ADMIN_COOKIE_NAME = "admin_token";
 
@@ -18,6 +21,98 @@ function isAuthorized(request: NextRequest): boolean {
   if (!envToken) return false;
   const cookieToken = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
   return cookieToken === envToken;
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  if (!isAuthorized(request)) {
+    return badRequest("Not authorized");
+  }
+
+  const productId = params?.id;
+  if (!productId) {
+    return badRequest("Missing product id");
+  }
+
+  const clientId = getClientId(request);
+  const rateLimitResult = await enforceRateLimit(ratelimitAdminWrite, [
+    "admin_api_write",
+    clientId,
+    "product_draft_write",
+    productId,
+  ]);
+  if (!rateLimitResult.ok) {
+    return Response.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rateLimitResult.retryAfter ?? 60) },
+      },
+    );
+  }
+
+  let raw: unknown;
+  try {
+    raw = await request.json();
+  } catch {
+    return badRequest("Invalid JSON body");
+  }
+
+  const parsed = adminDraftSchema.safeParse(raw);
+  if (!parsed.success) {
+    return Response.json(
+      {
+        error: "Invalid draft payload",
+        issues: parsed.error.issues,
+      },
+      { status: 400 },
+    );
+  }
+
+  const actor = `admin:${clientId}`;
+
+  // NOTE: scoring is server-authoritative; the repo will persist computed score_json.
+  // If you later want partial scoring, change repo signature instead of widening API.
+  try {
+    const scoreJson = {};
+    const evidence = parsed.data.evidence.map((e) => {
+      const verifiedBy = (e.verifiedBy?.trim() || actor).slice(0, 200);
+      const verifiedAt = e.verifiedAt ? new Date(e.verifiedAt) : new Date();
+      if (Number.isNaN(verifiedAt.getTime())) {
+        throw new Error("Invalid verifiedAt");
+      }
+      return {
+        fieldKey: e.fieldKey,
+        sourceType: e.sourceType,
+        url: e.url,
+        quotedText: e.quotedText ?? null,
+        howGathered: e.howGathered ?? null,
+        notes: e.notes ?? null,
+        verifiedBy,
+        verifiedAt,
+      };
+    });
+
+    const { draftVersionId } = await saveProductDraft({
+      productId,
+      fieldsJson: parsed.data.fields,
+      scoreJson,
+      actor,
+      evidence,
+    });
+
+    return ok({
+      draftVersionId,
+      productId,
+      savedAt: new Date().toISOString(),
+      actor,
+    });
+  } catch (err) {
+    console.error("[product_versions] Failed to save draft:", err);
+    return badRequest("Failed to save draft to Neon");
+  }
 }
 
 export async function GET(

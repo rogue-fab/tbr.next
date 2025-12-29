@@ -143,6 +143,20 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const title = titleOf(product);
   const compareHref = `/compare?ids=${encodeURIComponent(product.id)}`;
   const img = imagePathForSlug(product.slug ?? product.id);
+
+
+//Log for diagnostic, pasted by JRG
+  console.log("SCORING INPUT KEYS:", Object.keys(product ?? {}));
+  console.log("SCORING INPUT SAMPLE:", {
+    id: (product as any)?.id,
+    usaManufacturingTier: (product as any)?.usaManufacturingTier,
+    originTransparencyTier: (product as any)?.originTransparencyTier,
+    maxCapacity: (product as any)?.maxCapacity,
+    maxBendAngle: (product as any)?.maxBendAngle,
+    maxWall175Dom: (product as any)?.maxWall175Dom,
+  });
+ 
+
   // Per-product score (total + breakdown) used both for the main score badge
   // and for the full "score math & citation log" breakdown below.
   const score = getProductScore(product);
@@ -150,6 +164,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Allow the score breakdown panel to auto-open when navigated via
   // .../reviews/[slug]?score=details (used by the "pt details" links).
   const scoreParam = searchParams?.score;
+  const debugScore = searchParams?.debug === "1";
   const scoreDetailsOpen =
     typeof scoreParam === "string"
       ? scoreParam === "details"
@@ -579,6 +594,32 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
           {product && <ReviewAuditPanel product={product as any} />}
         </div>
       </div>
+
+      {debugScore && score?.breakdown?.length ? (
+        <section className="mt-8">
+          <details className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">
+              Debug scoring (no devtools)
+            </summary>
+            <div className="mt-3 space-y-3">
+              <div className="text-xs text-gray-500">
+                Add <code className="rounded bg-gray-100 px-1 py-0.5">?debug=1</code> to toggle this panel.
+              </div>
+              <pre className="max-h-[520px] overflow-auto rounded bg-gray-50 p-3 text-[12px] leading-snug text-gray-900">
+{JSON.stringify(
+  {
+    total: score.total,
+    source: score.source,
+    breakdown: score.breakdown,
+  },
+  null,
+  2,
+)}
+              </pre>
+            </div>
+          </details>
+        </section>
+      ) : null}
 
       <div className="mx-auto max-w-6xl px-6 mt-6 text-sm text-muted-foreground">
         <Link className="underline" href="/reviews">Back to all reviews</Link>

@@ -1,22 +1,381 @@
 import type { Metadata } from "next";
-import { SCORING_CATEGORIES, TOTAL_POINTS } from "../../lib/scoring";
 import React from "react";
 import Link from "next/link";
-import ReviewAuditPanel from "../../../components/ReviewAuditPanel";
-
+import { SCORING_CATEGORIES, TOTAL_POINTS } from "../../lib/scoring";
+import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
 
 export const metadata: Metadata = {
   title: "Tube Bender Scoring Methodology",
   description:
-    "See the full 11-category, 100-point scoring framework used to rate tube benders on TubeBenderReviews.",
+    "See the full scoring methodology used to rate tube benders on TubeBenderReviews, including exact rules and current dataset maxima.",
   openGraph: {
     title: "Tube Bender Scoring Methodology",
     description:
-      "Transparent, 11-category, 100-point scoring system for tube bender comparisons.",
+      "Transparent scoring system for tube bender comparisons, with exact rules and current dataset maxima.",
   },
 };
 
-export default function ScoringPage() {
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const n = parseFloat(String(v).replace(/[^0-9.+-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+type Leader = { value: number; label: string };
+function pickLeader(best: Leader | null, value: number, label: string): Leader {
+  if (!best) return { value, label };
+  if (value > best.value) return { value, label };
+  return best;
+}
+
+function titleOf(p: any): string {
+  const brand = String(p?.brand ?? "").trim();
+  const model = String(p?.model ?? "").trim();
+  const name = String(p?.name ?? "").trim();
+  const bits = [brand, model].filter(Boolean).join(" ").trim();
+  return bits || name || String(p?.id ?? "Unknown model");
+}
+
+function MethodBadge({ method }: { method: string }) {
+  const label =
+    method === "tier"
+      ? "Tier-based"
+      : method === "scaled"
+      ? "Scaled (fixed thresholds)"
+      : method === "binary"
+      ? "Binary"
+      : "Brand-based";
+  return (
+    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+      Method: {label}
+    </span>
+  );
+}
+
+function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string, Leader | null> }) {
+  // These rules MUST match lib/scoringEngine.ts exactly. Presentation only.
+  switch (catKey) {
+    case "valueForMoney":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> the entry-level starter system price (<span className="font-mono">entryPrice</span>) derived from the lowest documented prices for frame + dies + power + stand. If component pricing is missing, we fall back to any known catalog price.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Exact point tiers (20 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>≤ $1500 → 20</li>
+              <li>≤ $2000 → 18</li>
+              <li>≤ $3000 → 15</li>
+              <li>≤ $4500 → 12</li>
+              <li>≤ $6500 → 9</li>
+              <li>&gt; $6500 → 7</li>
+            </ul>
+            <p className="mt-2 text-[11px] text-gray-600">
+              If <span className="font-mono">entryPrice</span> is missing, the engine uses a legacy price-band heuristic (kept for backward compatibility).
+            </p>
+          </div>
+          {maxima.entryPriceMinMax ? (
+            <p className="text-[11px] text-gray-600">
+              <span className="font-semibold">Current dataset:</span> entryPrice ranges from{" "}
+              <span className="font-semibold">${maxima.entryPriceMinMax.value.toFixed(0)}</span>{" "}
+              (see note below for how computed).
+            </p>
+          ) : null}
+        </div>
+      );
+    case "maxDiameterRadius":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score today:</span> maximum published round-tube OD capacity (<span className="font-mono">maxCapacity</span>). CLR is not yet in the math because CLR data is not standardized across all models.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Exact point tiers (10 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>≥ 2.5 → 10</li>
+              <li>≥ 2.375 → 9</li>
+              <li>≥ 2.25 → 8</li>
+              <li>≥ 2.0 → 7</li>
+              <li>≥ 1.75 → 5</li>
+              <li>≥ 1.5 → 3</li>
+              <li>&gt; 0 → 2</li>
+              <li>missing/unknown → 0</li>
+            </ul>
+          </div>
+          {maxima.maxCapacity ? (
+            <p className="text-[11px] text-gray-600">
+              <span className="font-semibold">Current dataset max OD:</span>{" "}
+              <span className="font-semibold">{maxima.maxCapacity.value.toFixed(3)}</span> in ({maxima.maxCapacity.label})
+            </p>
+          ) : (
+            <p className="text-[11px] text-gray-600">
+              <span className="font-semibold">Current dataset max OD:</span> unavailable (no parseable maxCapacity values in the dataset).
+            </p>
+          )}
+        </div>
+      );
+    case "bendAngleCapability":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> maximum published bend angle (<span className="font-mono">maxBendAngle</span>/<span className="font-mono">bendAngle</span>). Missing angle scores 0.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Exact point tiers (9 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>≥ 195° → 9</li>
+              <li>180–194° → 7</li>
+              <li>120–179° → 4</li>
+              <li>&lt; 120° → 2</li>
+              <li>missing/unknown → 0</li>
+            </ul>
+          </div>
+          {maxima.maxBendAngle ? (
+            <p className="text-[11px] text-gray-600">
+              <span className="font-semibold">Current dataset max angle:</span>{" "}
+              <span className="font-semibold">{maxima.maxBendAngle.value.toFixed(0)}°</span> ({maxima.maxBendAngle.label})
+            </p>
+          ) : null}
+        </div>
+      );
+    case "wallThicknessCapability":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> published max wall thickness for <span className="font-semibold">1.75&quot; OD DOM</span> (<span className="font-mono">wallThicknessCapacity</span>). If this is not published, the category scores <span className="font-semibold">0</span> — we do not guess.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Thickness points (0–6)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>≥ 0.156&quot; → 6</li>
+              <li>≥ 0.120&quot; → 5</li>
+              <li>≥ 0.095&quot; → 4</li>
+              <li>&gt; 0 → 3</li>
+              <li>missing/unknown → 0 (entire category becomes 0)</li>
+            </ul>
+            <div className="font-semibold text-gray-900 mt-3 mb-1">Material coverage points (0–3)</div>
+            <p className="text-[11px] text-gray-600">
+              If the manufacturer publishes a material list, we score it by mapping documented materials into weighted buckets (mild steel, 4130, stainless, aluminum, titanium, copper/brass/bronze, other). If no list is published, this sub-score is 0.
+            </p>
+          </div>
+          {maxima.maxWallAt175 ? (
+            <p className="text-[11px] text-gray-600">
+              <span className="font-semibold">Current dataset max wall @ 1.75&quot;:</span>{" "}
+              <span className="font-semibold">{maxima.maxWallAt175.value.toFixed(3)}&quot;</span> ({maxima.maxWallAt175.label})
+            </p>
+          ) : null}
+        </div>
+      );
+    case "dieSelectionShapes":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> documented die family coverage. One point per bucket, max 8 points. No documentation → 0 for that bucket.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Buckets (1 pt each, 8 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Round tube</li>
+              <li>Pipe</li>
+              <li>Square tube</li>
+              <li>EMT</li>
+              <li>Metric round</li>
+              <li>Metric square/rectangular</li>
+              <li>Plastic/urethane pressure dies</li>
+              <li>Other documented shapes (e.g. hex, specialty profiles)</li>
+            </ul>
+          </div>
+        </div>
+      );
+    case "yearsInBusiness":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> stated years in business when available; otherwise a conservative legacy brand heuristic. This category is intentionally low weight.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Numeric tiers (3 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>≥ 25 years → 3</li>
+              <li>≥ 10 years → 2</li>
+              <li>&gt; 0 years → 1</li>
+              <li>missing/unknown → falls back to a conservative brand heuristic</li>
+            </ul>
+          </div>
+        </div>
+      );
+    case "upgradePathModularity":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> factory-documented upgrade flags. Each documented upgrade is worth 1 point (8 max). Missing/unknown → 0 for that flag.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Flags (1 pt each, 8 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Power upgrade path</li>
+              <li>Length stop</li>
+              <li>Rotation indexing</li>
+              <li>Angle measurement</li>
+              <li>Auto-stop</li>
+              <li>Thick-wall upgrade</li>
+              <li>Thin-wall upgrade</li>
+              <li>Wiper die support</li>
+            </ul>
+          </div>
+        </div>
+      );
+    case "mandrelCompatibility":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> the manufacturer's documented mandrel capability for this frame. If not documented, it scores 0. No guessing.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Exact mapping (4 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><span className="font-mono">mandrel</span> = <span className="font-mono">"available"</span> or <span className="font-mono">"bronze"</span> → 4</li>
+              <li><span className="font-mono">mandrel</span> = <span className="font-mono">"economy"</span> → 2</li>
+              <li>anything else / missing → 0</li>
+            </ul>
+            <p className="mt-2 text-[11px] text-gray-600">
+              "Economy" means non-bronze mandrels (plastic/aluminum/steel). "Available/bronze" means a full bronze or equivalent factory-supported system.
+            </p>
+          </div>
+        </div>
+      );
+    case "sBendCapability":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> true/false for true S-bend capability. If it's not documented or not explicitly verified, it scores 0.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Binary (3 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><span className="font-mono">sBendCapability</span> true → 3</li>
+              <li>false / missing → 0</li>
+            </ul>
+            <p className="mt-2 text-[11px] text-gray-600">
+              Definition: two opposite-direction bends with ≤0.125&quot; straight (tangent) between them. Marketing photos with inches of straight do not qualify.
+            </p>
+          </div>
+        </div>
+      );
+    case "usaManufacturingDisclosure":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> a disclosure-based tier (0–5) based solely on the manufacturer's published claims. This is not a legal opinion and not an FTC compliance ruling.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Tier mapping (5 max)</div>
+            <p className="text-[11px] text-gray-600">
+              Points equal the tier number (0–5). The specific meaning of each tier is defined by our documentation standard (claims about frames/dies/hydraulics/assembly).
+            </p>
+          </div>
+        </div>
+      );
+    case "originTransparency":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> how clearly the manufacturer documents component origin (tier 0–5). This scores documentation quality only.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Tier mapping (5 max)</div>
+            <p className="text-[11px] text-gray-600">
+              Points equal the tier number (0–5).
+            </p>
+          </div>
+        </div>
+      );
+    case "singleSourceSystem":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> whether a buyer can get a complete, functional system from one primary storefront/manufacturer. Partial systems score 0.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Binary mapping (2 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>tier == 2 → 2 points</li>
+              <li>anything else → 0 points</li>
+            </ul>
+          </div>
+        </div>
+      );
+    case "warrantySupport":
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">
+            <span className="font-semibold">What we score:</span> published warranty terms only (tier 0–3). We do not score how well a warranty is honored.
+          </p>
+          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900 mb-1">Tier mapping (3 max)</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>0 = no meaningful written warranty / sold as-is / not mentioned</li>
+              <li>1 = short, limited, or vague coverage</li>
+              <li>2 = clear ~1–2 year coverage</li>
+              <li>3 = clear multi-year or lifetime frame/structural coverage</li>
+            </ul>
+          </div>
+        </div>
+      );
+    default:
+      return (
+        <p className="text-xs text-gray-600">
+          This category's rules are defined in the scoring engine. If you see this message, the /scoring page needs a mapping update for <span className="font-mono">{catKey}</span>.
+        </p>
+      );
+  }
+}
+
+export default async function ScoringPage() {
+  // Pull the same merged dataset public pages use so maxima auto-update.
+  const all = (await getAllTubeBendersWithOverlay()) as any[];
+
+  let maxCapacity: Leader | null = null;
+  let maxBendAngle: Leader | null = null;
+  let maxWallAt175: Leader | null = null;
+  let minEntry: Leader | null = null;
+  let maxEntry: Leader | null = null;
+
+  for (const p of all) {
+    const label = titleOf(p);
+
+    const cap = toNum(p?.maxCapacity ?? p?.capacity);
+    if (cap != null && cap > 0) maxCapacity = pickLeader(maxCapacity, cap, label);
+
+    const ang = toNum(p?.maxBendAngle ?? p?.bendAngle);
+    if (ang != null && ang > 0) maxBendAngle = pickLeader(maxBendAngle, ang, label);
+
+    const wall = toNum(p?.wallThicknessCapacity ?? p?.maxWallAt175 ?? p?.maxWall175Dom);
+    if (wall != null && wall > 0) maxWallAt175 = pickLeader(maxWallAt175, wall, label);
+
+    // entryPrice is derived inside getProductScore; we don't recompute it here to avoid drift.
+    // We still compute a *best-effort* price range from component mins/maxes for transparency.
+    const frameMin = toNum(p?.framePriceMin);
+    const dieMin = toNum(p?.diePriceMin);
+    const hydMin = toNum(p?.hydraulicPriceMin);
+    const standMin = toNum(p?.standPriceMin);
+    const minSys = (frameMin ?? 0) + (dieMin ?? 0) + (hydMin ?? 0) + (standMin ?? 0);
+    if (minSys > 0) {
+      // min leader is tracked by negative value trick (keep it simple)
+      if (!minEntry || minSys < minEntry.value) minEntry = { value: minSys, label };
+      maxEntry = pickLeader(maxEntry, minSys, label);
+    }
+  }
+
+  const maxima = {
+    maxCapacity,
+    maxBendAngle,
+    maxWallAt175,
+    entryPriceMinMax: maxEntry, // used as a "seen range" hint; details explained in the UI
+  } as const;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
@@ -26,10 +385,7 @@ export default function ScoringPage() {
             Tube Bender Scoring Methodology
           </h1>
           <p className="mt-3 max-w-3xl text-sm sm:text-base text-gray-600">
-            Complete transparency in how we calculate objective scores for tube
-            bender comparisons. All scoring is based on published specs,
-            documented capabilities, and verifiable data sources — not
-            subjective opinions.
+            Exact, unambiguous rules for how scores are calculated. When data is not published by the manufacturer, we score that category as <span className="font-semibold">0</span> rather than guessing.
           </p>
         </div>
       </div>
@@ -41,8 +397,7 @@ export default function ScoringPage() {
             Scoring Overview
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Our 11-category scoring system evaluates tube benders across
-            measurable, objective criteria.
+            Our scoring system evaluates tube benders across measurable, objective criteria.
           </p>
           <div className="mt-4 grid gap-6 md:grid-cols-3">
             <div>
@@ -53,8 +408,7 @@ export default function ScoringPage() {
                 {TOTAL_POINTS}
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Each bender receives a score out of 100 points across 11
-                categories.
+                Each bender receives a score out of 100 points across {SCORING_CATEGORIES.length} categories.
               </p>
             </div>
             <div>
@@ -71,11 +425,11 @@ export default function ScoringPage() {
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                Scoring Types
+                Scoring methods
               </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <span className="inline-flex items-center rounded-full border border-gray-200 px-2.5 py-1 text-gray-700">
-                  Scaled scoring
+                  Fixed-threshold tiers
                 </span>
                 <span className="inline-flex items-center rounded-full border border-gray-200 px-2.5 py-1 text-gray-700">
                   Binary scoring
@@ -86,6 +440,60 @@ export default function ScoringPage() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Current dataset maxima (auto-updating) */}
+        <section className="rounded-xl border border-gray-200 bg-white px-5 py-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Current dataset maxima (auto-updating)
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            These values are computed from the current catalog + admin overlay data. If a new model is added with higher capacity/angle/wall, these numbers update automatically.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-3 text-xs text-gray-700">
+            <div className="rounded-lg border bg-gray-50 p-3">
+              <div className="font-semibold text-gray-900">Max OD capacity (published)</div>
+              <div className="mt-1">
+                {maxCapacity ? (
+                  <>
+                    <span className="font-semibold">{maxCapacity.value.toFixed(3)} in</span>
+                    <div className="text-[11px] text-gray-600 mt-1">{maxCapacity.label}</div>
+                  </>
+                ) : (
+                  <span className="text-gray-600">No parseable maxCapacity values</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border bg-gray-50 p-3">
+              <div className="font-semibold text-gray-900">Max bend angle (published)</div>
+              <div className="mt-1">
+                {maxBendAngle ? (
+                  <>
+                    <span className="font-semibold">{maxBendAngle.value.toFixed(0)}°</span>
+                    <div className="text-[11px] text-gray-600 mt-1">{maxBendAngle.label}</div>
+                  </>
+                ) : (
+                  <span className="text-gray-600">No parseable bend angles</span>
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg border bg-gray-50 p-3">
+              <div className="font-semibold text-gray-900">Max wall @ 1.75&quot; DOM (published)</div>
+              <div className="mt-1">
+                {maxWallAt175 ? (
+                  <>
+                    <span className="font-semibold">{maxWallAt175.value.toFixed(3)}&quot;</span>
+                    <div className="text-[11px] text-gray-600 mt-1">{maxWallAt175.label}</div>
+                  </>
+                ) : (
+                  <span className="text-gray-600">No parseable wall thickness values</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-gray-600">
+            Note: the scoring engine uses fixed thresholds (not relative-to-max curves). The maxima are shown for transparency and update automatically with the dataset.
+          </p>
         </section>
 
         {/* Detailed categories */}
@@ -113,16 +521,7 @@ export default function ScoringPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                      Method:{" "}
-                      {cat.method === "tier"
-                        ? "Tier-based"
-                        : cat.method === "scaled"
-                        ? "Scaled"
-                        : cat.method === "binary"
-                        ? "Binary"
-                        : "Brand-based"}
-                    </span>
+                    <MethodBadge method={cat.method} />
                     <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                       Max {cat.maxPoints} pts
                     </span>
@@ -131,168 +530,24 @@ export default function ScoringPage() {
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2 text-xs text-gray-600">
-                    <p className="font-medium text-gray-900">
-                      What this measures
-                    </p>
-                    {cat.key === "valueForMoney" && (
-                      <>
-                        <p>
-                          Compares complete setup pricing – including base
-                          machine, common die set, and hydraulic or power
-                          options where applicable.
-                        </p>
-                        <p>
-                          Lower-priced machines that still meet key capability
-                          thresholds receive higher scores for entry-level and
-                          value-focused buyers.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "easeOfUseSetup" && (
-                      <>
-                        <p>
-                          Evaluates setup complexity, documentation quality,
-                          and how much effort it takes to go from crate to
-                          first accurate bend.
-                        </p>
-                        <p>
-                          Factors include pre-assembly, clear instructions,
-                          ergonomics, and how forgiving the machine is for
-                          newer operators.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "maxDiameterRadius" && (
-                      <>
-                        <p>
-                          Looks at maximum tube diameter capacity and the range
-                          of centerline radii supported by the die ecosystem.
-                        </p>
-                        <p>
-                          Larger, more flexible capacity scores higher for
-                          shops that build a wider variety of projects.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "usaManufacturing" && (
-                      <>
-                        <p>
-                          Binary score based on whether the machine is made in
-                          the USA, verified through manufacturer
-                          documentation.
-                        </p>
-                        <p>
-                          Reflects customer preference for domestic
-                          manufacturing, support, and parts availability.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "bendAngleCapability" && (
-                      <>
-                        <p>
-                          Evaluates the maximum single-pass bend angle the
-                          machine can reach with standard tooling.
-                        </p>
-                        <p>
-                          Higher angles reduce the need for multi-stage bends
-                          and enable more complex geometries.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "wallThicknessCapability" && (
-                      <>
-                        <p>
-                          Standardises all machines to a 1.75&quot; OD reference
-                          size and scores based on the thickest published wall
-                          they can bend.
-                        </p>
-                        <p>
-                          Machines without published wall data receive a
-                          conservative baseline score.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "dieSelectionShapes" && (
-                      <>
-                        <p>
-                          Scores the die ecosystem by variety of diameters,
-                          radii, and shapes (round tube, square, rectangle,
-                          EMT, flat bar, etc.).
-                        </p>
-                        <p>
-                          More coverage and better availability equal higher
-                          scores, especially for specialty applications.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "yearsInBusiness" && (
-                      <>
-                        <p>
-                          Tier-based scoring on manufacturer track record:
-                          longer continuous operation generally means more
-                          mature products and support.
-                        </p>
-                        <p>
-                          Newer brands are not penalized out of contention but
-                          receive conservative baseline scores until they build
-                          history.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "upgradePathModularity" && (
-                      <>
-                        <p>
-                          Evaluates how far the machine can grow with the shop:
-                          power upgrades, automation, software, and accessory
-                          ecosystem.
-                        </p>
-                        <p>
-                          Systems that accept bolt-on upgrades or modular
-                          tooling without replacing the base machine score
-                          higher.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "mandrelCompatibility" && (
-                      <>
-                        <p>
-                          Looks at whether the platform supports mandrel
-                          bending out of the box or via documented upgrades.
-                        </p>
-                        <p>
-                          Mandrel capability is crucial for thin-wall,
-                          high-finish work in motorsport, aerospace, and
-                          production environments.
-                        </p>
-                      </>
-                    )}
-                    {cat.key === "sBendCapability" && (
-                      <>
-                        <p>
-                          Binary category indicating whether the manufacturer
-                          documents S-bend capability with their tooling.
-                        </p>
-                        <p>
-                          S-bends allow complex 3D geometries in a compact run
-                          and are validated through published specs or proven
-                          test pieces.
-                        </p>
-                      </>
-                    )}
+                    <p className="font-medium text-gray-900">Exact rules</p>
+                    <RulesBlock catKey={cat.key} maxima={maxima as any} />
                   </div>
                   <div className="space-y-2 text-xs text-gray-600">
-                    <p className="font-medium text-gray-900">
-                      Data sources & verification
-                    </p>
+                    <p className="font-medium text-gray-900">Data sources & verification</p>
                     <ul className="space-y-1 list-disc pl-4">
-                      <li>Manufacturer technical specifications</li>
-                      <li>Published capacity charts and manuals</li>
-                      <li>Direct clarification from manufacturer reps</li>
-                      <li>
-                        When data is missing, conservative baseline scores are
-                        applied.
-                      </li>
+                      <li>Manufacturer technical specifications, capacity charts, and manuals</li>
+                      <li>Official product pages and documentation PDFs</li>
+                      <li>Documented compatibility lists (dies/materials/upgrades)</li>
+                      <li>If it's not published/verified, that feature scores 0 for that category</li>
                     </ul>
+                    <p className="text-[11px] text-gray-600">
+                      Looking for the per-product math? Open any review and expand{" "}
+                      <span className="font-semibold">Score math (diagnostic)</span>.
+                    </p>
+                    <Link className="underline text-[11px]" href="/reviews">
+                      Browse reviews
+                    </Link>
                   </div>
                 </div>
               </article>
@@ -306,10 +561,7 @@ export default function ScoringPage() {
             Transparency & Verification
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            All scoring data is based on publicly available manufacturer
-            specifications, product documentation, and verifiable technical
-            capabilities. When specifications are not published, conservative
-            baseline scores are applied to maintain fairness.
+            All scoring is based on publicly available manufacturer documentation and verifiable claims. If a capability is not published or cannot be verified, it scores <span className="font-semibold">0</span> for that category rather than relying on assumptions.
           </p>
           <div className="mt-4 grid gap-6 md:grid-cols-2 text-xs text-gray-600">
             <div>
@@ -328,11 +580,10 @@ export default function ScoringPage() {
               <ul className="space-y-1 list-disc pl-4">
                 <li>Cross-checks across multiple official sources</li>
                 <li>
-                  Conservative scoring when data is incomplete or ambiguous
+                  Conservative scoring when data is incomplete or ambiguous (0 points rather than guessing)
                 </li>
                 <li>
-                  Individual product pages will eventually expose per-category
-                  breakdowns so you can inspect each score.
+                  Individual product pages expose per-category breakdowns so you can inspect each score.
                 </li>
               </ul>
             </div>

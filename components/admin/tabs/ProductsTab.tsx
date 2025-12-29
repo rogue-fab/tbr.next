@@ -291,7 +291,7 @@ export default function ProductsTab() {
     if (!selectedProduct) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/products/${selectedProduct.id}`, {
+      const res = await fetch(`/api/admin/products/${selectedProduct.id}/draft`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -470,8 +470,9 @@ export default function ProductsTab() {
       key: "mandrel",
       label: "* Mandrel option",
       description:
-        "Available / None. Only mark as Available when the manufacturer documents mandrel support or upgrades.",
-      options: ["Available", "None"],
+        "Select the manufacturer-documented mandrel offering for this frame. If it is not explicitly documented, score is 0 (none).",
+      // Canonical tokens consumed by the scoring engine. Keep these stable.
+      options: ["none", "economy", "bronze"],
     },
     {
       key: "sBendCapability",

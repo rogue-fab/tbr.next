@@ -22,5 +22,8 @@ export const saveDraftBodySchema = z.object({
   evidence: z.array(evidenceItemSchema).default([]),
 });
 
+// Alias for consistency with route handlers
+export const adminDraftSchema = saveDraftBodySchema;
+
 export type SaveDraftBody = z.infer<typeof saveDraftBodySchema>;
 

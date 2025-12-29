@@ -144,6 +144,7 @@ export interface ScoringInput {
   brand?: string;
   model?: string;
   priceRange?: string;
+  entryPrice?: number;
   powerType?: string;
   /**
    * Portability / how the machine lives in the shop.
@@ -158,6 +159,8 @@ export interface ScoringInput {
    */
   portability?: string;
   maxCapacity?: string;
+  maxTubeOD?: number;
+  maxBendAngle?: number;
   countryOfOrigin?: string;
   bendAngle?: number;
   wallThicknessCapacity?: string | number;
@@ -202,20 +205,34 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
 
   // 1. Value for Money (legacy stub; real value is layered in getProductScore)
   let valueScore = 0;
-  const priceRange = String(bender.priceRange ?? "").toLowerCase();
-  if (priceRange.includes("$780") || priceRange.includes("$885")) valueScore = 20;
-  else if (priceRange.includes("$839") || priceRange.includes("$970")) valueScore = 19;
-  else if (priceRange.includes("$1,000") || priceRange.includes("$1,250")) valueScore = 17;
-  else if (priceRange.includes("$1,105") || priceRange.includes("$1,755")) valueScore = 16;
-  else if (priceRange.includes("$1,609") || priceRange.includes("$1,895")) valueScore = 15;
-  else if (priceRange.includes("$2,050") || priceRange.includes("$2,895")) valueScore = 12;
-  else if (priceRange.includes("$3,850") || priceRange.includes("$5,000")) valueScore = 8;
+  const entryPrice = typeof (bender as any).entryPrice === "number" ? (bender as any).entryPrice : NaN;
+
+  // Prefer numeric entryPrice (from getProductScore) when present.
+  // This keeps the category alive even if priceRange is empty.
+  if (Number.isFinite(entryPrice) && entryPrice > 0) {
+    // Simple numeric tiers (defensive / not pretending to be "perfect math").
+    // You can refine these bands later without breaking wiring.
+    if (entryPrice <= 1500) valueScore = 20;
+    else if (entryPrice <= 2000) valueScore = 18;
+    else if (entryPrice <= 3000) valueScore = 15;
+    else if (entryPrice <= 4500) valueScore = 12;
+    else if (entryPrice <= 6500) valueScore = 9;
+    else valueScore = 7;
+  } else {
+    // No documented entryPrice available: score 0 rather than guessing.
+    valueScore = 0;
+  }
 
   scoreBreakdown.push({
     criteria: "Value for Money",
     points: valueScore,
     maxPoints: 20,
-    reasoning: `Legacy price-band heuristic on ${bender.priceRange ?? "N/A"}; overridden by the modern features-per-dollar scoring in getProductScore.`,
+    reasoning:
+      Number.isFinite(entryPrice) && entryPrice > 0
+        ? `Numeric entryPrice tiering using ${entryPrice.toFixed(
+            0,
+          )} as the starter-system price (frame + dies + power + stand) from getProductScore.`
+        : `No documented starter-system pricing (entryPrice) available (frame + dies + power + stand). This category scores 0 rather than guessing.`,
   });
   totalScore += valueScore;
 
@@ -305,14 +322,37 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
   // the data exists; CLR ranges will be added once we have consistent data for
   // every machine in the comparison.
   let capacityScore = 0;
-  const maxCapacity = String(bender.maxCapacity ?? "").toLowerCase();
-  if (maxCapacity.includes("2.5") || maxCapacity.includes("2-1/2")) capacityScore = 10;
-  else if (maxCapacity.includes("2-3/8") || maxCapacity.includes("2.375")) capacityScore = 9;
-  else if (maxCapacity.includes("2.25") || maxCapacity.includes("2-1/4")) capacityScore = 8;
-  else if (maxCapacity.includes("2.0") || maxCapacity.includes('2"')) capacityScore = 7;
-  else if (maxCapacity.includes("1.75") || maxCapacity.includes("1-3/4")) capacityScore = 5;
-  else if (maxCapacity.includes("1.5") || maxCapacity.includes("1-1/2")) capacityScore = 3;
-  else if (maxCapacity) capacityScore = 2;
+  const maxCapacityRaw = bender.maxCapacity;
+  const maxCapacityText = String(maxCapacityRaw ?? "").toLowerCase().trim();
+
+  // Prefer numeric tiering when input is a clean number (fixes "2" scoring)
+  const maxCapacityNum =
+    typeof maxCapacityRaw === "number"
+      ? maxCapacityRaw
+      : (() => {
+          const n = parseFloat(maxCapacityText.replace(/[^0-9.+-]/g, ""));
+          return Number.isFinite(n) ? n : NaN;
+        })();
+
+  if (Number.isFinite(maxCapacityNum)) {
+    const n = maxCapacityNum;
+    if (n >= 2.5) capacityScore = 10;
+    else if (n >= 2.375) capacityScore = 9;
+    else if (n >= 2.25) capacityScore = 8;
+    else if (n >= 2.0) capacityScore = 7;
+    else if (n >= 1.75) capacityScore = 5;
+    else if (n >= 1.5) capacityScore = 3;
+    else if (n > 0) capacityScore = 2;
+  } else if (maxCapacityText) {
+    // Legacy string matching (kept for fractions like "2-1/4")
+    if (maxCapacityText.includes("2.5") || maxCapacityText.includes("2-1/2")) capacityScore = 10;
+    else if (maxCapacityText.includes("2-3/8") || maxCapacityText.includes("2.375")) capacityScore = 9;
+    else if (maxCapacityText.includes("2.25") || maxCapacityText.includes("2-1/4")) capacityScore = 8;
+    else if (maxCapacityText.includes("2.0") || maxCapacityText.includes('2"')) capacityScore = 7;
+    else if (maxCapacityText.includes("1.75") || maxCapacityText.includes("1-3/4")) capacityScore = 5;
+    else if (maxCapacityText.includes("1.5") || maxCapacityText.includes("1-1/2")) capacityScore = 3;
+    else capacityScore = 2;
+  }
 
   scoreBreakdown.push({
     criteria: "Max Diameter & CLR Capability",
@@ -333,7 +373,12 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
   // - < 120° → 2 pts
   // - no published angle → 0 pts
   let angleScore = 0;
-  const bendAngle = typeof bender.bendAngle === "number" ? bender.bendAngle : NaN;
+  const bendAngle =
+    typeof bender.bendAngle === "number"
+      ? bender.bendAngle
+      : typeof (bender as any).maxBendAngle === "number"
+      ? (bender as any).maxBendAngle
+      : NaN;
   if (!Number.isNaN(bendAngle)) {
     if (bendAngle >= 195) angleScore = 9;
     else if (bendAngle >= 180) angleScore = 7;
@@ -580,26 +625,36 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
 
   // 7. Track Record (Years in Business) (3 points)
   //
-  // Still a light, brand-based heuristic. Admin-facing /scoring copy explains
-  // that this is intentionally low-weight compared to performance categories.
+  // Scored ONLY from stated years-in-business when available.
+  // If years are missing, this category scores 0 rather than guessing from brand.
   let businessScore = 0;
-  if (brand === "Hossfeld") businessScore = 3;
-  else if (brand === "JD2") businessScore = 2;
-  else if (brand === "Pro-Tools" || brand === "Baileigh") businessScore = 2;
-  else if (brand === "RogueFab") businessScore = 1;
-  else if (brand === "SWAG Off Road") businessScore = 1;
-  else businessScore = 1;
+  const years = (bender as any).yearsInBusiness;
+  const yearsNum =
+    typeof years === "number"
+      ? years
+      : (() => {
+          const n = parseFloat(String(years ?? "").replace(/[^0-9.+-]/g, ""));
+          return Number.isFinite(n) ? n : NaN;
+        })();
+
+  // Prefer numeric years when available; otherwise score 0.
+  if (Number.isFinite(yearsNum)) {
+    if (yearsNum >= 25) businessScore = 3;
+    else if (yearsNum >= 10) businessScore = 2;
+    else if (yearsNum > 0) businessScore = 1;
+    else businessScore = 0;
+  } else {
+    businessScore = 0;
+  }
 
   scoreBreakdown.push({
     criteria: "Track Record (Years in Business)",
     points: businessScore,
     maxPoints: 3,
     reasoning:
-      businessScore >= 2
-        ? "Established industry veteran with a long operating history."
-        : businessScore >= 1
-        ? "Proven track record, but not as long-standing as the oldest brands."
-        : "Newer market entry.",
+      Number.isFinite(yearsNum) && yearsNum > 0
+        ? `Scored from stated years in business: ${yearsNum}.`
+        : "No published/entered years-in-business value; this category scores 0 rather than guessing from brand.",
   });
   totalScore += businessScore;
 
@@ -700,7 +755,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
   // 3-tier mapping:
   // - 0 pts: none
   // - 2 pts: "economy" mandrels (non-bronze, plastic/steel, etc.)
-  // - 4 pts: bronze / full mandrel system ("available" or explicitly "bronze")
+  // - 4 pts: bronze / full mandrel system ("bronze")
   let mandrelScore = 0;
   const mandrelRaw = String(
     (bender as any).mandrel ?? (bender as any).mandrelBender ?? "",
@@ -708,7 +763,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     .trim()
     .toLowerCase();
 
-  if (mandrelRaw === "bronze" || mandrelRaw === "available") {
+  if (mandrelRaw === "bronze") {
     mandrelScore = 4;
   } else if (mandrelRaw === "economy") {
     mandrelScore = 2;

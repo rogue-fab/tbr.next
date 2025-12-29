@@ -70,7 +70,7 @@ export async function GET(
         createdAt: published.created_at,
         updatedAt: published.updated_at,
       },
-      evidence: evidence.map((e: any) => ({
+      evidence: evidence.map((e) => ({
         id: e.id,
         fieldKey: e.field_key,
         sourceType: e.source_type,
@@ -125,12 +125,41 @@ export async function POST(
       productId,
       actor,
     });
+
+    // Helpful for UI + debugging: return the canonical published object we just created.
+    const published = await getLatestPublishedVersion(productId);
+    const evidence = published ? await getEvidenceForVersion(published.id) : [];
+
     return ok({
       publishedVersionId,
       productId,
       version,
       publishedAt: new Date().toISOString(),
       actor,
+      published: published
+        ? {
+            id: published.id,
+            productId: (published as any).product_id,
+            status: (published as any).status,
+            version: (published as any).version,
+            fields: (published as any).fields_json ?? {},
+            score: (published as any).score_json ?? {},
+            createdBy: (published as any).created_by,
+            createdAt: (published as any).created_at,
+            updatedAt: (published as any).updated_at,
+          }
+        : null,
+      evidence: evidence.map((e: any) => ({
+        id: e.id,
+        fieldKey: e.field_key,
+        sourceType: e.source_type,
+        url: e.url,
+        quotedText: e.quoted_text,
+        howGathered: e.how_gathered,
+        notes: e.notes,
+        verifiedBy: e.verified_by,
+        verifiedAt: e.verified_at,
+      })),
     });
   } catch (err: any) {
     if (err?.message === "NO_DRAFT") {

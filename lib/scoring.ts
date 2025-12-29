@@ -8,6 +8,108 @@ import {
   type ScoreBreakdownItem,
 } from "./scoringEngine";
 
+// Normalize admin/catalog fields into the canonical inputs the scoring engine expects.
+function toNumberOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+    // Extract leading numeric token if present ("5 – ..." => 5)
+    const m = s.match(/^(-?\d+(\.\d+)?)/);
+    const n = Number(m ? m[1] : s);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+// Admin fields commonly store "Yes"/"No" strings. JS treats any non-empty string as truthy,
+// so using !!value will incorrectly treat "No" as true. Fix that here.
+function toBool(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return Number.isFinite(v) && v !== 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (!s) return false;
+    if (s === "yes" || s === "true" || s === "1") return true;
+    if (s === "no" || s === "false" || s === "0") return false;
+  }
+  return false;
+}
+
+type MandrelTier = "none" | "economy" | "bronze";
+function normalizeMandrelTier(v: unknown): MandrelTier {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return "none";
+  // Accept some legacy/admin variants safely.
+  if (s === "none" || s === "no" || s === "not available" || s === "n/a") return "none";
+  if (s === "economy" || s.includes("plastic") || s.includes("aluminum") || s.includes("aluminium") || s.includes("steel"))
+    return "economy";
+  if (s === "bronze" || s.includes("nickel") || s.includes("brass")) return "bronze";
+  // Legacy value that used to mean "real system available"
+  if (s === "available" || s === "standard") return "bronze";
+  return "none";
+}
+
+function normalizeScoreInput<T extends Record<string, any>>(p: T): T {
+  const out: any = { ...p };
+
+  // Capacity naming drift:
+  // Some catalog paths still use `capacity` for max round-tube OD.
+  // The legacy scoring engine uses `maxCapacity`.
+  if (out.maxCapacity == null && out.capacity != null) {
+    out.maxCapacity = out.capacity;
+  }
+
+  // Key remaps (admin -> scorer canonical)
+  if (out.maxBendAngle == null && out.bendAngle != null) {
+    out.maxBendAngle = out.bendAngle;
+  }
+  if (out.maxWallAt175 == null && out.wallThicknessCapacity != null) {
+    out.maxWallAt175 = out.wallThicknessCapacity;
+  }
+
+  // Also allow the reverse direction (some data sources still provide legacy names)
+  if (out.bendAngle == null && out.maxBendAngle != null) {
+    out.bendAngle = out.maxBendAngle;
+  }
+  if (out.wallThicknessCapacity == null && out.maxWallAt175 != null) {
+    out.wallThicknessCapacity = out.maxWallAt175;
+  }
+  // Common legacy variant you printed in PS output
+  if (out.wallThicknessCapacity == null && out.maxWall175Dom != null) {
+    out.wallThicknessCapacity = out.maxWall175Dom;
+  }
+
+  // Mandrel legacy normalization:
+  // Older admin UI stored "Available"/"None". Canonical tokens are:
+  //   - "none"    => 0 pts
+  //   - "economy" => 2 pts
+  //   - "bronze"  => 4 pts
+  if (typeof out.mandrel === "string") {
+    const m = out.mandrel.trim().toLowerCase();
+    if (m === "available") out.mandrel = "bronze";
+    else if (m === "none") out.mandrel = "none";
+    // If someone typed "Bronze"/"Economy" previously, normalize casing.
+    else if (m === "bronze" || m === "economy") out.mandrel = m;
+  }
+
+  // Parse numeric-ish fields
+  if (out.maxCapacity != null) out.maxCapacity = toNumberOrNull(out.maxCapacity) ?? out.maxCapacity;
+  if (out.maxBendAngle != null) out.maxBendAngle = toNumberOrNull(out.maxBendAngle) ?? out.maxBendAngle;
+  if (out.maxWallAt175 != null) out.maxWallAt175 = toNumberOrNull(out.maxWallAt175) ?? out.maxWallAt175;
+  if (out.bendAngle != null) out.bendAngle = toNumberOrNull(out.bendAngle) ?? out.bendAngle;
+  if (out.wallThicknessCapacity != null) out.wallThicknessCapacity = toNumberOrNull(out.wallThicknessCapacity) ?? out.wallThicknessCapacity;
+
+  // Tier fields come in as "5 – ..." strings from admin; scorer wants 0-5 numbers.
+  if (out.usaManufacturingTier != null) out.usaManufacturingTier = toNumberOrNull(out.usaManufacturingTier) ?? out.usaManufacturingTier;
+  if (out.originTransparencyTier != null) out.originTransparencyTier = toNumberOrNull(out.originTransparencyTier) ?? out.originTransparencyTier;
+  if (out.singleSourceSystemTier != null) out.singleSourceSystemTier = toNumberOrNull(out.singleSourceSystemTier) ?? out.singleSourceSystemTier;
+  if (out.warrantyTier != null) out.warrantyTier = toNumberOrNull(out.warrantyTier) ?? out.warrantyTier;
+
+  return out;
+}
+
 export type ScoringMethod = "tier" | "scaled" | "binary" | "brand";
 
 export type ScoringCategory = {
@@ -168,6 +270,11 @@ export type ProductScore = {
   source: ProductScoreSource;
   /** Optional per-category breakdown when using the computed algorithm. */
   breakdown?: ScoreBreakdownItem[];
+  /**
+   * Small diagnostic payload for UI panels (no devtools needed).
+   * This is the *interpreted* inputs we actually fed the scoring engine.
+   */
+  debugInput?: Record<string, unknown>;
 };
 
 /**
@@ -190,7 +297,10 @@ export function getProductScore(
     return { total: null, source: "none" };
   }
 
-  const p: any = product;
+  // IMPORTANT: public pages pass merged catalog + admin overlay.
+  // Admin overlay uses UI-friendly strings and some different key names.
+  // Normalize before scoring so edits actually affect the score.
+  const p: any = normalizeScoreInput(product);
 
   // Derive a system "entry price" from component-level min/max pricing where available.
   const parsePrice = (v: unknown): number =>
@@ -224,30 +334,59 @@ export function getProductScore(
 
   // --- Adapter into the legacy engine ---
   const scoringInput: ScoringInput = {
+    brand: p.brand ?? undefined,
+    powerType: p.powerType ?? undefined,
     entryPrice,
-    maxTubeOD: parseFloat(String(p.maxTubeOD ?? "")) || undefined,
-    maxBendAngle: parseFloat(String(p.maxBendAngle ?? "")) || undefined,
-    maxWallAt175: parseFloat(String(p.maxWallAt175 ?? "")) || undefined,
+    // Legacy engine uses maxCapacity (stringy) and bendAngle (number)
+    maxCapacity:
+      p.maxCapacity != null && String(p.maxCapacity).trim() !== ""
+        ? String(p.maxCapacity).trim()
+        : undefined,
+    bendAngle:
+      p.maxBendAngle != null && String(p.maxBendAngle).trim() !== ""
+        ? Number(toNumberOrNull(p.maxBendAngle))
+        : undefined,
     dieShapes: Array.isArray(p.dieShapes) ? p.dieShapes : [],
-    yearsInBusiness: parseFloat(String(p.yearsInBusiness ?? "")) || undefined,
+    yearsInBusiness:
+      p.yearsInBusiness != null && String(p.yearsInBusiness).trim() !== ""
+        ? Number(toNumberOrNull(p.yearsInBusiness))
+        : undefined,
     usaManufacturingTier: p.usaManufacturingTier ?? p.usaManufacturingDisclosure ?? 0,
     originTransparencyTier: p.originTransparencyTier ?? 0,
     singleSourceSystemTier: p.singleSourceSystemTier ?? 0,
     warrantyTier: p.warrantyTier ?? 0,
     portability: p.portability ?? undefined,
-    wallThicknessCapacity: p.wallThicknessCapacity ?? undefined,
+    wallThicknessCapacity:
+      p.wallThicknessCapacity != null && String(p.wallThicknessCapacity).trim() !== ""
+        ? Number(toNumberOrNull(p.wallThicknessCapacity))
+        : undefined,
     materials: p.materials ?? undefined,
     dieShapesTier: p.dieShapesTier ?? undefined,
-    mandrel: p.mandrel ?? undefined,
-    hasPowerUpgradePath: !!p.hasPowerUpgradePath,
-    lengthStop: !!p.lengthStop,
-    rotationIndexing: !!p.rotationIndexing,
-    angleMeasurement: !!p.angleMeasurement,
-    autoStop: !!p.autoStop,
-    thickWallUpgrade: !!p.thickWallUpgrade,
-    thinWallUpgrade: !!p.thinWallUpgrade,
-    wiperDieSupport: !!p.wiperDieSupport,
-    sBendCapability: !!p.sBendCapability,
+    // Mandrel is a strict 3-state tier: none | economy | bronze
+    mandrel: normalizeMandrelTier(p.mandrel ?? p.mandrelBender),
+    hasPowerUpgradePath: toBool(p.hasPowerUpgradePath),
+    lengthStop: toBool(p.lengthStop),
+    rotationIndexing: toBool(p.rotationIndexing),
+    angleMeasurement: toBool(p.angleMeasurement),
+    autoStop: toBool(p.autoStop),
+    thickWallUpgrade: toBool(p.thickWallUpgrade),
+    thinWallUpgrade: toBool(p.thinWallUpgrade),
+    wiperDieSupport: toBool(p.wiperDieSupport),
+    sBendCapability: toBool(p.sBendCapability),
+  };
+
+  // Expose the actual interpreted inputs for UI diagnostics.
+  // (Keeps this transparent without opening devtools.)
+  const debugInput = {
+    entryPrice: scoringInput.entryPrice ?? null,
+    brand: scoringInput.brand ?? null,
+    powerType: scoringInput.powerType ?? null,
+    maxCapacity: scoringInput.maxCapacity ?? null,
+    bendAngle: scoringInput.bendAngle ?? null,
+    wallThicknessCapacity: scoringInput.wallThicknessCapacity ?? null,
+    yearsInBusiness: scoringInput.yearsInBusiness ?? null,
+    dieShapesCount: Array.isArray(scoringInput.dieShapes) ? scoringInput.dieShapes.length : null,
+    mandrel: scoringInput.mandrel ?? null,
   };
 
   try {
@@ -267,13 +406,27 @@ export function getProductScore(
         }))
       : [];
 
+    // Minimal, on-page diagnostics without devtools.
+    // The review page can display this via score.breakdown (criteria/reasoning).
+    normalizedBreakdown.unshift({
+      criteria: "Scoring Inputs (debug)",
+      points: 0,
+      maxPoints: 0,
+      reasoning: JSON.stringify(
+        { entryPrice, maxCapacity: scoringInput.maxCapacity, bendAngle: scoringInput.bendAngle, wallThicknessCapacity: scoringInput.wallThicknessCapacity },
+        null,
+        2,
+      ),
+    });
+
     return {
       total: scored.totalScore,
       source: "computed",
       breakdown: normalizedBreakdown,
+      debugInput,
     };
   } catch (err) {
     console.warn("[scoring] failed to compute score:", err);
-    return { total: null, source: "none" };
+    return { total: null, source: "none", debugInput };
   }
 }
