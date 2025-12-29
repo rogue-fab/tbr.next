@@ -752,10 +752,10 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
 
   // 9. Mandrel Compatibility (4 points)
   //
-  // 3-tier mapping:
-  // - 0 pts: none
-  // - 2 pts: "economy" mandrels (non-bronze, plastic/steel, etc.)
-  // - 4 pts: bronze / full mandrel system ("bronze")
+  // 3-tier mapping (canonical tokens):
+  // - "none"    → 0 pts
+  // - "economy" → 2 pts (plastic/aluminum/steel or otherwise non-bronze)
+  // - "bronze"  → 4 pts (nickel/bronze or equivalent bronze-class system, factory-supported)
   let mandrelScore = 0;
   const mandrelRaw = String(
     (bender as any).mandrel ?? (bender as any).mandrelBender ?? "",
@@ -763,21 +763,23 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     .trim()
     .toLowerCase();
 
-  if (mandrelRaw === "bronze") {
+  if (mandrelRaw === "bronze" || mandrelRaw.includes("bronze") || mandrelRaw.includes("nickel")) {
     mandrelScore = 4;
   } else if (mandrelRaw === "economy") {
     mandrelScore = 2;
+  } else {
+    mandrelScore = 0;
   }
 
   let mandrelReason: string;
   if (mandrelScore === 4) {
     mandrelReason =
-      "Mandrel bending capability documented by the manufacturer for this frame with a full bronze or equivalent mandrel system.";
+      "Mandrel bending capability documented by the manufacturer for this frame with a bronze-class mandrel system (e.g., nickel/bronze), or an explicitly equivalent factory-supported system.";
   } else if (mandrelScore === 2) {
     mandrelReason =
       "Economy mandrel option documented by the manufacturer for this frame (non-bronze mandrels such as plastic, aluminum, or steel).";
   } else {
-    mandrelReason = "No documented mandrel capability for this frame.";
+    mandrelReason = "No documented mandrel capability for this frame (or not documented clearly enough to score).";
   }
 
   scoreBreakdown.push({

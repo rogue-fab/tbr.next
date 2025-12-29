@@ -86,10 +86,12 @@ export async function PUT(
       return {
         fieldKey: e.fieldKey,
         sourceType: e.sourceType,
-        url: e.url,
-        quotedText: e.quotedText ?? null,
-        howGathered: e.howGathered ?? null,
-        notes: e.notes ?? null,
+        url: e.url ?? undefined,
+        // IMPORTANT: EvidenceInsert uses optional fields (string | undefined), not nullable fields.
+        // Normalize null/empty to undefined to satisfy types + keep JSON clean.
+        quotedText: e.quotedText ?? undefined,
+        howGathered: e.howGathered ?? undefined,
+        notes: e.notes ?? undefined,
         verifiedBy,
         verifiedAt,
       };

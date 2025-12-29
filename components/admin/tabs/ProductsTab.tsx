@@ -470,8 +470,9 @@ export default function ProductsTab() {
       key: "mandrel",
       label: "* Mandrel option",
       description:
-        "Select the manufacturer-documented mandrel offering for this frame. If it is not explicitly documented, score is 0 (none).",
-      // Canonical tokens consumed by the scoring engine. Keep these stable.
+        "Select the highest documented mandrel capability for this frame. If the manufacturer does not clearly document mandrel support for this specific model, pick None.",
+      // IMPORTANT: these are canonical tokens consumed by scoring + UI.
+      // Keep them stable and machine-readable (no marketing labels).
       options: ["none", "economy", "bronze"],
     },
     {

@@ -81,17 +81,29 @@ function normalizeScoreInput<T extends Record<string, any>>(p: T): T {
     out.wallThicknessCapacity = out.maxWall175Dom;
   }
 
-  // Mandrel legacy normalization:
-  // Older admin UI stored "Available"/"None". Canonical tokens are:
-  //   - "none"    => 0 pts
-  //   - "economy" => 2 pts
-  //   - "bronze"  => 4 pts
+  // Mandrel normalization:
+  // - Admin UI should store canonical tokens: "none" | "economy" | "bronze"
+  // - Older data may still have "Available"/"None" or other variants.
   if (typeof out.mandrel === "string") {
-    const m = out.mandrel.trim().toLowerCase();
-    if (m === "available") out.mandrel = "bronze";
-    else if (m === "none") out.mandrel = "none";
-    // If someone typed "Bronze"/"Economy" previously, normalize casing.
-    else if (m === "bronze" || m === "economy") out.mandrel = m;
+    const s = out.mandrel.trim().toLowerCase();
+    if (!s) {
+      out.mandrel = "none";
+    } else if (s === "available") {
+      // Legacy label: treat as the best tier (bronze-class) to preserve intent.
+      out.mandrel = "bronze";
+    } else if (s === "none" || s === "no") {
+      out.mandrel = "none";
+    } else if (s === "economy") {
+      out.mandrel = "economy";
+    } else if (s.includes("bronze") || s.includes("nickel")) {
+      // Be forgiving with labels like "Nickel/Bronze", "nickel-bronze", etc.
+      out.mandrel = "bronze";
+    } else {
+      // Unknown strings default to none (FTC-safe: no guessing).
+      out.mandrel = "none";
+    }
+  } else if (out.mandrel == null) {
+    out.mandrel = "none";
   }
 
   // Parse numeric-ish fields
@@ -362,8 +374,7 @@ export function getProductScore(
         : undefined,
     materials: p.materials ?? undefined,
     dieShapesTier: p.dieShapesTier ?? undefined,
-    // Mandrel is a strict 3-state tier: none | economy | bronze
-    mandrel: normalizeMandrelTier(p.mandrel ?? p.mandrelBender),
+    mandrel: p.mandrel ?? "none",
     hasPowerUpgradePath: toBool(p.hasPowerUpgradePath),
     lengthStop: toBool(p.lengthStop),
     rotationIndexing: toBool(p.rotationIndexing),
