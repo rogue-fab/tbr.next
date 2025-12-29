@@ -15,8 +15,9 @@ type JSONValue =
  * Join SQL fragments with a separator.
  * (Our postgres library's `sql` tag does not expose `sql.join`.)
  */
-function joinSql(chunks: Sql[], sep: Sql): Sql {
-  return chunks.reduce((acc, cur, i) => (i === 0 ? cur : sql`${acc}${sep}${cur}`));
+type SqlChunk = Sql | unknown;
+function joinSql(chunks: SqlChunk[], sep: Sql): SqlChunk {
+  return chunks.reduce((acc, cur, i) => (i === 0 ? cur : sql`${acc}${sep}${cur}` as SqlChunk));
 }
 
 export type EvidenceInsert = {
