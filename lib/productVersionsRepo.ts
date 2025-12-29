@@ -1,6 +1,5 @@
 // lib/productVersionsRepo.ts
 import { sql } from "./db";
-import type { Sql } from "postgres";
 
 // JSONValue type for Drizzle/postgres JSON column typing
 type JSONValue =
@@ -10,15 +9,6 @@ type JSONValue =
   | null
   | { [key: string]: JSONValue }
   | JSONValue[];
-
-/**
- * Join SQL fragments with a separator.
- * (Our postgres library's `sql` tag does not expose `sql.join`.)
- */
-type SqlChunk = Sql | unknown;
-function joinSql(chunks: SqlChunk[], sep: Sql): SqlChunk {
-  return chunks.reduce((acc, cur, i) => (i === 0 ? cur : sql`${acc}${sep}${cur}` as SqlChunk));
-}
 
 export type EvidenceInsert = {
   id?: string;
@@ -116,27 +106,24 @@ export async function saveProductDraft(args: {
     `;
 
     if (evidence.length) {
-      await tx`
-        insert into product_field_evidence
-          (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
-        values
-          ${joinSql(
-            evidence.map(
-              (e) => sql`(
-                ${draftVersionId},
-                ${e.fieldKey},
-                ${e.sourceType},
-                ${e.url ?? null},
-                ${e.quotedText ?? null},
-                ${e.howGathered ?? null},
-                ${e.notes ?? null},
-                ${e.verifiedBy},
-                ${e.verifiedAt}
-              )`
-            ),
-            sql`, `
-          )}
-      `;
+      for (const e of evidence) {
+        await tx`
+          insert into product_field_evidence
+            (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
+          values
+            (
+              ${draftVersionId},
+              ${e.fieldKey},
+              ${e.sourceType},
+              ${e.url ?? null},
+              ${e.quotedText ?? null},
+              ${e.howGathered ?? null},
+              ${e.notes ?? null},
+              ${e.verifiedBy},
+              ${e.verifiedAt}
+            )
+        `;
+      }
     }
 
     return { draftVersionId };
@@ -323,27 +310,24 @@ export async function publishCurrentDraft(args: {
     }>;
 
     if (evidence?.length) {
-      await tx`
-        insert into product_field_evidence
-          (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
-        values
-          ${joinSql(
-            evidence.map(
-              (e) => sql`(
-                ${publishedVersionId},
-                ${e.field_key},
-                ${e.source_type},
-                ${e.url ?? null},
-                ${e.quoted_text ?? null},
-                ${e.how_gathered ?? null},
-                ${e.notes ?? null},
-                ${e.verified_by},
-                ${new Date(e.verified_at)}
-              )`
-            ),
-            sql`, `
-          )}
-      `;
+      for (const e of evidence) {
+        await tx`
+          insert into product_field_evidence
+            (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
+          values
+            (
+              ${publishedVersionId},
+              ${e.field_key},
+              ${e.source_type},
+              ${e.url ?? null},
+              ${e.quoted_text ?? null},
+              ${e.how_gathered ?? null},
+              ${e.notes ?? null},
+              ${e.verified_by},
+              ${new Date(e.verified_at)}
+            )
+        `;
+      }
     }
 
     return { publishedVersionId, version: nextVersion };
