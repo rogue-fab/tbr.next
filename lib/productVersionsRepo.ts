@@ -110,19 +110,21 @@ export async function saveProductDraft(args: {
         insert into product_field_evidence
           (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
         values
-          ${tx(
-            evidence.map((e) => [
-              draftVersionId,
-              e.fieldKey,
-              e.sourceType,
-              // Drizzle EscapableArray does not accept null; normalize here.
-              e.url ?? undefined,
-              e.quotedText ?? undefined,
-              e.howGathered ?? undefined,
-              e.notes ?? undefined,
-              e.verifiedBy,
-              e.verifiedAt,
-            ]),
+          ${sql.join(
+            evidence.map(
+              (e) => sql`(
+                ${draftVersionId},
+                ${e.fieldKey},
+                ${e.sourceType},
+                ${e.url ?? null},
+                ${e.quotedText ?? null},
+                ${e.howGathered ?? null},
+                ${e.notes ?? null},
+                ${e.verifiedBy},
+                ${e.verifiedAt}
+              )`
+            ),
+            sql`, `
           )}
       `;
     }
@@ -315,19 +317,21 @@ export async function publishCurrentDraft(args: {
         insert into product_field_evidence
           (product_version_id, field_key, source_type, url, quoted_text, how_gathered, notes, verified_by, verified_at)
         values
-          ${tx(
-            evidence.map((e) => [
-              publishedVersionId,
-              e.field_key,
-              e.source_type,
-              // Drizzle EscapableArray does not accept null; normalize here.
-              e.url ?? undefined,
-              e.quoted_text ?? undefined,
-              e.how_gathered ?? undefined,
-              e.notes ?? undefined,
-              e.verified_by,
-              new Date(e.verified_at),
-            ]),
+          ${sql.join(
+            evidence.map(
+              (e) => sql`(
+                ${publishedVersionId},
+                ${e.field_key},
+                ${e.source_type},
+                ${e.url ?? null},
+                ${e.quoted_text ?? null},
+                ${e.how_gathered ?? null},
+                ${e.notes ?? null},
+                ${e.verified_by},
+                ${new Date(e.verified_at)}
+              )`
+            ),
+            sql`, `
           )}
       `;
     }
