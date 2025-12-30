@@ -4,6 +4,7 @@
 
 import {
   calculateTubeBenderScore,
+  type ScoringContext,
   type ScoringInput,
   type ScoreBreakdownItem,
 } from "./scoringEngine";
@@ -140,7 +141,7 @@ export type ScoringCategory = {
 };
 
 /** Total possible score across all categories. */
-export const TOTAL_POINTS = 100;
+export const TOTAL_POINTS = 99;
 
 /** 15-category, 100-point scoring framework. */
 export const SCORING_CATEGORIES: ScoringCategory[] = [
@@ -157,10 +158,10 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     index: 2,
     key: "easeOfUseSetup",
     name: "Ease of Use & Setup",
-    maxPoints: 11,
+    maxPoints: 10,
     method: "tier",
     tagline:
-      "Portability/base configuration plus basic ergonomics and operational refinement that affect day-to-day use.",
+      "Evidence-only checklist (0–7) plus portability/base configuration (0–3). No brand-based scoring.",
   },
   {
     index: 3,
@@ -304,6 +305,7 @@ export function getProductScore(
       }
     | null
     | undefined,
+  ctx?: ScoringContext,
 ): ProductScore {
   if (!product) {
     return { total: null, source: "none" };
@@ -349,6 +351,8 @@ export function getProductScore(
     brand: p.brand ?? undefined,
     powerType: p.powerType ?? undefined,
     entryPrice,
+    // Ease of Use is now evidence-only (no subjective tiers, no brand scoring).
+    // Portability is already a normalized token; the rest are boolean/enum flags.
     // Legacy engine uses maxCapacity (stringy) and bendAngle (number)
     maxCapacity:
       p.maxCapacity != null && String(p.maxCapacity).trim() !== ""
@@ -376,6 +380,15 @@ export function getProductScore(
     dieShapesTier: p.dieShapesTier ?? undefined,
     mandrel: p.mandrel ?? "none",
     hasPowerUpgradePath: toBool(p.hasPowerUpgradePath),
+    // Ease of Use & Setup (Category #2) – evidence-only flags
+    hasManual: toBool(p.hasManual),
+    hasOnMachineInstructions: toBool(p.hasOnMachineInstructions),
+    hasAngleReference: toBool(p.hasAngleReference),
+    hasAngleStop: toBool(p.hasAngleStop),
+    rotationAid: typeof p.rotationAid === "string" ? p.rotationAid : undefined,
+    quickDieChange: toBool(p.quickDieChange),
+    hasMfrYoutubeModelContent: toBool(p.hasMfrYoutubeModelContent),
+    hasSetupMountingGuidance: toBool(p.hasSetupMountingGuidance),
     lengthStop: toBool(p.lengthStop),
     rotationIndexing: toBool(p.rotationIndexing),
     angleMeasurement: toBool(p.angleMeasurement),
@@ -392,6 +405,7 @@ export function getProductScore(
     entryPrice: scoringInput.entryPrice ?? null,
     brand: scoringInput.brand ?? null,
     powerType: scoringInput.powerType ?? null,
+    easeOfUseTier: (scoringInput as any).easeOfUseTier ?? null,
     maxCapacity: scoringInput.maxCapacity ?? null,
     bendAngle: scoringInput.bendAngle ?? null,
     wallThicknessCapacity: scoringInput.wallThicknessCapacity ?? null,

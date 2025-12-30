@@ -448,6 +448,67 @@ export default function ProductsTab() {
         "rolling_standard",
       ],
     },
+    // --- Ease of Use & Setup (Category #2) – Evidence-only, robotic, reproducible ---
+    {
+      key: "hasManual",
+      label: "* Manual available (online or explicitly included) (Yes/No)",
+      description:
+        "1 pt if the manufacturer provides a downloadable manual OR explicitly states a manual is included. If not shown/promised, score 0.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasOnMachineInstructions",
+      label: "* On-machine operation instructions/tips shown/promised (Yes/No)",
+      description:
+        "1 pt only if photos/video/listing show printed/engraved/label instructions on the machine, OR the listing explicitly promises them. Not obvious = 0.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasAngleReference",
+      label: "* Built-in bend angle reference (scale/reference, not a loose cube) (Yes/No)",
+      description:
+        "1 pt if the machine/tooling has a built-in scale or reference for bend angle (shown or promised). Loose magnetic angle cubes on the tube do NOT count.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasAngleStop",
+      label: "* Angle stop available (mechanical or equivalent) (Yes/No)",
+      description:
+        "1 pt if the manufacturer documents a bend-angle stop (mechanical or equivalent). Auto-stop (electronic) is already tracked elsewhere; this is for simple stops too.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "rotationAid",
+      label: "* Rotation aid type (evidence-only)",
+      description:
+        "Scores 1 pt ONLY for: chuck/indexer, clamp-on analog, or clamp-on digital. Magnet-only-on-tube scores 0 (fails on non-ferrous like aluminum). None/unknown = 0.",
+      options: [
+        "none",
+        "magnet_on_tube",
+        "clamp_on_analog",
+        "clamp_on_digital",
+        "chuck_or_indexer",
+      ],
+    },
+    {
+      key: "quickDieChange",
+      label: "* Quick die change engineered aid (documented) (Yes/No)",
+      description:
+        "1 pt ONLY if the manufacturer documents an engineered process/tool/feature that materially reduces die-change friction (e.g., lock/retainer/tooling that enables one-hand change or eliminates juggling parts). If not documented, 0.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasMfrYoutubeModelContent",
+      label: "* Official YouTube content for this exact model (robotic rule) (Yes/No)",
+      description:
+        "1 pt ONLY if the manufacturer-owned YouTube channel has instructional content featuring this exact model AND it appears in the top 10 YouTube search results for: (BRAND + MODEL). Otherwise 0.",
+      options: ["", "Yes", "No"],
+    },
+    // NOTE: Ease-of-use checklist items are now handled by explicit, evidence-only flags
+    // in the scoring engine + customer-facing /scoring page. We intentionally removed the
+    // old "setup/mounting guidance" checklist item because it was too collinear with
+    // "manual available" and didn't add defensible signal. Do not re-add it unless the
+    // scoring rules change.
     {
       key: "bendAngle",
       label: "* Bend Angle (°)",

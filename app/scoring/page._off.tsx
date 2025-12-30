@@ -8,6 +8,8 @@ import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
 // render the generic "Tier mapping" box beneath it (it becomes duplicate/bloated).
 const CATS_WITH_EXACT_RULES = new Set<string>([
   "easeOfUseSetup",
+  "maxDiameterRadius",
+  "bendAngleCapability",
   "usaManufacturingDisclosure",
   "originTransparency",
   "singleSourceSystem",
@@ -35,6 +37,12 @@ type Leader = { value: number; label: string };
 function pickLeader(best: Leader | null, value: number, label: string): Leader {
   if (!best) return { value, label };
   if (value > best.value) return { value, label };
+  return best;
+}
+
+function pickMin(best: Leader | null, value: number, label: string): Leader {
+  if (!best) return { value, label };
+  if (value < best.value) return { value, label };
   return best;
 }
 
@@ -94,6 +102,55 @@ function ExactRules({ catKey }: { catKey: string }) {
             </ul>
             <div className="mt-2 text-gray-600">If it's not publicly documented or shown, it scores 0. No guessing.</div>
             <div className="mt-2 text-gray-600">Final = min(10, portability + evidence checklist).</div>
+          </div>
+        </>
+      );
+
+    case "maxDiameterRadius":
+      return (
+        <>
+          <p className="text-xs text-gray-600">
+            <span className="font-semibold text-gray-900">What we score:</span>{" "}
+            maximum published round-tube OD capacity (<span className="font-mono">maxCapacity</span>). CLR is display-only (not scored) until CLR data is standardized across all models.
+          </p>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Exact point tiers (10 max)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>≥ 2.5 → 10</li>
+              <li>≥ 2.375 → 9</li>
+              <li>≥ 2.25 → 8</li>
+              <li>≥ 2.0 → 7</li>
+              <li>≥ 1.75 → 5</li>
+              <li>≥ 1.5 → 3</li>
+              <li>&gt; 0 → 2</li>
+              <li>missing/unknown → 0</li>
+            </ul>
+            <div className="mt-2 text-gray-600">
+              Note: the dataset min/max shown on this page is for transparency only and does not affect scoring.
+            </div>
+          </div>
+        </>
+      );
+
+    case "bendAngleCapability":
+      return (
+        <>
+          <p className="text-xs text-gray-600">
+            <span className="font-semibold text-gray-900">What we score:</span>{" "}
+            maximum published bend angle in degrees (<span className="font-mono">maxBendAngle</span>/<span className="font-mono">bendAngle</span>). Missing angle scores 0.
+          </p>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Exact point tiers (9 max)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>≥ 195° → 9</li>
+              <li>180–194° → 7</li>
+              <li>120–179° → 4</li>
+              <li>&lt; 120° → 2</li>
+              <li>missing/unknown → 0</li>
+            </ul>
+            <div className="mt-2 text-gray-600">
+              Note: the dataset min/max shown on this page is for transparency only and does not affect scoring.
+            </div>
           </div>
         </>
       );
@@ -197,15 +254,14 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
           ) : null}
         </div>
       );
-    case "maxDiameterRadius":
+    case "maxDiameterRadius": {
+      const min = maxima?.maxOdMin?.value ?? null;
+      const max = maxima?.maxOd?.value ?? null;
       return (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score today:</span> maximum published round-tube OD capacity (<span className="font-mono">maxCapacity</span>). CLR is not yet in the math because CLR data is not standardized across all models.
-          </p>
-          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Exact point tiers (10 max)</div>
-            <ul className="list-disc pl-5 space-y-1">
+        <>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Exact point tiers (10 max)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
               <li>≥ 2.5 → 10</li>
               <li>≥ 2.375 → 9</li>
               <li>≥ 2.25 → 8</li>
@@ -215,43 +271,39 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
               <li>&gt; 0 → 2</li>
               <li>missing/unknown → 0</li>
             </ul>
+            <div className="mt-2 text-gray-600">
+              Current dataset OD range:{" "}
+              {min != null ? `${min.toFixed(3)} in (min)` : "—"} →{" "}
+              {max != null ? `${max.toFixed(3)} in (max)` : "—"}
+            </div>
           </div>
-          {maxima.maxCapacity ? (
-            <p className="text-[11px] text-gray-600">
-              <span className="font-semibold">Current dataset max OD:</span>{" "}
-              <span className="font-semibold">{maxima.maxCapacity.value.toFixed(3)}</span> in ({maxima.maxCapacity.label})
-            </p>
-          ) : (
-            <p className="text-[11px] text-gray-600">
-              <span className="font-semibold">Current dataset max OD:</span> unavailable (no parseable maxCapacity values in the dataset).
-            </p>
-          )}
-        </div>
+        </>
       );
-    case "bendAngleCapability":
+    }
+
+    case "bendAngleCapability": {
+      const min = maxima?.maxAngleMin?.value ?? null;
+      const max = maxima?.maxAngle?.value ?? null;
       return (
-        <div className="space-y-2">
-          <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> maximum published bend angle (<span className="font-mono">maxBendAngle</span>/<span className="font-mono">bendAngle</span>). Missing angle scores 0.
-          </p>
-          <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Exact point tiers (9 max)</div>
-            <ul className="list-disc pl-5 space-y-1">
+        <>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Exact point tiers (9 max)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
               <li>≥ 195° → 9</li>
               <li>180–194° → 7</li>
               <li>120–179° → 4</li>
               <li>&lt; 120° → 2</li>
               <li>missing/unknown → 0</li>
             </ul>
+            <div className="mt-2 text-gray-600">
+              Current dataset angle range:{" "}
+              {min != null ? `${Math.round(min)}° (min)` : "—"} →{" "}
+              {max != null ? `${Math.round(max)}° (max)` : "—"}
+            </div>
           </div>
-          {maxima.maxBendAngle ? (
-            <p className="text-[11px] text-gray-600">
-              <span className="font-semibold">Current dataset max angle:</span>{" "}
-              <span className="font-semibold">{maxima.maxBendAngle.value.toFixed(0)}°</span> ({maxima.maxBendAngle.label})
-            </p>
-          ) : null}
-        </div>
+        </>
       );
+    }
     case "wallThicknessCapability":
       return (
         <div className="space-y-2">
@@ -272,10 +324,10 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
               If the manufacturer publishes a material list, we score it by mapping documented materials into weighted buckets (mild steel, 4130, stainless, aluminum, titanium, copper/brass/bronze, other). If no list is published, this sub-score is 0.
             </p>
           </div>
-          {maxima.maxWallAt175 ? (
+          {maxima["wallThicknessCapability"] ? (
             <p className="text-[11px] text-gray-600">
               <span className="font-semibold">Current dataset max wall @ 1.75&quot;:</span>{" "}
-              <span className="font-semibold">{maxima.maxWallAt175.value.toFixed(3)}&quot;</span> ({maxima.maxWallAt175.label})
+              <span className="font-semibold">{maxima["wallThicknessCapability"].value.toFixed(3)}&quot;</span> ({maxima["wallThicknessCapability"].label})
             </p>
           ) : null}
         </div>
@@ -436,6 +488,12 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
           </div>
         </div>
       );
+    case "easeOfUseSetup":
+      return (
+        <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+          {/* Intentionally blank: easeOfUseSetup is fully defined by ExactRules above. */}
+        </div>
+      );
     default:
       return (
         <p className="text-xs text-gray-600">
@@ -449,23 +507,36 @@ export default async function ScoringPage() {
   // Pull the same merged dataset public pages use so maxima auto-update.
   const all = (await getAllTubeBendersWithOverlay()) as any[];
 
-  let maxCapacity: Leader | null = null;
-  let maxBendAngle: Leader | null = null;
-  let maxWallAt175: Leader | null = null;
-  let minEntry: Leader | null = null;
-  let maxEntry: Leader | null = null;
+  // Existing maxima build...
+  const maxima: Record<string, Leader | null> = {};
+  const minima: Record<string, Leader | null> = {};
+
+  // Track dataset min/max for OD and angle for display (human reproducible).
+  // Keys match scoring category keys.
+  minima["maxDiameterRadius"] = null;
+  minima["bendAngleCapability"] = null;
 
   for (const p of all) {
     const label = titleOf(p);
 
+    // Max OD (Category 3)
     const cap = toNum(p?.maxCapacity ?? p?.capacity);
-    if (cap != null && cap > 0) maxCapacity = pickLeader(maxCapacity, cap, label);
+    if (cap != null && cap > 0) {
+      maxima["maxDiameterRadius"] = pickLeader(maxima["maxDiameterRadius"] ?? null, cap, label);
+      minima["maxDiameterRadius"] = pickMin(minima["maxDiameterRadius"] ?? null, cap, label);
+    }
 
+    // Bend angle (Category 4)
     const ang = toNum(p?.maxBendAngle ?? p?.bendAngle);
-    if (ang != null && ang > 0) maxBendAngle = pickLeader(maxBendAngle, ang, label);
+    if (ang != null && ang > 0) {
+      maxima["bendAngleCapability"] = pickLeader(maxima["bendAngleCapability"] ?? null, ang, label);
+      minima["bendAngleCapability"] = pickMin(minima["bendAngleCapability"] ?? null, ang, label);
+    }
 
     const wall = toNum(p?.wallThicknessCapacity ?? p?.maxWallAt175 ?? p?.maxWall175Dom);
-    if (wall != null && wall > 0) maxWallAt175 = pickLeader(maxWallAt175, wall, label);
+    if (wall != null && wall > 0) {
+      maxima["wallThicknessCapability"] = pickLeader(maxima["wallThicknessCapability"] ?? null, wall, label);
+    }
 
     // entryPrice is derived inside getProductScore; we don't recompute it here to avoid drift.
     // We still compute a *best-effort* price range from component mins/maxes for transparency.
@@ -476,17 +547,11 @@ export default async function ScoringPage() {
     const minSys = (frameMin ?? 0) + (dieMin ?? 0) + (hydMin ?? 0) + (standMin ?? 0);
     if (minSys > 0) {
       // min leader is tracked by negative value trick (keep it simple)
-      if (!minEntry || minSys < minEntry.value) minEntry = { value: minSys, label };
-      maxEntry = pickLeader(maxEntry, minSys, label);
+      const minEntry = minima["entryPriceMinMax"] ?? null;
+      if (!minEntry || minSys < minEntry.value) minima["entryPriceMinMax"] = { value: minSys, label };
+      maxima["entryPriceMinMax"] = pickLeader(maxima["entryPriceMinMax"] ?? null, minSys, label);
     }
   }
-
-  const maxima = {
-    maxCapacity,
-    maxBendAngle,
-    maxWallAt175,
-    entryPriceMinMax: maxEntry, // used as a "seen range" hint; details explained in the UI
-  } as const;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -566,10 +631,10 @@ export default async function ScoringPage() {
             <div className="rounded-lg border bg-gray-50 p-3">
               <div className="font-semibold text-gray-900">Max OD capacity (published)</div>
               <div className="mt-1">
-                {maxCapacity ? (
+                {maxima["maxDiameterRadius"] ? (
                   <>
-                    <span className="font-semibold">{maxCapacity.value.toFixed(3)} in</span>
-                    <div className="text-[11px] text-gray-600 mt-1">{maxCapacity.label}</div>
+                    <span className="font-semibold">{maxima["maxDiameterRadius"].value.toFixed(3)} in</span>
+                    <div className="text-[11px] text-gray-600 mt-1">{maxima["maxDiameterRadius"].label}</div>
                   </>
                 ) : (
                   <span className="text-gray-600">No parseable maxCapacity values</span>
@@ -579,10 +644,10 @@ export default async function ScoringPage() {
             <div className="rounded-lg border bg-gray-50 p-3">
               <div className="font-semibold text-gray-900">Max bend angle (published)</div>
               <div className="mt-1">
-                {maxBendAngle ? (
+                {maxima["bendAngleCapability"] ? (
                   <>
-                    <span className="font-semibold">{maxBendAngle.value.toFixed(0)}°</span>
-                    <div className="text-[11px] text-gray-600 mt-1">{maxBendAngle.label}</div>
+                    <span className="font-semibold">{maxima["bendAngleCapability"].value.toFixed(0)}°</span>
+                    <div className="text-[11px] text-gray-600 mt-1">{maxima["bendAngleCapability"].label}</div>
                   </>
                 ) : (
                   <span className="text-gray-600">No parseable bend angles</span>
@@ -592,10 +657,10 @@ export default async function ScoringPage() {
             <div className="rounded-lg border bg-gray-50 p-3">
               <div className="font-semibold text-gray-900">Max wall @ 1.75&quot; DOM (published)</div>
               <div className="mt-1">
-                {maxWallAt175 ? (
+                {maxima["wallThicknessCapability"] ? (
                   <>
-                    <span className="font-semibold">{maxWallAt175.value.toFixed(3)}&quot;</span>
-                    <div className="text-[11px] text-gray-600 mt-1">{maxWallAt175.label}</div>
+                    <span className="font-semibold">{maxima["wallThicknessCapability"].value.toFixed(3)}&quot;</span>
+                    <div className="text-[11px] text-gray-600 mt-1">{maxima["wallThicknessCapability"].label}</div>
                   </>
                 ) : (
                   <span className="text-gray-600">No parseable wall thickness values</span>
@@ -646,19 +711,6 @@ export default async function ScoringPage() {
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2 text-xs text-gray-600">
-                    <div className="text-xs text-gray-600">
-                      Method:{" "}
-                      {cat.key === "easeOfUseSetup"
-                        ? "Checklist + portability (evidence-only)"
-                        : cat.method === "tier"
-                        ? "Tier-based"
-                        : cat.method === "scaled"
-                        ? "Scaled (fixed thresholds)"
-                        : cat.method === "binary"
-                        ? "Binary"
-                        : "Brand-based"}
-                    </div>
-
                     {/* Exact rules (FTC-safe, reproducible) */}
                     <div className="mt-4">
                       <ExactRules catKey={catKey} />
@@ -675,12 +727,33 @@ export default async function ScoringPage() {
                         </div>
                       </div>
                     ) : null}
-                    {/* RulesBlock is a fallback helper. If ExactRules already prints the full mapping,
-                        do not render RulesBlock (it can add stray "rules are defined..." text and/or
-                        duplicate grey boxes). */}
+                    {/* RulesBlock contains legacy fixed-tier tables for some categories.
+                        If ExactRules is present for this category, suppress RulesBlock to avoid duplicate/conflicting boxes. */}
                     {!skipGenericTierBox ? (
-                      <RulesBlock catKey={cat.key} maxima={maxima as any} />
-                    ) : null}
+                      <RulesBlock
+                        catKey={cat.key}
+                        maxima={{
+                          ...maxima,
+                          maxOdMin: minima["maxDiameterRadius"],
+                          maxOd: maxima["maxDiameterRadius"],
+                          maxAngleMin: minima["bendAngleCapability"],
+                          maxAngle: maxima["bendAngleCapability"],
+                        } as any}
+                      />
+                    ) : (
+                      <>
+                        {cat.key === "maxDiameterRadius" && maxima["maxDiameterRadius"] ? (
+                          <div className="mt-3 text-[11px] text-gray-600">
+                            Current dataset OD range: {minima["maxDiameterRadius"]?.value?.toFixed(3)} in (min) → {maxima["maxDiameterRadius"]?.value?.toFixed(3)} in (max)
+                          </div>
+                        ) : null}
+                        {cat.key === "bendAngleCapability" && maxima["bendAngleCapability"] ? (
+                          <div className="mt-3 text-[11px] text-gray-600">
+                            Current dataset angle range: {minima["bendAngleCapability"]?.value?.toFixed(0)}° (min) → {maxima["bendAngleCapability"]?.value?.toFixed(0)}° (max)
+                          </div>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                   <div className="space-y-2 text-xs text-gray-600">
                     <p className="font-medium text-gray-900">Data sources & verification</p>

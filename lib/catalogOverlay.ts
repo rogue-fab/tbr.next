@@ -7,6 +7,13 @@ import {
 import { mergeWithOverlay } from "./adminStore";
 import { sql } from "./db";
 import { getLatestPublishedVersionsForProducts } from "./productVersionsRepo";
+import { getProductScore } from "./scoring";
+
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = parseFloat(String(v).replace(/[^0-9.+-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
 
 /**
  * Neon row shape for bender_overlays.
@@ -230,7 +237,7 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
     publishedMap[pid] = (row as any).fields_json ?? {};
   }
 
-  return baseWithJsonOverlay.map((raw) => {
+  const mergedProducts = baseWithJsonOverlay.map((raw) => {
     const id = (raw as any).id as string | undefined;
     const neonOverlay = id ? neonMap[id] ?? null : null;
 
@@ -300,6 +307,41 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
       citations: parsedCitations ?? b.citations ?? null,
     } as Product;
   });
+
+  // Compute dataset min/max for autoscaled categories (OD + Bend Angle).
+  // CLR intentionally excluded for now.
+  let minOd: number | null = null;
+  let maxOd: number | null = null;
+  let minAngle: number | null = null;
+  let maxAngle: number | null = null;
+
+  for (const p of mergedProducts as any[]) {
+    const od = toNum((p as any)?.maxCapacity ?? (p as any)?.capacity);
+    if (od != null && od > 0) {
+      minOd = minOd == null ? od : Math.min(minOd, od);
+      maxOd = maxOd == null ? od : Math.max(maxOd, od);
+    }
+    const ang = toNum((p as any)?.bendAngle ?? (p as any)?.maxBendAngle);
+    if (ang != null && ang > 0) {
+      minAngle = minAngle == null ? ang : Math.min(minAngle, ang);
+      maxAngle = maxAngle == null ? ang : Math.max(maxAngle, ang);
+    }
+  }
+
+  const ctx = {
+    minOdIn: minOd,
+    maxOdIn: maxOd,
+    minBendAngleDeg: minAngle,
+    maxBendAngleDeg: maxAngle,
+  };
+
+  // Attach computed score using dataset context so review totals actually autoscale.
+  const withScores = mergedProducts.map((p) => {
+    const score = getProductScore(p, ctx);
+    return { ...p, score };
+  });
+
+  return withScores;
 }
 
 /**

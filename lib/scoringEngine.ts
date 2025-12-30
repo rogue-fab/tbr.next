@@ -8,6 +8,55 @@
  * Integration into the current catalog happens via adapter code elsewhere.
  */
 
+export type ScoringContext = {
+  /**
+   * Dataset min/max used for autoscaling in specific categories.
+   * If omitted, those categories fall back to fixed thresholds (backward compatible).
+   */
+  minOdIn?: number | null;
+  maxOdIn?: number | null;
+  minBendAngleDeg?: number | null;
+  maxBendAngleDeg?: number | null;
+};
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function roundInt(n: number): number {
+  return Math.round(n);
+}
+
+/**
+ * Autoscale with "missing=0, lowest=1, highest=maxPoints" to maximize discrimination.
+ * - If dataset min/max are missing, signal caller to use legacy fallback.
+ * - If min==max, every defined value gets maxPoints (no discrimination possible).
+ */
+function minMaxScaledPoints(
+  value: number | undefined,
+  datasetMin: number | null | undefined,
+  datasetMax: number | null | undefined,
+  maxPoints: number,
+): number {
+  if (value == null || !Number.isFinite(value)) return 0; // undefined stays 0 by design
+  if (datasetMin == null || datasetMax == null) return -1;
+  if (!Number.isFinite(datasetMin) || !Number.isFinite(datasetMax)) return -1;
+  if (datasetMax <= 0) return -1;
+  if (datasetMin <= 0) return -1;
+
+  // Clamp input into observed dataset range so outliers don't produce >maxPoints.
+  const v = clamp(value, datasetMin, datasetMax);
+
+  // If all machines share the same value, give full points to all defined values.
+  if (datasetMax === datasetMin) return maxPoints;
+
+  // Map: datasetMin -> 1, datasetMax -> maxPoints
+  // points = 1 + round(((v - min)/(max - min)) * (maxPoints - 1))
+  const t = (v - datasetMin) / (datasetMax - datasetMin);
+  const raw = 1 + t * (maxPoints - 1);
+  return clamp(roundInt(raw), 1, maxPoints);
+}
+
 // Extract leading integer tier from a string like "5 – Frame + dies + hydraulics..."
 // or accept a numeric value directly. Clamps to [0, max].
 function parseTier(raw: unknown, max: number): number {
@@ -146,18 +195,17 @@ export interface ScoringInput {
   priceRange?: string;
   entryPrice?: number;
   powerType?: string;
-  /**
-   * Portability / how the machine lives in the shop.
-   *
-   * Expected normalized values:
-   * - "fixed"                        → 0  (must be anchored / immovable for use)
-   * - "portable"                     → 1  (self-contained & movable, no rolling option)
-   * - "portable_with_rolling_option" → 2  (portable, with a documented cart / rolling upgrade)
-   * - "rolling" or "rolling_standard"→ 3  (ships on wheels / designed to roll around the shop)
-   *
-   * Anything else is treated conservatively as 0 until the admin overlay is wired up.
-   */
-  portability?: string;
+  portability?: "fixed" | "portable" | "portable_with_rolling_option" | "rolling_standard" | string;
+
+  // Ease of Use & Setup (Category #2) – evidence-only fields
+  hasManual?: boolean;
+  hasOnMachineInstructions?: boolean;
+  hasAngleReference?: boolean;
+  hasAngleStop?: boolean;
+  rotationAid?: "none" | "magnet_on_tube" | "clamp_on_analog" | "clamp_on_digital" | "chuck_or_indexer" | string;
+  quickDieChange?: boolean;
+  hasMfrYoutubeModelContent?: boolean;
+  hasSetupMountingGuidance?: boolean;
   maxCapacity?: string;
   maxTubeOD?: number;
   maxBendAngle?: number;
@@ -199,7 +247,40 @@ export interface ScoredResult {
  * implementation, with added null/undefined guards and string coercion so that
  * it is safe to call even when some fields are missing.
  */
-export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
+function portabilityPoints(portability: ScoringInput["portability"]): number {
+  switch (String(portability ?? "").trim().toLowerCase()) {
+    case "rolling_standard":
+      return 3;
+    case "portable_with_rolling_option":
+      return 2;
+    case "portable":
+      return 1;
+    case "fixed":
+    default:
+      return 0;
+  }
+}
+
+function easeChecklistPoints(input: ScoringInput): number {
+  let pts = 0;
+  if (input.hasManual) pts += 1;
+  if (input.hasOnMachineInstructions) pts += 1;
+  if (input.hasAngleReference) pts += 1;
+  if (input.hasAngleStop) pts += 1;
+
+  const ra = String(input.rotationAid ?? "").trim().toLowerCase();
+  // 1 pt only for clamp-on (analog/digital) or chuck/indexer. Magnet-only or none = 0.
+  if (ra === "clamp_on_analog" || ra === "clamp_on_digital" || ra === "chuck_or_indexer") pts += 1;
+
+  if (input.quickDieChange) pts += 1;
+  if (input.hasMfrYoutubeModelContent) pts += 1;
+  return pts;
+}
+
+export function calculateTubeBenderScore(
+  bender: ScoringInput,
+  ctx?: ScoringContext,
+): ScoredResult {
   const scoreBreakdown: ScoreBreakdownItem[] = [];
   let totalScore = 0;
 
@@ -236,163 +317,126 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
   });
   totalScore += valueScore;
 
-  // 2. Ease of Use & Setup (11 points)
+  // 2. Ease of Use & Setup (10 points)
   //
-  // This combines:
-  // - A base ergonomics/operation score (7–11 pts) driven by legacy
-  //   brand/power-type heuristics.
-  // - A portability tier (0–3 pts) from the admin "portability" field:
-  //     0 = fixed base only
-  //     1 = portable, no rolling option
-  //     2 = portable with optional rolling base/cart
-  //     3 = rolling base as a standard feature
-  //
-  // The final category score is clamped to 11/11.
-  const brand = String(bender.brand ?? "");
-  const powerType = String(bender.powerType ?? "");
+  // Evidence-only scoring: 0–3 portability + 0–7 evidence checklist. No brand scoring. No subjective tiers.
+  const easePort = portabilityPoints(bender.portability);
+  const easeChk = easeChecklistPoints(bender);
+  const easePoints = Math.min(10, easePort + easeChk);
 
-  let easeBase = 0;
-  if (brand === "RogueFab") easeBase = 11;
-  else if (brand === "SWAG Off Road") easeBase = 10;
-  else if (brand === "JD2") easeBase = 9;
-  else if (powerType.toLowerCase().includes("manual")) easeBase = 8;
-  else if (powerType.toLowerCase().includes("hydraulic")) easeBase = 9;
-  else easeBase = 7;
-
-  const portabilityRaw = String(
-    (bender as any).portability ?? (bender as any).mobility ?? "",
-  )
-    .trim()
-    .toLowerCase();
-
-  let portabilityScore = 0;
-  let portabilityLabel = "fixed base / no portability data";
-
-  if (portabilityRaw) {
-    if (
-      portabilityRaw.includes("rolling") &&
-      (portabilityRaw.includes("standard") ||
-        portabilityRaw.includes("included") ||
-        portabilityRaw.includes("built-in"))
-    ) {
-      portabilityScore = 3;
-      portabilityLabel = "rolling base as a standard feature";
-    } else if (
-      portabilityRaw.includes("rolling") ||
-      portabilityRaw.includes("cart")
-    ) {
-      portabilityScore = 2;
-      portabilityLabel = "portable with optional rolling base/cart";
-    } else if (portabilityRaw.includes("portable")) {
-      portabilityScore = 1;
-      portabilityLabel = "portable (no rolling option)";
-    } else if (
-      portabilityRaw.includes("fixed") ||
-      portabilityRaw.includes("floor") ||
-      portabilityRaw.includes("bench")
-    ) {
-      portabilityScore = 0;
-      portabilityLabel = "fixed base that must be mounted to use";
-    } else {
-      portabilityScore = 0;
-      portabilityLabel =
-        "unspecified portability; treated as fixed for scoring purposes";
-    }
-  }
-
-  let easeScore = easeBase + portabilityScore;
-  if (easeScore > 11) easeScore = 11;
+  const portabilityLabel =
+    easePort === 3
+      ? "rolling_standard"
+      : easePort === 2
+      ? "portable_with_rolling_option"
+      : easePort === 1
+      ? "portable"
+      : "fixed";
 
   scoreBreakdown.push({
     criteria: "Ease of Use & Setup",
-    points: easeScore,
-    maxPoints: 11,
-    reasoning: `${powerType || "Unknown power type"} operation with ${
-      brand || "unknown brand"
-    } ergonomics (base score ${easeBase}/11) and portability tier: ${portabilityLabel} (+${portabilityScore} pts).`,
-  });
-  totalScore += easeScore;
-
-  // 3. Max Diameter & CLR Capability (10 points)
-  //
-  // NOTE: As of now this category scores *only* maximum round tube OD based on
-  // published specs. CLR is not yet wired into the numeric score because CLR
-  // data is not standardized across all machines. The /scoring page copy is
-  // explicit about this so we are not pretending to use CLR in the math before
-  // the data exists; CLR ranges will be added once we have consistent data for
-  // every machine in the comparison.
-  let capacityScore = 0;
-  const maxCapacityRaw = bender.maxCapacity;
-  const maxCapacityText = String(maxCapacityRaw ?? "").toLowerCase().trim();
-
-  // Prefer numeric tiering when input is a clean number (fixes "2" scoring)
-  const maxCapacityNum =
-    typeof maxCapacityRaw === "number"
-      ? maxCapacityRaw
-      : (() => {
-          const n = parseFloat(maxCapacityText.replace(/[^0-9.+-]/g, ""));
-          return Number.isFinite(n) ? n : NaN;
-        })();
-
-  if (Number.isFinite(maxCapacityNum)) {
-    const n = maxCapacityNum;
-    if (n >= 2.5) capacityScore = 10;
-    else if (n >= 2.375) capacityScore = 9;
-    else if (n >= 2.25) capacityScore = 8;
-    else if (n >= 2.0) capacityScore = 7;
-    else if (n >= 1.75) capacityScore = 5;
-    else if (n >= 1.5) capacityScore = 3;
-    else if (n > 0) capacityScore = 2;
-  } else if (maxCapacityText) {
-    // Legacy string matching (kept for fractions like "2-1/4")
-    if (maxCapacityText.includes("2.5") || maxCapacityText.includes("2-1/2")) capacityScore = 10;
-    else if (maxCapacityText.includes("2-3/8") || maxCapacityText.includes("2.375")) capacityScore = 9;
-    else if (maxCapacityText.includes("2.25") || maxCapacityText.includes("2-1/4")) capacityScore = 8;
-    else if (maxCapacityText.includes("2.0") || maxCapacityText.includes('2"')) capacityScore = 7;
-    else if (maxCapacityText.includes("1.75") || maxCapacityText.includes("1-3/4")) capacityScore = 5;
-    else if (maxCapacityText.includes("1.5") || maxCapacityText.includes("1-1/2")) capacityScore = 3;
-    else capacityScore = 2;
-  }
-
-  scoreBreakdown.push({
-    criteria: "Max Diameter & CLR Capability",
-    points: capacityScore,
+    points: easePoints,
     maxPoints: 10,
-    reasoning: `${
-      bender.maxCapacity ?? "Unknown"
-    } maximum round tube capacity based on published specs. Math today is OD-only; CLR ranges will be added to the score once consistent CLR data is available for all machines.`,
+    reasoning:
+      `Portability: ${easePort}/3. Evidence checklist: ${easeChk}/7. ` +
+      `Manual=${bender.hasManual ? "Yes" : "No"}, On-machine instructions=${bender.hasOnMachineInstructions ? "Yes" : "No"}, ` +
+      `Angle reference=${bender.hasAngleReference ? "Yes" : "No"}, Angle stop=${bender.hasAngleStop ? "Yes" : "No"}, ` +
+      `Rotation aid=${String(bender.rotationAid ?? "none")}, Quick die change=${bender.quickDieChange ? "Yes" : "No"}, ` +
+      `Mfr YouTube model content=${bender.hasMfrYoutubeModelContent ? "Yes" : "No"}.`,
   });
-  totalScore += capacityScore;
+  totalScore += easePoints;
 
-  // 4. Bend Angle Capability (9 points)
-  //
-  // Explicit tiers:
-  // - ≥ 195° → 9 pts
-  // - 180–194° → 7 pts
-  // - 120–179° → 4 pts
-  // - < 120° → 2 pts
-  // - no published angle → 0 pts
-  let angleScore = 0;
-  const bendAngle =
-    typeof bender.bendAngle === "number"
-      ? bender.bendAngle
-      : typeof (bender as any).maxBendAngle === "number"
-      ? (bender as any).maxBendAngle
-      : NaN;
-  if (!Number.isNaN(bendAngle)) {
-    if (bendAngle >= 195) angleScore = 9;
-    else if (bendAngle >= 180) angleScore = 7;
-    else if (bendAngle >= 120) angleScore = 4;
-    else angleScore = 2;
+  // 3. Max Diameter & CLR Capability (10 pts)
+  // Autoscale OD using dataset min/max (missing=0, lowest=1, highest=10).
+  // Human reproducible: points = 1 + round(((OD-minOD)/(maxOD-minOD)) * (10-1)), clamped 1..10.
+  {
+    const maxPoints = 10;
+    const od = (() => {
+      // legacy input is often a string field (maxCapacity) representing OD in inches
+      const raw = bender?.maxCapacity ?? (bender as any)?.capacity ?? "";
+      const n = Number(String(raw).trim());
+      return Number.isFinite(n) ? n : undefined;
+    })();
+
+    const autoscaled = minMaxScaledPoints(od, ctx?.minOdIn ?? null, ctx?.maxOdIn ?? null, maxPoints);
+    if (autoscaled >= 0) {
+      totalScore += autoscaled;
+      scoreBreakdown.push({
+        criteria: "Max Diameter & CLR Capability",
+        points: autoscaled,
+        maxPoints,
+        reasoning: `Autoscaled vs dataset OD range: OD=${od ?? "missing"} in; min=${ctx?.minOdIn} in; max=${ctx?.maxOdIn} in; points=missing→0 else 1+round(((OD-min)/(max-min))*(${maxPoints}-1)). CLR is display-only (not scored).`,
+      });
+    } else {
+      // Fallback to existing fixed-threshold tiers if dataset maxima isn't available.
+      // (Keeps backward compatibility for call sites that don't pass ctx yet.)
+      // --- BEGIN legacy block (unchanged behavior) ---
+      let pts = 0;
+      const v = od ?? 0;
+      if (v >= 2.5) pts = 10;
+      else if (v >= 2.375) pts = 9;
+      else if (v >= 2.25) pts = 8;
+      else if (v >= 2.0) pts = 7;
+      else if (v >= 1.75) pts = 5;
+      else if (v >= 1.5) pts = 3;
+      else if (v > 0) pts = 2;
+      else pts = 0;
+      totalScore += pts;
+      scoreBreakdown.push({
+        criteria: "Max Diameter & CLR Capability",
+        points: pts,
+        maxPoints,
+        reasoning: "Fallback fixed thresholds used (dataset maxima not provided). CLR is display-only (not scored).",
+      });
+      // --- END legacy block ---
+    }
   }
 
-  scoreBreakdown.push({
-    criteria: "Bend Angle Capability",
-    points: angleScore,
-    maxPoints: 9,
-    reasoning: Number.isNaN(bendAngle) ? "No published bend angle" : `${bendAngle}° maximum bend angle`,
-  });
-  totalScore += angleScore;
+  // 4. Bend Angle Capability (9 pts)
+  // Autoscale angle using dataset min/max (missing=0, lowest=1, highest=9).
+  // Human reproducible: points = 1 + round(((A-minA)/(maxA-minA)) * (9-1)), clamped 1..9.
+  {
+    const maxPoints = 9;
+    const angle = (() => {
+      const raw = bender?.bendAngle ?? (bender as any)?.maxBendAngle ?? "";
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : undefined;
+    })();
+
+    const autoscaled = minMaxScaledPoints(
+      angle,
+      ctx?.minBendAngleDeg ?? null,
+      ctx?.maxBendAngleDeg ?? null,
+      maxPoints,
+    );
+    if (autoscaled >= 0) {
+      totalScore += autoscaled;
+      scoreBreakdown.push({
+        criteria: "Bend Angle Capability",
+        points: autoscaled,
+        maxPoints,
+        reasoning: `Autoscaled vs dataset angle range: angle=${angle ?? "missing"}°; min=${ctx?.minBendAngleDeg}°; max=${ctx?.maxBendAngleDeg}°; points=missing→0 else 1+round(((A-min)/(max-min))*(${maxPoints}-1)).`,
+      });
+    } else {
+      // Fallback to existing fixed-threshold tiers if dataset maxima isn't available.
+      // --- BEGIN legacy block (unchanged behavior) ---
+      let pts = 0;
+      const a = angle ?? 0;
+      if (a >= 195) pts = 9;
+      else if (a >= 180) pts = 7;
+      else if (a >= 120) pts = 4;
+      else if (a > 0) pts = 2;
+      else pts = 0;
+      totalScore += pts;
+      scoreBreakdown.push({
+        criteria: "Bend Angle Capability",
+        points: pts,
+        maxPoints,
+        reasoning: "Fallback fixed thresholds used (dataset maxima not provided).",
+      });
+      // --- END legacy block ---
+    }
+  }
 
   // 5. Wall Thickness Capability (9 points)
   //
