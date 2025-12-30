@@ -4,6 +4,15 @@ import Link from "next/link";
 import { SCORING_CATEGORIES, TOTAL_POINTS } from "../../lib/scoring";
 import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
 
+// If ExactRules() renders an explicit mapping for a category, we must NOT also
+// render the generic "Tier mapping" box beneath it (it becomes duplicate/bloated).
+const CATS_WITH_EXACT_RULES = new Set<string>([
+  "easeOfUseSetup",
+  "usaManufacturingDisclosure",
+  "originTransparency",
+  "singleSourceSystem",
+]);
+
 export const metadata: Metadata = {
   title: "Tube Bender Scoring Methodology",
   description:
@@ -51,6 +60,109 @@ function MethodBadge({ method }: { method: string }) {
       Method: {label}
     </span>
   );
+}
+
+function ExactRules({ catKey }: { catKey: string }) {
+  // This page must be human-reproducible and FTC-safe:
+  // - Describe EXACT tiers / mappings that match scoringEngine.ts today
+  // - Never imply we "infer" missing data: missing/unknown => 0 for that sub-score/category where applicable
+  switch (catKey) {
+    case "easeOfUseSetup":
+      return (
+        <>
+          <p className="text-xs text-gray-600">
+            <span className="font-semibold text-gray-900">What we score:</span>{" "}
+            portability (0–3) plus an evidence checklist (0–7). No brand-based scoring. No subjective tiers.
+          </p>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">A) Portability (0–3)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li><span className="font-mono">fixed</span> → 0</li>
+              <li><span className="font-mono">portable</span> → 1</li>
+              <li><span className="font-mono">portable_with_rolling_option</span> → 2</li>
+              <li><span className="font-mono">rolling_standard</span> → 3</li>
+            </ul>
+            <div className="mt-3 font-semibold text-gray-900">B) Evidence checklist (1 pt each; 7 max)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>Manual available (downloadable or explicitly included)</li>
+              <li>On-machine operation instructions/tips shown/promised</li>
+              <li>Built-in bend angle reference (scale/reference; loose magnetic cube does not count)</li>
+              <li>Angle stop available (mechanical or equivalent)</li>
+              <li>Rotation aid: chuck/indexer or clamp-on analog/digital (magnet-only scores 0; fails on non-ferrous)</li>
+              <li>Quick die change engineered aid documented</li>
+              <li>Official manufacturer YouTube instructional content for this exact model (top-10 YT results for BRAND+MODEL)</li>
+            </ul>
+            <div className="mt-2 text-gray-600">If it's not publicly documented or shown, it scores 0. No guessing.</div>
+            <div className="mt-2 text-gray-600">Final = min(10, portability + evidence checklist).</div>
+          </div>
+        </>
+      );
+
+    case "usaManufacturingDisclosure":
+      return (
+        <>
+          <p className="text-xs text-gray-600">
+            <span className="font-semibold text-gray-900">What we score:</span>{" "}
+            a disclosure-based tier (0–5) based solely on the manufacturer's own published claims. This is{" "}
+            <span className="font-semibold">not</span> a legal opinion and not an FTC compliance ruling.
+          </p>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Tier meaning (points = tier number)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li><span className="font-semibold">5</span> → FTC-unqualified "Made in USA" claim (explicitly stated by manufacturer).</li>
+              <li><span className="font-semibold">4</span> → Strong USA build claim (frame + dies clearly USA; hydraulics mostly/partially USA per disclosure).</li>
+              <li><span className="font-semibold">3</span> → "Made/Assembled in USA" claim with substantial USA content described (e.g., majority USA parts/materials stated or clearly implied in published copy).</li>
+              <li><span className="font-semibold">1</span> → USA assembly claimed but imported parts/content not described well enough to justify a higher tier.</li>
+              <li><span className="font-semibold">0</span> → Imported, no meaningful USA claim, or only vague USA-flavored language.</li>
+            </ul>
+            <div className="mt-2 text-gray-600">
+              Missing/unclear disclosure → score conservatively at the lower tier. We do not guess.
+            </div>
+          </div>
+        </>
+      );
+
+    case "originTransparency":
+      return (
+        <>
+          <p className="text-xs text-gray-600">
+            <span className="font-semibold text-gray-900">What we score:</span>{" "}
+            how clearly the manufacturer documents the origin of major components. This scores documentation quality only; it does not reward or penalize any country.
+          </p>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Tier meaning (points = tier number)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li><span className="font-semibold">5</span> → Clear documentation of frame, dies, hydraulics, and other major components (with minimal gaps).</li>
+              <li><span className="font-semibold">4</span> → Clear origin info for most major components, with only minor gaps.</li>
+              <li><span className="font-semibold">3</span> → Partial disclosure (some key components documented, others omitted).</li>
+              <li><span className="font-semibold">2</span> → Minimal disclosure (scattered or vague origin language).</li>
+              <li><span className="font-semibold">0</span> → No meaningful origin disclosure or conflicting/unclear claims.</li>
+            </ul>
+          </div>
+        </>
+      );
+
+    case "singleSourceSystem":
+      return (
+        <>
+          <p className="text-xs text-gray-600">
+            <span className="font-semibold text-gray-900">What we score:</span>{" "}
+            whether a normal buyer can obtain a complete, fully functional bending system from one primary storefront/manufacturer — specifically:
+            frame + dies + the required power/actuation (hydraulics or lever), plus the stand/base if it is required for normal use.
+          </p>
+          <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+            <div className="font-semibold text-gray-900">Binary mapping (2 max)</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li><span className="font-semibold">2 points</span> → full system available from one primary source, and the system is sold as a coherent platform under that source (no required "go elsewhere" components).</li>
+              <li><span className="font-semibold">0 points</span> → anything else (missing key components, requires sourcing elsewhere, or unclear completeness).</li>
+            </ul>
+          </div>
+        </>
+      );
+
+    default:
+      return null;
+  }
 }
 
 function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string, Leader | null> }) {
@@ -503,11 +615,15 @@ export default async function ScoringPage() {
           </h2>
 
           <div className="space-y-6">
-            {SCORING_CATEGORIES.map((cat) => (
-              <article
-                key={cat.key}
-                className="rounded-xl border border-gray-200 bg-white px-5 py-5 shadow-sm"
-              >
+            {SCORING_CATEGORIES.map((cat) => {
+              const catKey = cat.key;
+              const skipGenericTierBox = CATS_WITH_EXACT_RULES.has(catKey);
+
+              return (
+                <article
+                  key={cat.key}
+                  className="rounded-xl border border-gray-200 bg-white px-5 py-5 shadow-sm"
+                >
                 <header className="flex flex-col justify-between gap-2 sm:flex-row sm:items-baseline">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900">
@@ -530,8 +646,41 @@ export default async function ScoringPage() {
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-2 text-xs text-gray-600">
-                    <p className="font-medium text-gray-900">Exact rules</p>
-                    <RulesBlock catKey={cat.key} maxima={maxima as any} />
+                    <div className="text-xs text-gray-600">
+                      Method:{" "}
+                      {cat.key === "easeOfUseSetup"
+                        ? "Checklist + portability (evidence-only)"
+                        : cat.method === "tier"
+                        ? "Tier-based"
+                        : cat.method === "scaled"
+                        ? "Scaled (fixed thresholds)"
+                        : cat.method === "binary"
+                        ? "Binary"
+                        : "Brand-based"}
+                    </div>
+
+                    {/* Exact rules (FTC-safe, reproducible) */}
+                    <div className="mt-4">
+                      <ExactRules catKey={catKey} />
+                    </div>
+
+                    {/* Generic helper mapping
+                        IMPORTANT: Do NOT show this when ExactRules already prints the mapping,
+                        otherwise the user sees two grey boxes saying the same thing. */}
+                    {cat.method === "tier" && !skipGenericTierBox ? (
+                      <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
+                        <div className="font-semibold text-gray-900">Tier mapping</div>
+                        <div className="mt-1 text-gray-600">
+                          Points equal the tier number (0–{cat.maxPoints}).
+                        </div>
+                      </div>
+                    ) : null}
+                    {/* RulesBlock is a fallback helper. If ExactRules already prints the full mapping,
+                        do not render RulesBlock (it can add stray "rules are defined..." text and/or
+                        duplicate grey boxes). */}
+                    {!skipGenericTierBox ? (
+                      <RulesBlock catKey={cat.key} maxima={maxima as any} />
+                    ) : null}
                   </div>
                   <div className="space-y-2 text-xs text-gray-600">
                     <p className="font-medium text-gray-900">Data sources & verification</p>
@@ -551,7 +700,8 @@ export default async function ScoringPage() {
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         </section>
 
