@@ -9,6 +9,21 @@ import {
   type ScoreBreakdownItem,
 } from "./scoringEngine";
 
+function normalizeStringList(v: unknown): string[] | undefined {
+  if (Array.isArray(v)) {
+    const out = v.map((x) => String(x ?? "").trim()).filter(Boolean);
+    return out.length ? out : undefined;
+  }
+  if (typeof v === "string") {
+    const out = v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return out.length ? out : undefined;
+  }
+  return undefined;
+}
+
 // Normalize admin/catalog fields into the canonical inputs the scoring engine expects.
 function toNumberOrNull(v: unknown): number | null {
   if (v === null || v === undefined) return null;
@@ -141,7 +156,7 @@ export type ScoringCategory = {
 };
 
 /** Total possible score across all categories. */
-export const TOTAL_POINTS = 99;
+export const TOTAL_POINTS = 100;
 
 /** 15-category, 100-point scoring framework. */
 export const SCORING_CATEGORIES: ScoringCategory[] = [
@@ -184,11 +199,11 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
   {
     index: 5,
     key: "wallThicknessCapability",
-    name: "Wall Thickness Capability",
-    maxPoints: 9,
+    name: "Stress Capacity & Materials",
+    maxPoints: 10,
     method: "scaled",
     tagline:
-      "How thick of a 1.75\" DOM wall the manufacturer is willing to put in writing for this frame, using their own published specs.",
+      "Published max wall thickness for 1.75\" OD DOM (0–6), plus a simple count of documented compatible materials (0–4). Missing wall thickness scores 0 for the entire category.",
   },
   {
     index: 6,
@@ -376,7 +391,7 @@ export function getProductScore(
       p.wallThicknessCapacity != null && String(p.wallThicknessCapacity).trim() !== ""
         ? Number(toNumberOrNull(p.wallThicknessCapacity))
         : undefined,
-    materials: p.materials ?? undefined,
+    materials: normalizeStringList(p.materials),
     dieShapesTier: p.dieShapesTier ?? undefined,
     mandrel: p.mandrel ?? "none",
     hasPowerUpgradePath: toBool(p.hasPowerUpgradePath),
@@ -409,6 +424,7 @@ export function getProductScore(
     maxCapacity: scoringInput.maxCapacity ?? null,
     bendAngle: scoringInput.bendAngle ?? null,
     wallThicknessCapacity: scoringInput.wallThicknessCapacity ?? null,
+    materialsCount: Array.isArray(scoringInput.materials) ? scoringInput.materials.length : null,
     yearsInBusiness: scoringInput.yearsInBusiness ?? null,
     dieShapesCount: Array.isArray(scoringInput.dieShapes) ? scoringInput.dieShapes.length : null,
     mandrel: scoringInput.mandrel ?? null,

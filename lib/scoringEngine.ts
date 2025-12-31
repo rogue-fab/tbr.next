@@ -277,6 +277,41 @@ function easeChecklistPoints(input: ScoringInput): number {
   return pts;
 }
 
+/**
+ * Canonical resolver for Max OD (inches).
+ *
+ * Accepts legacy aliases but centralizes interpretation in ONE place.
+ * If value is missing or unparseable, returns null (scores 0).
+ *
+ * NOTE: This intentionally avoids dataset-relative logic.
+ * Fixed tiers are the authoritative scoring model for Category #3.
+ */
+function resolveMaxOdIn(bender: ScoringInput): number | null {
+  const raw =
+    (bender as any)?.maxCapacity ??
+    (bender as any)?.capacity ??
+    null;
+  const n = Number(String(raw ?? "").trim());
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Canonical resolver for maximum bend angle (degrees).
+ *
+ * Prefers `maxBendAngle` when present; falls back to legacy `bendAngle`.
+ * Returns null if missing or unparseable.
+ *
+ * Fixed-tier scoring only. Dataset-relative autoscaling is intentionally disabled.
+ */
+function resolveMaxBendAngleDeg(bender: ScoringInput): number | null {
+  const raw =
+    (bender as any)?.maxBendAngle ??
+    (bender as any)?.bendAngle ??
+    null;
+  const n = Number(String(raw ?? "").trim());
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export function calculateTubeBenderScore(
   bender: ScoringInput,
   ctx?: ScoringContext,
@@ -347,105 +382,72 @@ export function calculateTubeBenderScore(
   totalScore += easePoints;
 
   // 3. Max Diameter & CLR Capability (10 pts)
-  // Autoscale OD using dataset min/max (missing=0, lowest=1, highest=10).
-  // Human reproducible: points = 1 + round(((OD-minOD)/(maxOD-minOD)) * (10-1)), clamped 1..10.
+  // Fixed-tier scoring ONLY.
+  // Autoscaling was evaluated and explicitly rejected for FTC defensibility.
+  // Dataset min/max are display-only and must not affect scoring.
   {
     const maxPoints = 10;
-    const od = (() => {
-      // legacy input is often a string field (maxCapacity) representing OD in inches
-      const raw = bender?.maxCapacity ?? (bender as any)?.capacity ?? "";
-      const n = Number(String(raw).trim());
-      return Number.isFinite(n) ? n : undefined;
-    })();
+    const od = resolveMaxOdIn(bender);
 
-    const autoscaled = minMaxScaledPoints(od, ctx?.minOdIn ?? null, ctx?.maxOdIn ?? null, maxPoints);
-    if (autoscaled >= 0) {
-      totalScore += autoscaled;
-      scoreBreakdown.push({
-        criteria: "Max Diameter & CLR Capability",
-        points: autoscaled,
-        maxPoints,
-        reasoning: `Autoscaled vs dataset OD range: OD=${od ?? "missing"} in; min=${ctx?.minOdIn} in; max=${ctx?.maxOdIn} in; points=missing→0 else 1+round(((OD-min)/(max-min))*(${maxPoints}-1)). CLR is display-only (not scored).`,
-      });
-    } else {
-      // Fallback to existing fixed-threshold tiers if dataset maxima isn't available.
-      // (Keeps backward compatibility for call sites that don't pass ctx yet.)
-      // --- BEGIN legacy block (unchanged behavior) ---
-      let pts = 0;
-      const v = od ?? 0;
-      if (v >= 2.5) pts = 10;
-      else if (v >= 2.375) pts = 9;
-      else if (v >= 2.25) pts = 8;
-      else if (v >= 2.0) pts = 7;
-      else if (v >= 1.75) pts = 5;
-      else if (v >= 1.5) pts = 3;
-      else if (v > 0) pts = 2;
-      else pts = 0;
-      totalScore += pts;
-      scoreBreakdown.push({
-        criteria: "Max Diameter & CLR Capability",
-        points: pts,
-        maxPoints,
-        reasoning: "Fallback fixed thresholds used (dataset maxima not provided). CLR is display-only (not scored).",
-      });
-      // --- END legacy block ---
+    let pts = 0;
+    if (od != null) {
+      if (od >= 2.5) pts = 10;
+      else if (od >= 2.375) pts = 9;
+      else if (od >= 2.25) pts = 8;
+      else if (od >= 2.0) pts = 7;
+      else if (od >= 1.75) pts = 5;
+      else if (od >= 1.5) pts = 3;
+      else if (od > 0) pts = 2;
     }
+
+    totalScore += pts;
+    scoreBreakdown.push({
+      criteria: "Max Diameter & CLR Capability",
+      points: pts,
+      maxPoints,
+      reasoning:
+        od != null
+          ? `Fixed-tier scoring using published max OD (${od}\" round tube). CLR is display-only (not scored).`
+          : "No published maximum tube OD; this category scores 0 rather than guessing. CLR is display-only (not scored).",
+    });
   }
 
   // 4. Bend Angle Capability (9 pts)
-  // Autoscale angle using dataset min/max (missing=0, lowest=1, highest=9).
-  // Human reproducible: points = 1 + round(((A-minA)/(maxA-minA)) * (9-1)), clamped 1..9.
+  // Fixed-tier scoring ONLY.
+  // Autoscaling was evaluated and explicitly rejected for FTC defensibility.
+  // Dataset min/max are display-only and must not affect scoring.
   {
     const maxPoints = 9;
-    const angle = (() => {
-      const raw = bender?.bendAngle ?? (bender as any)?.maxBendAngle ?? "";
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : undefined;
-    })();
+    const angle = resolveMaxBendAngleDeg(bender);
 
-    const autoscaled = minMaxScaledPoints(
-      angle,
-      ctx?.minBendAngleDeg ?? null,
-      ctx?.maxBendAngleDeg ?? null,
-      maxPoints,
-    );
-    if (autoscaled >= 0) {
-      totalScore += autoscaled;
-      scoreBreakdown.push({
-        criteria: "Bend Angle Capability",
-        points: autoscaled,
-        maxPoints,
-        reasoning: `Autoscaled vs dataset angle range: angle=${angle ?? "missing"}°; min=${ctx?.minBendAngleDeg}°; max=${ctx?.maxBendAngleDeg}°; points=missing→0 else 1+round(((A-min)/(max-min))*(${maxPoints}-1)).`,
-      });
-    } else {
-      // Fallback to existing fixed-threshold tiers if dataset maxima isn't available.
-      // --- BEGIN legacy block (unchanged behavior) ---
-      let pts = 0;
-      const a = angle ?? 0;
-      if (a >= 195) pts = 9;
-      else if (a >= 180) pts = 7;
-      else if (a >= 120) pts = 4;
-      else if (a > 0) pts = 2;
-      else pts = 0;
-      totalScore += pts;
-      scoreBreakdown.push({
-        criteria: "Bend Angle Capability",
-        points: pts,
-        maxPoints,
-        reasoning: "Fallback fixed thresholds used (dataset maxima not provided).",
-      });
-      // --- END legacy block ---
+    let pts = 0;
+    if (angle != null) {
+      if (angle >= 195) pts = 9;
+      else if (angle >= 180) pts = 7;
+      else if (angle >= 120) pts = 4;
+      else if (angle > 0) pts = 2;
     }
+
+    totalScore += pts;
+    scoreBreakdown.push({
+      criteria: "Bend Angle Capability",
+      points: pts,
+      maxPoints,
+      reasoning:
+        angle != null
+          ? `Fixed-tier scoring using published maximum bend angle (${angle}°).`
+          : "No published maximum bend angle; this category scores 0 rather than guessing.",
+    });
   }
 
-  // 5. Wall Thickness Capability (9 points)
+  // 5. Stress Capacity & Materials (10 points)
   //
-  // This combines:
-  // - Thickness: 0–6 points based on the thickest published 1.75" OD DOM wall.
-  // - Materials: 0–3 points based on documented material compatibility.
+  // Evidence-only scoring:
+  // - Thickness points (0–6) from published max wall thickness for 1.75" OD DOM.
+  // - Materials points (0–4) from count of documented compatible materials (from a fixed list).
   //
-  // If there is no published max wall for 1.75" OD, we do NOT fabricate data:
-  // the entire category is scored as 0 and the reasoning says so.
+  // Non-negotiable FTC rule:
+  // If wall thickness is missing/unknown, the ENTIRE category scores 0 (we do not infer stress capacity).
   let thicknessScore = 0;
   let materialScore = 0;
   const wallRaw = bender.wallThicknessCapacity;
@@ -455,17 +457,50 @@ export function calculateTubeBenderScore(
   if (wallRaw !== undefined && wallRaw !== null && wallRaw !== "") {
     const thickness = parseFloat(String(wallRaw));
     if (Number.isFinite(thickness)) {
-      if (thickness >= 0.156) thicknessScore = 6;
-      else if (thickness >= 0.120) thicknessScore = 5;
-      else if (thickness >= 0.095) thicknessScore = 4;
-      else if (thickness > 0) thicknessScore = 3;
-      wallReasonPart = `${wallRaw}" wall capacity for 1.75" OD DOM.`;
+      // Thickness points (0–6) — fixed thresholds
+      // 0: undefined/missing
+      // 1: ≥ 0.095"
+      // 2: ≥ 0.120"
+      // 3: ≥ 0.156"
+      // 4: ≥ 0.188"
+      // 5: ≥ 0.250"
+      // 6: ≥ 0.875" (solid bar; half of 1.75" is 0.875")
+      if (thickness >= 0.875) {
+        thicknessScore = 6;
+        wallReasonPart = `Supports solid bar bending up to 1.75" diameter (0.875").`;
+      } else if (thickness >= 0.25) {
+        thicknessScore = 5;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.188) {
+        thicknessScore = 4;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.156) {
+        thicknessScore = 3;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.12) {
+        thicknessScore = 2;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.095) {
+        thicknessScore = 1;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else {
+        thicknessScore = 0;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM (below scoring threshold).`;
+      }
     } else {
       thicknessScore = 0;
       wallReasonPart = `Unparseable wall thickness value: ${String(wallRaw)}.`;
     }
 
-    // Materials scoring (0–3 points)
+    // Materials scoring (0–4 points)
+    // Fixed list (count only what is explicitly documented):
+    // Steel, Stainless, 4130, Aluminum, Titanium, Copper, Brass
+    // Points:
+    // 0 = not listed
+    // 1 = 1+ in list
+    // 2 = 3+ in list
+    // 3 = 5+ in list
+    // 4 = 7+ in list (all covered)
     const rawMaterials = Array.isArray(bender.materials)
       ? (bender.materials as unknown[])
       : [];
@@ -474,85 +509,56 @@ export function calculateTubeBenderScore(
       .map((m) => String(m || "").trim().toLowerCase())
       .filter(Boolean);
 
-    let hasMild = false;
-    let has4130 = false;
+    let hasSteel = false;
     let hasStainless = false;
+    let has4130 = false;
     let hasAluminum = false;
     let hasTitanium = false;
-    let hasCopperBrass = false;
-    let hasOtherMat = false;
+    let hasCopper = false;
+    let hasBrass = false;
 
     for (const label of materialSlugs) {
-      if (label.includes("mild")) hasMild = true;
-      if (label.includes("4130") || label.includes("chromoly")) has4130 = true;
-      if (
-        label.includes("stainless") ||
-        label.includes("304") ||
-        label.includes("316")
-      )
+      // Stainless first so "stainless steel" doesn't double-count as "steel"
+      if (label.includes("stainless") || label === "ss" || label.includes("304") || label.includes("316")) {
         hasStainless = true;
+        continue;
+      }
+      if (label.includes("4130") || label.includes("chromoly") || label.includes("chromo")) has4130 = true;
       if (label.includes("alum")) hasAluminum = true;
       if (label.includes("titanium") || label === "ti") hasTitanium = true;
-      if (
-        label.includes("copper") ||
-        label.includes("brass") ||
-        label.includes("bronze")
-      )
-        hasCopperBrass = true;
-      if (
-        !label.includes("mild") &&
-        !label.includes("4130") &&
-        !label.includes("chromoly") &&
-        !label.includes("stainless") &&
-        !label.includes("304") &&
-        !label.includes("316") &&
-        !label.includes("alum") &&
-        !label.includes("titanium") &&
-        label !== "ti" &&
-        !label.includes("copper") &&
-        !label.includes("brass") &&
-        !label.includes("bronze")
-      ) {
-        hasOtherMat = true;
+      if (label.includes("copper") || label === "cu") hasCopper = true;
+      // Treat "bronze" as part of the Brass bucket (common real-world docs use brass/bronze interchangeably as copper alloys)
+      if (label.includes("brass") || label.includes("bronze")) hasBrass = true;
+      if (label.includes("mild") || label.includes("carbon steel") || label === "steel" || (label.includes("steel") && !label.includes("stainless"))) {
+        hasSteel = true;
       }
     }
-
-    let rawMaterialWeight = 0;
-    if (hasMild) rawMaterialWeight += 2;
-    if (has4130) rawMaterialWeight += 2;
-    if (hasStainless) rawMaterialWeight += 1.5;
-    if (hasAluminum) rawMaterialWeight += 1.5;
-    if (hasTitanium) rawMaterialWeight += 1;
-    if (hasCopperBrass) rawMaterialWeight += 1;
-    if (hasOtherMat) rawMaterialWeight += 1;
 
     if (rawMaterials.length === 0) {
       materialScore = 0;
       materialReasonPart =
-        "No published material compatibility list; material coverage not scored.";
+        "No published material compatibility list; materials sub-score is 0.";
     } else {
-      const maxRawMaterialWeight = 2 + 2 + 1.5 + 1.5 + 1 + 1 + 1; // 10
-      const normalised =
-        maxRawMaterialWeight > 0
-          ? (3 * rawMaterialWeight) / maxRawMaterialWeight
-          : 0;
-      materialScore = Math.round(
-        Math.max(0, Math.min(3, normalised)),
-      );
+      const covered: string[] = [];
+      if (hasSteel) covered.push("steel");
+      if (hasStainless) covered.push("stainless");
+      if (has4130) covered.push("4130");
+      if (hasAluminum) covered.push("aluminum");
+      if (hasTitanium) covered.push("titanium");
+      if (hasCopper) covered.push("copper");
+      if (hasBrass) covered.push("brass/bronze");
 
-      const matLabels: string[] = [];
-      if (hasMild) matLabels.push("mild steel");
-      if (has4130) matLabels.push("4130 chromoly");
-      if (hasStainless) matLabels.push("stainless (304/316)");
-      if (hasAluminum) matLabels.push("aluminum");
-      if (hasTitanium) matLabels.push("titanium");
-      if (hasCopperBrass) matLabels.push("copper/brass/bronze");
-      if (hasOtherMat) matLabels.push("other documented alloys");
+      const coveredCount = covered.length;
+      if (coveredCount >= 7) materialScore = 4;
+      else if (coveredCount >= 5) materialScore = 3;
+      else if (coveredCount >= 3) materialScore = 2;
+      else if (coveredCount >= 1) materialScore = 1;
+      else materialScore = 0;
 
       materialReasonPart =
-        matLabels.length > 0
-          ? `Documented material coverage includes: ${matLabels.join(", ")}.`
-          : "Materials list provided but could not be mapped to known categories.";
+        coveredCount > 0
+          ? `Documented materials (${coveredCount}/7): ${covered.join(", ")}.`
+          : "Materials list provided but none matched the scored material list (steel, stainless, 4130, aluminum, titanium, copper, brass).";
     }
   } else {
     // No published wall data at the reference size: entire category scores 0.
@@ -562,15 +568,12 @@ export function calculateTubeBenderScore(
       "No published max wall thickness for 1.75\" OD DOM; this category is scored as 0 rather than guessing.";
   }
 
-  const wallScore = Math.max(
-    0,
-    Math.min(9, thicknessScore + materialScore),
-  );
+  const wallScore = Math.max(0, Math.min(10, thicknessScore + materialScore));
 
   scoreBreakdown.push({
-    criteria: "Wall Thickness Capability",
+    criteria: "Stress Capacity & Materials",
     points: wallScore,
-    maxPoints: 9,
+    maxPoints: 10,
     reasoning: `${wallReasonPart} ${materialReasonPart}`.trim(),
   });
   totalScore += wallScore;

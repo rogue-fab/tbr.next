@@ -308,26 +308,47 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> published max wall thickness for <span className="font-semibold">1.75&quot; OD DOM</span> (<span className="font-mono">wallThicknessCapacity</span>). If this is not published, the category scores <span className="font-semibold">0</span> — we do not guess.
+            <span className="font-semibold">What we score:</span>
           </p>
+          <ul className="list-disc pl-4 text-xs text-gray-700 space-y-1">
+            <li>Published max wall thickness for <span className="font-semibold">1.75&quot; OD DOM</span> (<span className="font-mono">wallThicknessCapacity</span>) → 0–6 pts</li>
+            <li>Documented compatible materials list (<span className="font-mono">materials</span>) → 0–4 pts</li>
+          </ul>
+          <div className="mt-2 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-2">
+            <span className="font-semibold">Hard rule:</span> If <span className="font-mono">wallThicknessCapacity</span> is missing/unknown, the entire category scores 0 — we do not infer stress capacity from a materials list alone.
+          </div>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900 mb-1">Thickness points (0–6)</div>
             <ul className="list-disc pl-5 space-y-1">
-              <li>≥ 0.156&quot; → 6</li>
-              <li>≥ 0.120&quot; → 5</li>
-              <li>≥ 0.095&quot; → 4</li>
-              <li>&gt; 0 → 3</li>
+              <li>≥ 0.095&quot; → 1</li>
+              <li>≥ 0.120&quot; → 2</li>
+              <li>≥ 0.156&quot; → 3</li>
+              <li>≥ 0.188&quot; → 4</li>
+              <li>≥ 0.250&quot; → 5</li>
+              <li>≥ 0.875&quot; → 6 (solid bar; half of 1.75&quot; is 0.875&quot;)</li>
               <li>missing/unknown → 0 (entire category becomes 0)</li>
             </ul>
-            <div className="font-semibold text-gray-900 mt-3 mb-1">Material coverage points (0–3)</div>
-            <p className="text-[11px] text-gray-600">
-              If the manufacturer publishes a material list, we score it by mapping documented materials into weighted buckets (mild steel, 4130, stainless, aluminum, titanium, copper/brass/bronze, other). If no list is published, this sub-score is 0.
+            <div className="font-semibold text-gray-900 mt-3 mb-1">Materials points (0–4)</div>
+            <p className="text-[11px] text-gray-600 mb-2">
+              We only count what the manufacturer explicitly documents as compatible for this frame.
             </p>
+            <p className="text-[11px] text-gray-600 mb-2">
+              <span className="font-semibold">Scored materials list (7 total):</span> Steel, Stainless, 4130, Aluminum, Titanium, Copper, Brass (bronze counts in the Brass bucket).
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-[11px] text-gray-600">
+              <li>0 = Not listed</li>
+              <li>1 = 1+ in list</li>
+              <li>2 = 3+ in list</li>
+              <li>3 = 5+ in list</li>
+              <li>4 = 7+ in list (all covered)</li>
+            </ul>
           </div>
           {maxima["wallThicknessCapability"] ? (
             <p className="text-[11px] text-gray-600">
               <span className="font-semibold">Current dataset max wall @ 1.75&quot;:</span>{" "}
-              <span className="font-semibold">{maxima["wallThicknessCapability"].value.toFixed(3)}&quot;</span> ({maxima["wallThicknessCapability"].label})
+              <span className="font-semibold">{maxima["wallThicknessCapability"].value.toFixed(3)}&quot;</span>{" "}
+              {maxima["wallThicknessCapability"].value >= 0.875 ? "(solid bar; " : "("}
+              {maxima["wallThicknessCapability"].label})
             </p>
           ) : null}
         </div>
