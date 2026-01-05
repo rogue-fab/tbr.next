@@ -194,7 +194,7 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     maxPoints: 9,
     method: "scaled",
     tagline:
-      "Maximum single-pass bend angle the machine + tooling can actually achieve for typical sizes, based on documented specs.",
+      "Maximum published bend angle in degrees (gross angle) for the machine + tooling. Missing angle scores 0.",
   },
   {
     index: 5,

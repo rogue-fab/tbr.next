@@ -305,6 +305,10 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
       materials: overlayFields.materials ?? b.materials ?? null,
       citationsRaw: overlayFields.citationsRaw ?? b.citationsRaw ?? null,
       citations: parsedCitations ?? b.citations ?? null,
+      // Persist auto pros/cons enabled state from overlay
+      autoProsCons: Array.isArray(overlayFields.autoProsCons) 
+        ? overlayFields.autoProsCons 
+        : undefined,
     } as Product;
   });
 

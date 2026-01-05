@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getAllTubeBendersWithOverlay, findTubeBenderWithOverlay } from "../../../lib/catalogOverlay";
+import { generateAutoProsCons } from "../../../lib/proCons";
 import { slugOf, titleOf, slugForProduct } from "../../../lib/ids";
 import { getProductScore, TOTAL_POINTS } from "../../../lib/scoring";
 import ScoreBreakdownToggle from "../../../components/ScoreBreakdownToggle";
@@ -184,7 +185,20 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   const consSourcesArray = splitLines((product as any).consSources);
   const keyFeaturesArray = splitLines((product as any).keyFeatures);
 
-  const hasProsOrCons = prosArray.length > 0 || consArray.length > 0;
+  // Auto Pros/Cons (facts + dataset rank). Merge enabled auto items with manual items.
+  const auto = generateAutoProsCons(product as any, all as any[]);
+  // Used for rendering the Pros/Cons card even if every generated item is toggled off.
+  // If you want the card to disappear when nothing is enabled, change this to:
+  //   const hasAutoProsOrCons = enabledAutoPros.length > 0 || enabledAutoCons.length > 0;
+  const hasAutoProsOrCons = Array.isArray(auto) && auto.length > 0;
+  const enabledAutoPros = auto.filter((item) => item.type === "pro" && item.enabled).map((item) => item.text);
+  const enabledAutoCons = auto.filter((item) => item.type === "con" && item.enabled).map((item) => item.text);
+
+  // Merge: manual items take precedence, then enabled auto items
+  const finalPros = prosArray.length > 0 ? prosArray : enabledAutoPros;
+  const finalCons = consArray.length > 0 ? consArray : enabledAutoCons;
+
+  const hasProsOrCons = finalPros.length > 0 || finalCons.length > 0;
 
   const MATERIAL_KEYS = [
     "Mild steel",
@@ -300,7 +314,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
             ) : null}
 
             {/* Pros / Cons card */}
-            {hasProsOrCons && (
+            {(hasProsOrCons || hasAutoProsOrCons) && (
               <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
@@ -310,9 +324,9 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                       </span>
                       Pros
                     </h3>
-                    {prosArray.length ? (
+                    {finalPros.length > 0 ? (
                       <ul className="mt-2 space-y-1 text-sm text-gray-800">
-                        {prosArray.map((line, idx) => (
+                        {finalPros.map((line, idx) => (
                           <li key={idx} className="flex gap-2">
                             <span className="mt-[3px] text-emerald-500">•</span>
                             <span>{line}</span>
@@ -332,10 +346,12 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                       </span>
                       Cons
                     </h3>
-                    {consArray.length ? (
+                    {finalCons.length > 0 ? (
                       <ul className="mt-2 space-y-2 text-sm text-gray-800">
-                        {consArray.map((line, idx) => {
-                          const source = consSourcesArray[idx] ?? "";
+                        {finalCons.map((line, idx) => {
+                          // Sources only apply to admin-entered cons (not auto-generated).
+                          const isAutoCon = consArray.length === 0 && idx < enabledAutoCons.length;
+                          const source = isAutoCon ? "" : (consSourcesArray[idx] ?? "");
                           return (
                             <li key={idx}>
                               <div className="flex gap-2">
@@ -353,7 +369,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                       </ul>
                     ) : (
                       <p className="mt-2 text-xs text-gray-500">
-                        No cons listed. Only enter cons with a clear, documented source.
+                        No cons listed. We explicitly only display cons when they are obvious from direct comparison within the range of models on this site and come from a clear, documented source (manufacturer documentation unless expressly stated otherwise inline with the con).
                       </p>
                     )}
                   </div>

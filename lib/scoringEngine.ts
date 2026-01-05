@@ -27,6 +27,10 @@ function roundInt(n: number): number {
   return Math.round(n);
 }
 
+// NOTE: Autoscaling was tested and intentionally disabled for FTC safety and
+// human reproducibility. The /scoring page defines fixed, explicit tiers for
+// each category. Do not re-enable autoscaling without a full methodology and
+// legal-risk review.
 /**
  * Autoscale with "missing=0, lowest=1, highest=maxPoints" to maximize discrimination.
  * - If dataset min/max are missing, signal caller to use legacy fallback.
@@ -382,23 +386,26 @@ export function calculateTubeBenderScore(
   totalScore += easePoints;
 
   // 3. Max Diameter & CLR Capability (10 pts)
-  // Fixed-tier scoring ONLY.
-  // Autoscaling was evaluated and explicitly rejected for FTC defensibility.
-  // Dataset min/max are display-only and must not affect scoring.
+  // Fixed tiers only (FTC-safe, human reproducible). CLR is display-only (not scored).
   {
     const maxPoints = 10;
-    const od = resolveMaxOdIn(bender);
+    const od = (() => {
+      // legacy input is often a string field (maxCapacity) representing OD in inches
+      const raw = bender?.maxCapacity ?? (bender as any)?.capacity ?? "";
+      const n = Number(String(raw).trim());
+      return Number.isFinite(n) ? n : undefined;
+    })();
 
     let pts = 0;
-    if (od != null) {
-      if (od >= 2.5) pts = 10;
-      else if (od >= 2.375) pts = 9;
-      else if (od >= 2.25) pts = 8;
-      else if (od >= 2.0) pts = 7;
-      else if (od >= 1.75) pts = 5;
-      else if (od >= 1.5) pts = 3;
-      else if (od > 0) pts = 2;
-    }
+    const v = od ?? 0;
+    if (v >= 2.5) pts = 10;
+    else if (v >= 2.375) pts = 9;
+    else if (v >= 2.25) pts = 8;
+    else if (v >= 2.0) pts = 7;
+    else if (v >= 1.75) pts = 5;
+    else if (v >= 1.5) pts = 3;
+    else if (v > 0) pts = 2;
+    else pts = 0;
 
     totalScore += pts;
     scoreBreakdown.push({
@@ -407,26 +414,28 @@ export function calculateTubeBenderScore(
       maxPoints,
       reasoning:
         od != null
-          ? `Fixed-tier scoring using published max OD (${od}\" round tube). CLR is display-only (not scored).`
-          : "No published maximum tube OD; this category scores 0 rather than guessing. CLR is display-only (not scored).",
+          ? `Fixed OD tiers. OD=${od} in. CLR is display-only (not scored).`
+          : "No documented max OD (capacity) value; this category scores 0. CLR is display-only (not scored).",
     });
   }
 
   // 4. Bend Angle Capability (9 pts)
-  // Fixed-tier scoring ONLY.
-  // Autoscaling was evaluated and explicitly rejected for FTC defensibility.
-  // Dataset min/max are display-only and must not affect scoring.
+  // Fixed tiers only (FTC-safe, human reproducible).
   {
     const maxPoints = 9;
-    const angle = resolveMaxBendAngleDeg(bender);
+    const angle = (() => {
+      const raw = bender?.bendAngle ?? (bender as any)?.maxBendAngle ?? "";
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : undefined;
+    })();
 
     let pts = 0;
-    if (angle != null) {
-      if (angle >= 195) pts = 9;
-      else if (angle >= 180) pts = 7;
-      else if (angle >= 120) pts = 4;
-      else if (angle > 0) pts = 2;
-    }
+    const a = angle ?? 0;
+    if (a >= 195) pts = 9;
+    else if (a >= 180) pts = 7;
+    else if (a >= 120) pts = 4;
+    else if (a > 0) pts = 2;
+    else pts = 0;
 
     totalScore += pts;
     scoreBreakdown.push({
@@ -435,8 +444,8 @@ export function calculateTubeBenderScore(
       maxPoints,
       reasoning:
         angle != null
-          ? `Fixed-tier scoring using published maximum bend angle (${angle}°).`
-          : "No published maximum bend angle; this category scores 0 rather than guessing.",
+          ? `Fixed angle tiers. Angle=${angle} deg.`
+          : "No documented max bend angle value; this category scores 0.",
     });
   }
 

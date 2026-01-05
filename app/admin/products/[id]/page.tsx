@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { useParams } from "next/navigation";
+import { generateAutoProsCons, type AutoProCon } from "../../../../lib/proCons";
 
 type OverlayFormState = {
   usaManufacturingTier: string;
@@ -72,6 +73,9 @@ export default function ProductOverlayAdminPage() {
     highlights: "",
     citationsRaw: "",
   });
+
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [autoProsCons, setAutoProsCons] = useState<AutoProCon[]>([]);
 
   // Load existing overlay from Neon
   useEffect(() => {
@@ -151,6 +155,7 @@ export default function ProductOverlayAdminPage() {
             highlights: overlay.highlights ?? "",
             citationsRaw: overlay.citationsRaw ?? "",
           }));
+          
           setStatusMsg("Loaded current overlay from Neon.");
           setStatusKind("ok");
         } else {
@@ -176,6 +181,74 @@ export default function ProductOverlayAdminPage() {
 
     run();
   }, [productId]);
+
+  // Load all products and generate auto pros/cons when product data is available
+  useEffect(() => {
+    if (!productId || !loaded) return;
+    
+    const run = async () => {
+      try {
+        // Fetch all products for comparison (needed for auto pros/cons generation)
+        const res = await fetch("/api/admin/products", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const products = data?.data ?? [];
+        setAllProducts(products);
+        
+        // Find current product (merge form state with base product data)
+        const baseProduct = products.find((p: any) => p.id === productId);
+        if (!baseProduct) return;
+        
+        // Merge form state into product for accurate generation
+        const currentProduct = {
+          ...baseProduct,
+          ...form,
+          usaManufacturingTier: form.usaManufacturingTier ? Number(form.usaManufacturingTier) : baseProduct.usaManufacturingTier,
+          originTransparencyTier: form.originTransparencyTier ? Number(form.originTransparencyTier) : baseProduct.originTransparencyTier,
+          singleSourceSystemTier: form.singleSourceSystemTier ? Number(form.singleSourceSystemTier) : baseProduct.singleSourceSystemTier,
+          warrantyTier: form.warrantyTier ? Number(form.warrantyTier) : baseProduct.warrantyTier,
+        };
+        
+        // Generate auto pros/cons
+        const generated = generateAutoProsCons(currentProduct, products);
+        
+        // Load persisted enabled state from overlay (if available)
+        const overlayRes = await fetch(`/api/admin/products/${productId}`, { cache: "no-store" });
+        let persisted: AutoProCon[] = [];
+        if (overlayRes.ok) {
+          const overlayData = await overlayRes.json();
+          if (Array.isArray(overlayData?.overlay?.autoProsCons)) {
+            persisted = overlayData.overlay.autoProsCons;
+          }
+        }
+        
+        const persistedMap = new Map<string, boolean>();
+        for (const item of persisted) {
+          persistedMap.set(item.text, item.enabled);
+        }
+        
+        // Apply persisted enabled state, defaulting to true for new items
+        const merged = generated.map((item) => ({
+          ...item,
+          enabled: persistedMap.has(item.text) ? persistedMap.get(item.text)! : true,
+        }));
+        
+        setAutoProsCons(merged);
+      } catch (err) {
+        console.error("Failed to load products for auto pros/cons:", err);
+      }
+    };
+    
+    run();
+  }, [productId, loaded, form]);
+  
+  function toggleAutoProCon(text: string) {
+    setAutoProsCons((prev) =>
+      prev.map((item) =>
+        item.text === text ? { ...item, enabled: !item.enabled } : item
+      )
+    );
+  }
 
   function updateField<K extends keyof OverlayFormState>(
     key: K,
@@ -220,6 +293,7 @@ export default function ProductOverlayAdminPage() {
       keyFeatures: form.keyFeatures || null,
       highlights: form.highlights || null,
       citationsRaw: form.citationsRaw || null,
+      autoProsCons: autoProsCons.length > 0 ? autoProsCons : null,
     };
 
     try {
@@ -518,6 +592,85 @@ export default function ProductOverlayAdminPage() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Auto-generated Pros/Cons (Category #7B) */}
+          <div className="col-span-2">
+            <h3 className="text-xs font-semibold text-gray-800">
+              Auto-generated Pros / Cons (Category #7B)
+            </h3>
+            
+            {/* Admin warning */}
+            <div className="mt-2 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+              <p className="font-semibold mb-1">⚠️ Legal &amp; Public Display Warning</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Pros/Cons are shown publicly on review pages.</li>
+                <li>Auto-generated items come from scoring comparisons only (facts, not opinions).</li>
+                <li>Any manual con not based on manufacturer documentation must include an inline source.</li>
+                <li>This is legally sensitive; when in doubt, leave it OFF.</li>
+              </ul>
+            </div>
+
+            {autoProsCons.length > 0 ? (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <h4 className="text-[11px] font-semibold text-emerald-700 mb-2">
+                    Auto-generated Pros ({autoProsCons.filter((i) => i.type === "pro").length})
+                  </h4>
+                  <div className="space-y-2">
+                    {autoProsCons
+                      .filter((item) => item.type === "pro")
+                      .map((item, idx) => (
+                        <label
+                          key={idx}
+                          className="flex items-start gap-2 rounded-md border border-gray-200 bg-white p-2 text-xs"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={item.enabled}
+                            onChange={() => toggleAutoProCon(item.text)}
+                            className="mt-0.5 h-3 w-3 shrink-0"
+                          />
+                          <div className="flex-1">
+                            <span className="font-semibold text-emerald-700">Pro:</span>{" "}
+                            <span className="text-gray-800">{item.text}</span>
+                          </div>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[11px] font-semibold text-rose-700 mb-2">
+                    Auto-generated Cons ({autoProsCons.filter((i) => i.type === "con").length})
+                  </h4>
+                  <div className="space-y-2">
+                    {autoProsCons
+                      .filter((item) => item.type === "con")
+                      .map((item, idx) => (
+                        <label
+                          key={idx}
+                          className="flex items-start gap-2 rounded-md border border-gray-200 bg-white p-2 text-xs"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={item.enabled}
+                            onChange={() => toggleAutoProCon(item.text)}
+                            className="mt-0.5 h-3 w-3 shrink-0"
+                          />
+                          <div className="flex-1">
+                            <span className="font-semibold text-rose-700">Con:</span>{" "}
+                            <span className="text-gray-800">{item.text}</span>
+                          </div>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-gray-500">
+                No auto-generated pros/cons available. Ensure product data is loaded and valid.
+              </p>
+            )}
           </div>
 
           <div>
