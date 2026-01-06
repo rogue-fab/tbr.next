@@ -1,6 +1,22 @@
 /**
  * Mechanically generated Pros/Cons (facts + dataset rank).
+ */
+
+/**
+ * Auto-generated pro/con item.
  *
+ * NOTE: This is intentionally permissive because the generator may evolve
+ * without needing to thread new fields through a strict type.
+ * This file previously referenced AutoItem without defining it, which breaks
+ * Vercel type-checking.
+ */
+type AutoItem = {
+  text: string;
+  sources?: string[]; // optional citations / source notes
+  [key: string]: unknown; // allow future fields without breaking builds
+};
+
+/**
  * Design goals:
  * - Autoscale-proof: do NOT rely on scoring points; rely on normalized facts + rank.
  * - FTC-safe: no opinions, no adjectives, no brand/reputation inference.
