@@ -5,15 +5,14 @@
 /**
  * Auto-generated pro/con item.
  *
- * NOTE: This is intentionally permissive because the generator may evolve
- * without needing to thread new fields through a strict type.
- * This file previously referenced AutoItem without defining it, which breaks
- * Vercel type-checking.
+ * NOTE: id + text are required because downstream logic uses:
+ * - hiddenPros/hiddenCons: Set<string> keyed by item.id
+ * - enabledMap: Map keyed by item.text
  */
 type AutoItem = {
+  id: string;
   text: string;
   sources?: string[]; // optional citations / source notes
-  [key: string]: unknown; // allow future fields without breaking builds
 };
 
 /**
