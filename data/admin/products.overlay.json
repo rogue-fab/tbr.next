@@ -18,8 +18,6 @@
   "jd2-model-32": {
     "price": "1002",
     "weight": "",
-    "brand": "A",
-    "model": "ADMIN",
     "maxCapacity": "2.01",
     "clrRange": "1.1-6.6",
     "image": "jd2m32.jpg",
@@ -71,8 +69,6 @@
     "consSources": "\n\n\n",
     "keyFeatures": "Air/Hydraulic ram upgrade\nPressure roller dies\nThin-wall roller\nBackstop\nRotation gauges\nMandrel conversion available",
     "materials": "Mild steel, 4130 chromoly, Aluminum, Stainless steel, Titanium",
-    "model": "M601, M605, M625",
-    "image": "",
     "dimensions": "22\" x 34\""
   },
   "baileigh-rdb-250": {
