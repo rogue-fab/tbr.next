@@ -1,3 +1,28 @@
+// Identity/display fields MUST come from the canonical base catalog.
+// We intentionally ignore any overlay values for these keys because legacy overlay
+// data can contain old rename experiments (ex: "A.ADMIN") and we never want overlays
+// overriding product identity anywhere (admin dropdown, review headers, routes, etc).
+const OVERLAY_BLOCKED_KEYS = new Set<string>([
+  "id",
+  "slug",
+  "name",
+  "brand",
+  "model",
+  "image",
+]);
+
+function stripBlockedOverlayKeys(fields: any): any {
+  if (!fields || typeof fields !== "object") return fields;
+  const out: any = { ...fields };
+  for (const k of Object.keys(out)) {
+    if (OVERLAY_BLOCKED_KEYS.has(k)) delete out[k];
+  }
+  return out;
+}
+
+// IMPORTANT:
+// Apply stripBlockedOverlayKeys(...) at every place overlay fields merge into base products.
+
 import {
   allTubeBenders,
   type Product,
@@ -246,10 +271,12 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
     // Order matters:
     //   base product → JSON overlay → legacy Neon overlay → published version overlay
     // Published version must win so admin Publish actually affects public pages + scoring.
+    // Ensure overlays cannot override canonical identity keys.
+    // (Fixes legacy "double name" artifacts like "A ADMIN".)
     const merged = {
       ...(raw as any),
-      ...(neonOverlay ?? {}),
-      ...(publishedOverlay ?? {}),
+      ...(neonOverlay ? stripBlockedOverlayKeys(neonOverlay) : {}),
+      ...(publishedOverlay ? stripBlockedOverlayKeys(publishedOverlay) : {}),
     };
 
     const b = { ...merged } as Product & { highlights?: unknown };

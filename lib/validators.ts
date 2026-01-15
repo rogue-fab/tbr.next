@@ -1,4 +1,13 @@
-import { z } from 'zod';
+import { z } from "zod";
+
+/**
+ * Canonical mandrel capability tiers used across UI, filters, and scoring inputs.
+ * - none: no documented mandrel capability
+ * - economy: non-bronze mandrel systems (plastic/aluminum/steel)
+ * - bronze: bronze-class (nickel/bronze) or explicitly equivalent factory-supported system
+ */
+export const MandrelTierEnum = z.enum(["none", "economy", "bronze"]);
+export type MandrelTier = z.infer<typeof MandrelTierEnum>;
 
 export const TubeBenderSchema = z.object({
   id: z.string(),
@@ -10,7 +19,7 @@ export const TubeBenderSchema = z.object({
   cycleTime: z.string(),
   weight: z.string(),
   price: z.string(),
-  mandrel: z.enum(['Available', 'Standard', 'No']),
+  mandrel: MandrelTierEnum,
   totalScore: z.number().min(0).max(10),
   imageUrl: z.string().optional(),
   description: z.string().optional(),

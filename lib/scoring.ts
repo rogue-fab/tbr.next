@@ -9,6 +9,28 @@ import {
   type ScoreBreakdownItem,
 } from "./scoringEngine";
 
+/**
+ * UI should never match scoring categories by display labels.
+ * The legacy engine emits human-readable `criteria` strings only; we map those
+ * to stable keys ONE time here (adapter layer) and the UI matches by key.
+ */
+const ENGINE_CRITERIA_TO_KEY: Record<string, string> = {
+  "Value for Money": "valueForMoney",
+  "Ease of Use & Setup": "easeOfUseSetup",
+  "Max Diameter & CLR Capability": "maxDiameterRadius",
+  "Bend Angle Capability": "bendAngleCapability",
+  "Stress Capacity & Materials": "wallThicknessCapability",
+  "Die Selection & Shapes": "dieSelectionShapes",
+  "Track Record (Years in Business)": "yearsInBusiness",
+  "Upgrade Path & Modularity": "upgradePathModularity",
+  "Mandrel Compatibility": "mandrelCompatibility",
+  "S-Bend Capability": "sBendCapability",
+  "USA Manufacturing (Disclosure-Based)": "usaManufacturingDisclosure",
+  "Origin Transparency": "originTransparency",
+  "Single-Source System": "singleSourceSystem",
+  "Warranty (Published Terms Only)": "warrantySupport",
+};
+
 function normalizeStringList(v: unknown): string[] | undefined {
   if (Array.isArray(v)) {
     const out = v.map((x) => String(x ?? "").trim()).filter(Boolean);
@@ -296,8 +318,11 @@ export type ProductScore = {
   total: number | null;
   /** Whether the score came from an admin override, future algorithm, or is missing. */
   source: ProductScoreSource;
-  /** Optional per-category breakdown when using the computed algorithm. */
-  breakdown?: ScoreBreakdownItem[];
+  /**
+   * Optional per-category breakdown when using the computed algorithm.
+   * Adapter adds a stable `key` for UI matching (do not match on `criteria` labels).
+   */
+  breakdown?: (ScoreBreakdownItem & { key?: string })[];
   /**
    * Small diagnostic payload for UI panels (no devtools needed).
    * This is the *interpreted* inputs we actually fed the scoring engine.
@@ -437,9 +462,11 @@ export function getProductScore(
     }
 
     // Normalize whitespace in reasoning to avoid newlines leaking into UI/export
-    const normalizedBreakdown = Array.isArray(scored.scoreBreakdown)
+    const normalizedBreakdown: (ScoreBreakdownItem & { key?: string })[] = Array.isArray(scored.scoreBreakdown)
       ? scored.scoreBreakdown.map((b) => ({
           ...b,
+          // Stable key used by UI matching. If unknown, omit key (UI can warn/fallback).
+          key: ENGINE_CRITERIA_TO_KEY[b.criteria],
           reasoning:
             typeof b.reasoning === "string"
               ? b.reasoning.replace(/\s+/g, " ").trim()
@@ -451,6 +478,7 @@ export function getProductScore(
     // The review page can display this via score.breakdown (criteria/reasoning).
     normalizedBreakdown.unshift({
       criteria: "Scoring Inputs (debug)",
+      key: "debugInput",
       points: 0,
       maxPoints: 0,
       reasoning: JSON.stringify(

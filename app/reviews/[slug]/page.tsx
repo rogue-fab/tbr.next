@@ -187,12 +187,11 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
   // Auto Pros/Cons (facts + dataset rank). Merge enabled auto items with manual items.
   const auto = generateAutoProsCons(product as any, all as any[]);
-  // Used for rendering the Pros/Cons card even if every generated item is toggled off.
-  // If you want the card to disappear when nothing is enabled, change this to:
-  //   const hasAutoProsOrCons = enabledAutoPros.length > 0 || enabledAutoCons.length > 0;
-  const hasAutoProsOrCons = Array.isArray(auto) && auto.length > 0;
   const enabledAutoPros = auto.filter((item) => item.type === "pro" && item.enabled).map((item) => item.text);
   const enabledAutoCons = auto.filter((item) => item.type === "con" && item.enabled).map((item) => item.text);
+
+  // We still compute these for the UI decisions below, but the card itself always renders for uniformity.
+  const hasAutoProsOrCons = enabledAutoPros.length > 0 || enabledAutoCons.length > 0;
 
   // Merge: manual items take precedence, then enabled auto items
   const finalPros = prosArray.length > 0 ? prosArray : enabledAutoPros;
@@ -314,8 +313,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
             ) : null}
 
             {/* Pros / Cons card */}
-            {(hasProsOrCons || hasAutoProsOrCons) && (
-              <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <h3 className="flex items-center gap-1 text-sm font-semibold text-emerald-700">
@@ -335,7 +333,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                       </ul>
                     ) : (
                       <p className="mt-2 text-xs text-gray-500">
-                        No pros entered yet.
+                        No pros listed. We explicitly only display pros when they are obvious from direct comparison within the range of models on this site and come from a clear, documented source (manufacturer documentation unless expressly stated otherwise inline with the pro).
                       </p>
                     )}
                   </div>
@@ -375,7 +373,6 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                   </div>
                 </div>
               </section>
-            )}
 
             {/* Key features */}
             {keyFeaturesArray.length ? (

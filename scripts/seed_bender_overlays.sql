@@ -271,7 +271,7 @@ ON CONFLICT (product_id) DO UPDATE SET
   wiper_die_support = EXCLUDED.wiper_die_support,
   s_bend_capability = EXCLUDED.s_bend_capability;
 
-INSERT INTO bender_overlays ("product_id", "usa_manufacturing_tier", "origin_transparency_tier", "single_source_system_tier", "warranty_tier", "portability", "wall_thickness_capacity", "materials", "die_shapes", "mandrel", "has_power_upgrade_path", "length_stop", "rotation_indexing", "angle_measurement", "auto_stop", "thick_wall_upgrade", "thin_wall_upgrade", "wiper_die_support", "s_bend_capability") VALUES ('roguefab-m601', 4, 5, 2, 3, 'portable_with_rolling_option', '.156', 'Mild steel, Stainless steel, 4130 chromoly, Aluminum, Titanium, Copper, Brass', 'Round tube, Square tube, EMT, Metric round / square, Plastic / urethane pressure dies, Other, Pipe', 'Available', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE)
+INSERT INTO bender_overlays ("product_id", "usa_manufacturing_tier", "origin_transparency_tier", "single_source_system_tier", "warranty_tier", "portability", "wall_thickness_capacity", "materials", "die_shapes", "mandrel", "has_power_upgrade_path", "length_stop", "rotation_indexing", "angle_measurement", "auto_stop", "thick_wall_upgrade", "thin_wall_upgrade", "wiper_die_support", "s_bend_capability") VALUES ('roguefab-m601', 4, 5, 2, 3, 'portable_with_rolling_option', '.156', 'Mild steel, Stainless steel, 4130 chromoly, Aluminum, Titanium, Copper, Brass', 'Round tube, Square tube, EMT, Metric round / square, Plastic / urethane pressure dies, Other, Pipe', 'bronze', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE)
 ON CONFLICT (product_id) DO UPDATE SET
   usa_manufacturing_tier = EXCLUDED.usa_manufacturing_tier,
   origin_transparency_tier = EXCLUDED.origin_transparency_tier,
@@ -292,7 +292,7 @@ ON CONFLICT (product_id) DO UPDATE SET
   wiper_die_support = EXCLUDED.wiper_die_support,
   s_bend_capability = EXCLUDED.s_bend_capability;
 
-INSERT INTO bender_overlays ("product_id", "usa_manufacturing_tier", "origin_transparency_tier", "single_source_system_tier", "warranty_tier", "portability", "wall_thickness_capacity", "materials", "die_shapes", "mandrel", "has_power_upgrade_path", "length_stop", "rotation_indexing", "angle_measurement", "auto_stop", "thick_wall_upgrade", "thin_wall_upgrade", "wiper_die_support", "s_bend_capability") VALUES ('roguefab-m605', NULL, NULL, NULL, NULL, NULL, '.875', 'Mild steel, Stainless steel, 4130 chromoly, Brass, Copper, Titanium, Aluminum', 'Round tube, Pipe, Square tube, EMT, Metric round / square, Plastic / urethane pressure dies, Other', 'Available', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE)
+INSERT INTO bender_overlays ("product_id", "usa_manufacturing_tier", "origin_transparency_tier", "single_source_system_tier", "warranty_tier", "portability", "wall_thickness_capacity", "materials", "die_shapes", "mandrel", "has_power_upgrade_path", "length_stop", "rotation_indexing", "angle_measurement", "auto_stop", "thick_wall_upgrade", "thin_wall_upgrade", "wiper_die_support", "s_bend_capability") VALUES ('roguefab-m605', NULL, NULL, NULL, NULL, NULL, '.875', 'Mild steel, Stainless steel, 4130 chromoly, Brass, Copper, Titanium, Aluminum', 'Round tube, Pipe, Square tube, EMT, Metric round / square, Plastic / urethane pressure dies, Other', 'bronze', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE)
 ON CONFLICT (product_id) DO UPDATE SET
   usa_manufacturing_tier = EXCLUDED.usa_manufacturing_tier,
   origin_transparency_tier = EXCLUDED.origin_transparency_tier,
@@ -313,7 +313,7 @@ ON CONFLICT (product_id) DO UPDATE SET
   wiper_die_support = EXCLUDED.wiper_die_support,
   s_bend_capability = EXCLUDED.s_bend_capability;
 
-INSERT INTO bender_overlays ("product_id", "usa_manufacturing_tier", "origin_transparency_tier", "single_source_system_tier", "warranty_tier", "portability", "wall_thickness_capacity", "materials", "die_shapes", "mandrel", "has_power_upgrade_path", "length_stop", "rotation_indexing", "angle_measurement", "auto_stop", "thick_wall_upgrade", "thin_wall_upgrade", "wiper_die_support", "s_bend_capability") VALUES ('roguefab-m625', NULL, NULL, NULL, NULL, NULL, '.875', NULL, 'Round tube, Pipe, Square tube, EMT, Metric round / square, Plastic / urethane pressure dies, Other', 'Available', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE)
+INSERT INTO bender_overlays ("product_id", "usa_manufacturing_tier", "origin_transparency_tier", "single_source_system_tier", "warranty_tier", "portability", "wall_thickness_capacity", "materials", "die_shapes", "mandrel", "has_power_upgrade_path", "length_stop", "rotation_indexing", "angle_measurement", "auto_stop", "thick_wall_upgrade", "thin_wall_upgrade", "wiper_die_support", "s_bend_capability") VALUES ('roguefab-m625', NULL, NULL, NULL, NULL, NULL, '.875', NULL, 'Round tube, Pipe, Square tube, EMT, Metric round / square, Plastic / urethane pressure dies, Other', 'bronze', TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE)
 ON CONFLICT (product_id) DO UPDATE SET
   usa_manufacturing_tier = EXCLUDED.usa_manufacturing_tier,
   origin_transparency_tier = EXCLUDED.origin_transparency_tier,

@@ -137,8 +137,18 @@ function ExactRules({ catKey }: { catKey: string }) {
         <>
           <p className="text-xs text-gray-600">
             <span className="font-semibold text-gray-900">What we score:</span>{" "}
-            maximum published bend angle in degrees (<span className="font-mono">maxBendAngle</span>/<span className="font-mono">bendAngle</span>). Missing angle scores 0.
+            maximum published bend angle in degrees. Missing or unpublished angle scores 0.
           </p>
+          <div className="mt-2 text-[11px] text-gray-600 space-y-1">
+            <p>
+              <span className="font-semibold">Notes:</span>
+            </p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              <li>This is gross maximum angle. It does not matter how many cycles, strokes, or re-indexing steps are required.</li>
+              <li>We only score angles that are explicitly published or otherwise documented for this frame/tooling.</li>
+              <li>Missing/unknown angle scores 0. We do not infer angles from photos, reputation, or "typical" expectations.</li>
+            </ul>
+          </div>
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900">Exact point tiers (9 max)</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -229,7 +239,10 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> the entry-level starter system price (<span className="font-mono">entryPrice</span>) derived from the lowest documented prices for frame + dies + power + stand. If component pricing is missing, we fall back to any known catalog price.
+            <span className="font-semibold">What we score:</span> the documented entry-level starter system price
+            derived from the lowest published prices for frame plus dies plus power plus stand. If component pricing
+            is missing, we fall back to any published catalog price we have for the machine. This is a price tier,
+            not a value guess; capability is scored in the other categories.
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900 mb-1">Exact point tiers (20 max)</div>
@@ -241,9 +254,6 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
               <li>≤ $6500 → 9</li>
               <li>&gt; $6500 → 7</li>
             </ul>
-            <p className="mt-2 text-[11px] text-gray-600">
-              If <span className="font-mono">entryPrice</span> is missing, the engine uses a legacy price-band heuristic (kept for backward compatibility).
-            </p>
           </div>
           {maxima.entryPriceMinMax ? (
             <p className="text-[11px] text-gray-600">
@@ -378,7 +388,7 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> stated years in business when available; otherwise a conservative legacy brand heuristic. This category is intentionally low weight.
+            <span className="font-semibold">What we score:</span> published years in business when available. Missing or unknown scores 0. This category is intentionally low weight.
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900 mb-1">Numeric tiers (3 max)</div>
@@ -386,7 +396,7 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
               <li>≥ 25 years → 3</li>
               <li>≥ 10 years → 2</li>
               <li>&gt; 0 years → 1</li>
-              <li>missing/unknown → falls back to a conservative brand heuristic</li>
+              <li>missing/unknown → 0</li>
             </ul>
           </div>
         </div>
