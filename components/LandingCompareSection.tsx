@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { TOTAL_POINTS } from "../lib/scoring";
+import type { MandrelTier } from "../lib/validators";
 
 const FALLBACK_IMG = "/images/products/placeholder.png";
 
@@ -50,13 +51,75 @@ function normalizePower(powerType?: string | null): "manual" | "hydraulic" | "ot
   return "other";
 }
 
-function isMandrelOn(mandrel?: string | null): boolean {
-  const s = (mandrel ?? "").toLowerCase();
-  return s === "available" || s === "standard" || s === "yes";
+function normalizeMandrelTier(v?: MandrelTier | string | null): MandrelTier | "unknown" {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return "none";
+  if (s === "none" || s === "no" || s === "not available" || s === "n/a") return "none";
+  if (s === "economy") return "economy";
+  if (s === "bronze") return "bronze";
+
+  // Legacy labels (FTC-safe direction: preserve intent, but never "upgrade" unknowns).
+  if (s === "available" || s === "standard") return "bronze";
+  if (s.includes("nickel") || s.includes("bronze") || s.includes("brass")) return "bronze";
+  if (s.includes("plastic") || s.includes("aluminum") || s.includes("aluminium") || s.includes("steel"))
+    return "economy";
+
+  return "unknown";
 }
 
-function isSBendOn(flag?: boolean | null): boolean {
-  return !!flag;
+function isMandrelOn(mandrel?: MandrelTier | string | null): boolean {
+  const t = normalizeMandrelTier(mandrel);
+  return t === "bronze" || t === "economy";
+}
+
+function MandrelPill({ value }: { value?: MandrelTier | string | null }) {
+  const t = normalizeMandrelTier(value);
+
+  if (t === "bronze") {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-emerald-50 border-emerald-400 text-emerald-700">
+        Bronze Mandrel
+      </span>
+    );
+  }
+
+  if (t === "economy") {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-amber-50 border-amber-400 text-amber-800">
+        Economy Mandrel
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-gray-50 border-gray-200 text-gray-500">
+      No Mandrel
+    </span>
+  );
+}
+
+function SBendPill({ value }: { value?: boolean | null }) {
+  if (value === true) {
+    return (
+      <span
+        className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5
+                   text-[11px] font-medium border
+                   bg-emerald-50 border-emerald-400 text-emerald-700"
+      >
+        S-bending
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5
+                 text-[11px] font-medium border
+                 bg-gray-50 border-gray-200 text-gray-500"
+    >
+      No S-bends
+    </span>
+  );
 }
 
 function ScoreCircle({ score, href }: { score: number | null; href: string }) {
@@ -356,10 +419,10 @@ export default function LandingCompareSection({ rows }: Props) {
                     {row.country || "—"}
                   </td>
                   <td className="px-3 py-3 align-middle">
-                    <Pill active={isMandrelOn(row.mandrel)}>Mandrel</Pill>
+                    <MandrelPill value={row.mandrel} />
                   </td>
                   <td className="px-3 py-3 align-middle">
-                    <Pill active={isSBendOn(row.sBend)}>S-bend</Pill>
+                    <SBendPill value={row.sBend} />
                   </td>
                   <td className="px-3 py-3 align-middle">
                     <Link

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { generateAutoProsCons, type AutoProCon } from '../../../lib/proCons';
 // Admin grid reads from /api/admin/products; writes hit /api/admin/products/[id]
 
 type Product = {
@@ -70,6 +71,9 @@ type Product = {
 
   // Raw citations field (line-based, parsed into structured citations server-side)
   citationsRaw?: string;
+
+  // Persisted enabled states for generated pros/cons (draft/published overlay)
+  autoProsCons?: AutoProCon[];
 
   // Dynamic per-field citation data (we don't enumerate every key here)
   [key: string]: any;
@@ -778,6 +782,34 @@ export default function ProductsTab() {
     updateProduct(selectedProduct.id, "dieShapes", serialized);
   };
 
+  // --- Auto Pros/Cons (generated) -------------------------------------------
+  const splitLines = (raw?: string | null): string[] =>
+    String(raw ?? "")
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const manualPros = splitLines((selectedProduct as any).pros);
+  const manualCons = splitLines((selectedProduct as any).cons);
+  const manualOverridesAuto = manualPros.length > 0 || manualCons.length > 0;
+
+  // Generate using current in-memory rows (includes draft field merges).
+  const autoItems: AutoProCon[] = generateAutoProsCons(
+    selectedProduct as any,
+    (products as any[]) ?? []
+  );
+
+  // Persist enabled states by writing the full list (type/text/enabled) to the product draft field.
+  // This matches lib/proCons behavior (it reads p.autoProsCons and keys by text).
+  const setAutoItemEnabled = (text: string, enabled: boolean) => {
+    const next = autoItems.map((it) =>
+      it.text === text ? { ...it, enabled } : it
+    );
+    // Store as a proper array (not CSV) so we can evolve safely.
+    updateProduct(selectedProduct.id, "autoProsCons", next as any);
+  };
+  // --------------------------------------------------------------------------
+
             return (
     <div className="w-full rounded-lg bg-white shadow max-w-[1400px] mx-auto">
       {/* Header + product selector */}
@@ -1379,6 +1411,96 @@ export default function ProductsTab() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Auto Pros/Cons (generated) */}
+      <section className="border-b border-gray-200 px-6 py-5">
+        <h3 className="text-base font-semibold text-gray-900">
+          Auto Pros / Cons (generated)
+        </h3>
+        <p className="mt-1 text-xs text-gray-500 max-w-4xl">
+          These bullets are mechanically generated from documented fields + dataset rank
+          (no opinions). They will appear on the review page{" "}
+          <span className="font-semibold">only when manual Pros/Cons are empty</span>.
+          Toggle items on/off to control what can appear as "auto".
+        </p>
+        {manualOverridesAuto ? (
+          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Manual Pros/Cons exist for this product right now, so the review page will
+            display the manual lists instead of auto-generated items.
+          </div>
+        ) : null}
+
+        {autoItems.length === 0 ? (
+          <div className="mt-3 text-xs text-gray-500">
+            No auto items generated. (This usually means key spec fields are missing across the dataset.)
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
+            {/* Pros */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
+                  ✔
+                </span>
+                <h4 className="text-sm font-semibold text-gray-900">Auto Pros</h4>
+              </div>
+              <div className="mt-3 space-y-2">
+                {autoItems.filter((it) => it.type === "pro").map((it) => (
+                  <label key={it.text} className="flex gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={!!it.enabled}
+                      onChange={(e) => setAutoItemEnabled(it.text, e.target.checked)}
+                    />
+                    <span className={it.enabled ? "" : "text-gray-400 line-through"}>
+                      {it.text}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Cons */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs">
+                  !
+                </span>
+                <h4 className="text-sm font-semibold text-gray-900">Auto Cons</h4>
+              </div>
+              <div className="mt-3 space-y-2">
+                {autoItems.filter((it) => it.type === "con").map((it) => (
+                  <label key={it.text} className="flex gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={!!it.enabled}
+                      onChange={(e) => setAutoItemEnabled(it.text, e.target.checked)}
+                    />
+                    <span className={it.enabled ? "" : "text-gray-400 line-through"}>
+                      {it.text}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 text-[0.7rem] text-gray-500 max-w-4xl">
+          Notes:
+          <ul className="list-disc pl-5 mt-1 space-y-1">
+            <li>
+              Enabled states are saved into <code className="rounded bg-gray-50 px-1">autoProsCons</code>{" "}
+              when you click <span className="font-semibold">Save draft</span>.
+            </li>
+            <li>
+              The generator keys enabled state by exact <span className="font-semibold">text</span>. If you later change the generator wording, old saved toggles won't match.
+            </li>
+          </ul>
         </div>
       </section>
     </div>

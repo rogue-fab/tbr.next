@@ -3,34 +3,14 @@
 import React from "react";
 import { SCORING_CATEGORIES, TOTAL_POINTS, type ProductScore } from "../lib/scoring";
 
-function norm(s: unknown): string {
-  // Normalize dash/hyphen variants (common copy/paste/typography issue).
-  // Without this, strings like "S-Bend" (U+2011) and "S-Bend" (ASCII) won't match.
-  const raw = String(s ?? "");
-  const normalizedDashes = raw.replace(
-    /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g,
-    "-",
-  );
-  return normalizedDashes
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-
 export default function ScoreBreakdownToggle({ score }: { score: ProductScore }) {
   const breakdown = Array.isArray(score?.breakdown) ? score.breakdown : [];
 
-  // UI name → engine criterion name aliases (only where they differ).
-  // Keep this tiny and explicit to avoid "canonicalization" creep.
-  const CRITERIA_ALIASES: Record<string, string> = {
-    [norm("True S-Bend Capability")]: norm("S-Bend Capability"),
-  };
-
-  // Map breakdown by normalized criteria name (engine returns `criteria` strings)
-  const byCriteria = new Map<string, (typeof breakdown)[number]>();
+  // Map breakdown by stable key (injected by adapter layer). No display-name matching.
+  const byKey = new Map<string, (typeof breakdown)[number]>();
   for (const item of breakdown) {
-    byCriteria.set(norm(item.criteria), item);
+    const k = (item as any)?.key;
+    if (typeof k === "string" && k.trim() !== "") byKey.set(k, item);
   }
 
   // Compute a safe total from breakdown (diagnostic only)
@@ -39,8 +19,12 @@ export default function ScoreBreakdownToggle({ score }: { score: ProductScore })
   return (
     <details className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">
-        Score math (diagnostic)
+        Scoring audit (inputs + math)
       </summary>
+
+      <div className="mt-2 text-[0.7rem] text-gray-500">
+        This section shows the exact inputs and calculations used to generate the score above.
+      </div>
 
       {/* Inputs we actually used */}
       {(score as any)?.debugInput ? (
@@ -65,10 +49,8 @@ export default function ScoreBreakdownToggle({ score }: { score: ProductScore })
 
         <div className="divide-y rounded border">
           {SCORING_CATEGORIES.map((cat) => {
-            // Match by displayed name, with a small explicit alias map where needed.
-            const want = norm(cat.name);
-            const wantAliased = CRITERIA_ALIASES[want] ?? want;
-            const hit = byCriteria.get(wantAliased);
+            // Match by stable key only.
+            const hit = byKey.get(cat.key);
             const pts = hit?.points ?? 0;
             const max = hit?.maxPoints ?? cat.maxPoints ?? 0;
             return (
@@ -80,7 +62,7 @@ export default function ScoreBreakdownToggle({ score }: { score: ProductScore })
                       <div className="mt-1 text-[0.7rem] text-gray-500">{hit.reasoning}</div>
                     ) : (
                       <div className="mt-1 text-[0.7rem] text-gray-400">
-                        No breakdown entry matched this category name. (UI lookup issue)
+                        No breakdown entry matched this category key. (Adapter key-mapping issue)
                       </div>
                     )}
                   </div>

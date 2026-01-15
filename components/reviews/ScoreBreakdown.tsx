@@ -29,6 +29,20 @@ export default function ScoreBreakdown({ score }: Props) {
     );
   }
 
+  const getLabel = (it: any): string => {
+    // Canonical engine field
+    if (it?.criteria != null && String(it.criteria).trim() !== "") return String(it.criteria);
+    // Legacy fallbacks (older UI shapes)
+    return String(it?.label ?? it?.category ?? it?.key ?? "—");
+  };
+
+  const getReason = (it: any): string => {
+    // Canonical engine field
+    if (it?.reasoning != null && String(it.reasoning).trim() !== "") return String(it.reasoning);
+    // Legacy fallbacks
+    return String(it?.reason ?? it?.notes ?? it?.explanation ?? "");
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="min-w-full text-xs">
@@ -41,16 +55,16 @@ export default function ScoreBreakdown({ score }: Props) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {items.map((it: any, idx: number) => (
-            <tr key={it?.key ?? it?.category ?? idx} className="align-top">
+            <tr key={`${getLabel(it)}-${idx}`} className="align-top">
               <td className="px-3 py-2 font-medium text-gray-900">
-                {String(it?.label ?? it?.category ?? it?.key ?? "—")}
+                {getLabel(it)}
               </td>
               <td className="px-3 py-2 text-gray-800">
                 {typeof it?.points === "number" ? it.points : "—"}
                 {typeof it?.maxPoints === "number" ? ` / ${it.maxPoints}` : ""}
               </td>
               <td className="px-3 py-2 text-gray-700">
-                {String(it?.reason ?? it?.notes ?? it?.explanation ?? "") || "—"}
+                {getReason(it) || "—"}
               </td>
             </tr>
           ))}

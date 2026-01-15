@@ -2,12 +2,28 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { TubeBender } from '../../lib/validators';
+import { TubeBender, MandrelTier } from '../../lib/validators';
 import { columns, SortState } from './Columns';
 import { ScoreBadge } from './ScoreBadge';
 import { FilterBar } from './FilterBar';
 import { EmptyState } from './EmptyState';
 import { PriceBreakdownModal } from './PriceBreakdownModal';
+
+function mandrelLabel(m: unknown): string {
+  const s = String(m ?? "").trim().toLowerCase() as MandrelTier | "";
+  if (s === "bronze") return "Bronze";
+  if (s === "economy") return "Economy";
+  if (s === "none") return "None";
+  return String(m ?? "—");
+}
+
+function getMandrelClass(m: unknown): string {
+  const s = String(m ?? "").trim().toLowerCase();
+  if (s === "bronze") return "bg-green-100 text-green-800";
+  if (s === "economy") return "bg-blue-100 text-blue-800";
+  if (s === "none") return "bg-gray-100 text-gray-800";
+  return "bg-gray-100 text-gray-800";
+}
 
 interface ComparisonTableProps {
   data: TubeBender[];
@@ -24,7 +40,7 @@ export function ComparisonTable({ data, className = '' }: ComparisonTableProps) 
   const columnMenuRef = useRef<HTMLDivElement>(null);
   
   const textFilter = searchParams.get('search') || '';
-  const mandrelFilter = (searchParams.get('mandrel') as TubeBender['mandrel'] | 'all') || 'all';
+  const mandrelFilter = (searchParams.get("mandrel") as MandrelTier | "all") || "all";
 
   // Close column menu when clicking outside
   useEffect(() => {
@@ -58,7 +74,7 @@ export function ComparisonTable({ data, className = '' }: ComparisonTableProps) 
         item.brand.toLowerCase().includes(textFilter.toLowerCase()) ||
         item.model.toLowerCase().includes(textFilter.toLowerCase());
       
-      const matchesMandrel = mandrelFilter === 'all' || item.mandrel === mandrelFilter;
+      const matchesMandrel = mandrelFilter === "all" || String(item.mandrel) === mandrelFilter;
       
       return matchesText && matchesMandrel;
     });
@@ -141,19 +157,10 @@ export function ComparisonTable({ data, className = '' }: ComparisonTableProps) 
       );
     }
     
-    if (key === 'mandrel') {
-      const getMandrelColor = (mandrel: string) => {
-        switch (mandrel) {
-          case 'Available': return 'bg-green-100 text-green-800';
-          case 'Standard': return 'bg-blue-100 text-blue-800';
-          case 'No': return 'bg-gray-100 text-gray-800';
-          default: return 'bg-gray-100 text-gray-800';
-        }
-      };
-      
+    if (key === "mandrel") {
       return (
-        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getMandrelColor(value as string)}`}>
-          {value}
+        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getMandrelClass(value)}`}>
+          {mandrelLabel(value)}
         </span>
       );
     }

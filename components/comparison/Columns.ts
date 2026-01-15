@@ -72,7 +72,8 @@ export const columns: Column[] = [
     sortable: true,
     filterable: true,
     width: 'w-32',
-    align: 'center'
+    align: 'center',
+    // NOTE: mandrel is canonical: "none" | "economy" | "bronze"
   },
   {
     key: 'totalScore',
