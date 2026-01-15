@@ -537,7 +537,7 @@ export default function ProductOverlayAdminPage() {
               >
                 <input
                   type="checkbox"
-                  checked={form[key]}
+                  checked={Boolean(form[key])}
                   onChange={(e) =>
                     updateField(key, e.target.checked as any)
                   }
