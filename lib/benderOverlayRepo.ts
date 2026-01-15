@@ -24,7 +24,7 @@ export type BenderOverlayRecord = {
   thickWallUpgrade: boolean;
   thinWallUpgrade: boolean;
   wiperDieSupport: boolean;
-  sBendCapability: boolean;
+  sBendCapability: boolean | null;
 };
 
 export type BenderOverlayInput = Omit<BenderOverlayRecord, "productId">;
@@ -52,7 +52,7 @@ function mapRow(row: any): BenderOverlayRecord {
     thickWallUpgrade: !!row.thick_wall_upgrade,
     thinWallUpgrade: !!row.thin_wall_upgrade,
     wiperDieSupport: !!row.wiper_die_support,
-    sBendCapability: !!row.s_bend_capability,
+    sBendCapability: row.s_bend_capability ?? null,
   };
 }
 
@@ -232,7 +232,7 @@ export type BenderOverlayPatch = {
   thickWallUpgrade: boolean;
   thinWallUpgrade: boolean;
   wiperDieSupport: boolean;
-  sBendCapability: boolean;
+  sBendCapability: boolean | null;
 };
 
 /**
@@ -289,7 +289,7 @@ export async function getAllBenderOverlaysMap(): Promise<
       thickWallUpgrade: !!row.thick_wall_upgrade,
       thinWallUpgrade: !!row.thin_wall_upgrade,
       wiperDieSupport: !!row.wiper_die_support,
-      sBendCapability: !!row.s_bend_capability,
+    sBendCapability: row.s_bend_capability ?? null,
     };
   }
 
@@ -350,7 +350,7 @@ export async function getAllBenderOverlaysById(
       thickWallUpgrade: !!r.thick_wall_upgrade,
       thinWallUpgrade: !!r.thin_wall_upgrade,
       wiperDieSupport: !!r.wiper_die_support,
-      sBendCapability: !!r.s_bend_capability,
+    sBendCapability: r.s_bend_capability ?? null,
     };
   }
   return out;

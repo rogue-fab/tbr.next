@@ -75,7 +75,7 @@ export interface BenderOverlay {
   thickWallUpgrade?: boolean;
   thinWallUpgrade?: boolean;
   wiperDieSupport?: boolean;
-  sBendCapability?: boolean;
+  sBendCapability?: boolean | null;
 }
 
 /**
@@ -187,7 +187,7 @@ export async function getBenderOverlayMap(): Promise<
       o.wiperDieSupport = row.wiper_die_support;
     }
     if (row.s_bend_capability != null) {
-      o.sBendCapability = row.s_bend_capability;
+  o.sBendCapability = row.s_bend_capability ?? null;
     }
 
     map[row.product_id] = o;

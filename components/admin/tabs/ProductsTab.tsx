@@ -14,7 +14,7 @@ type Product = {
   powerType?: string;
   bendAngle?: string | number;
   wallThicknessCapacity?: string;
-  sBendCapability?: string | boolean;
+  sBendCapability?: string | boolean | null;
   // Other descriptive/display fields
   clrRange?: string;
   cycleTime?: string;

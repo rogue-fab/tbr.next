@@ -144,7 +144,7 @@ async function fetchNeonOverlays(): Promise<
       thickWallUpgrade: row.thick_wall_upgrade ?? false,
       thinWallUpgrade: row.thin_wall_upgrade ?? false,
       wiperDieSupport: row.wiper_die_support ?? false,
-      sBendCapability: row.s_bend_capability ?? false,
+      sBendCapability: row.s_bend_capability ?? null,
     } as Partial<Product>;
   }
 

@@ -218,7 +218,10 @@ export async function POST(
     thickWallUpgrade: !!body.thickWallUpgrade,
     thinWallUpgrade: !!body.thinWallUpgrade,
     wiperDieSupport: !!body.wiperDieSupport,
-    sBendCapability: !!body.sBendCapability,
+    sBendCapability:
+      body.sBendCapability === null || body.sBendCapability === undefined
+        ? null
+        : Boolean(body.sBendCapability),
   };
 
   try {

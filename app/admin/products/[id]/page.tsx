@@ -22,7 +22,7 @@ type OverlayFormState = {
   thickWallUpgrade: boolean;
   thinWallUpgrade: boolean;
   wiperDieSupport: boolean;
-  sBendCapability: boolean;
+  sBendCapability: boolean | null;
 
   pros: string;
   cons: string;
@@ -64,7 +64,7 @@ export default function ProductOverlayAdminPage() {
     thickWallUpgrade: false,
     thinWallUpgrade: false,
     wiperDieSupport: false,
-    sBendCapability: false,
+  sBendCapability: null,
 
     pros: "",
     cons: "",
@@ -146,7 +146,7 @@ export default function ProductOverlayAdminPage() {
             thickWallUpgrade: !!overlay.thickWallUpgrade,
             thinWallUpgrade: !!overlay.thinWallUpgrade,
             wiperDieSupport: !!overlay.wiperDieSupport,
-            sBendCapability: !!overlay.sBendCapability,
+    sBendCapability: overlay.sBendCapability ?? null,
 
             pros: overlay.pros ?? "",
             cons: overlay.cons ?? "",

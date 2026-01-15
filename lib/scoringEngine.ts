@@ -415,7 +415,7 @@ export function calculateTubeBenderScore(
       reasoning:
         od != null
           ? `Fixed OD tiers. OD=${od} in. CLR is display-only (not scored).`
-          : "No documented max OD (capacity) value; this category scores 0. CLR is display-only (not scored).",
+          : "No published/entered max OD (capacity) value; this category scores 0 rather than guessing. CLR is display-only (not scored).",
     });
   }
 
@@ -445,7 +445,7 @@ export function calculateTubeBenderScore(
       reasoning:
         angle != null
           ? `Fixed angle tiers. Angle=${angle} deg.`
-          : "No documented max bend angle value; this category scores 0.",
+          : "No published/entered max bend angle value; this category scores 0 rather than guessing.",
     });
   }
 
@@ -672,7 +672,7 @@ export function calculateTubeBenderScore(
     maxPoints: 8,
     reasoning:
       coveredShapes.length === 0
-        ? "No documented tube/pipe die families beyond basic or unspecified coverage."
+        ? "No published/entered die-family coverage for this frame; this category scores 0 rather than guessing."
         : `Documented die coverage for: ${coveredShapes.join(
             ", ",
           )}. Points are awarded only for die families the bender manufacturer explicitly documents as compatible for this frame, including any clearly claimed third-party die ecosystems.`,
@@ -801,7 +801,7 @@ export function calculateTubeBenderScore(
     maxPoints: 8,
     reasoning:
       upgradePieces.length === 0
-        ? "No documented upgrade path beyond the base configuration for power, LRA control, or bend-quality tooling."
+        ? "No published/entered upgrade-path data beyond the base configuration for power, LRA control, or bend-quality tooling; this category scores 0 rather than guessing."
         : `Documented upgrade path covering: ${upgradePieces.join(", ")}.`,
   });
   totalScore += upgradeScore;
@@ -835,7 +835,10 @@ export function calculateTubeBenderScore(
     mandrelReason =
       "Economy mandrel option documented by the manufacturer for this frame (non-bronze mandrels such as plastic, aluminum, or steel).";
   } else {
-    mandrelReason = "No documented mandrel capability for this frame (or not documented clearly enough to score).";
+    mandrelReason =
+      mandrelRaw.length === 0
+        ? "No published/entered mandrel capability data for this frame; this category scores 0 rather than guessing."
+        : "Mandrel tier is explicitly none (or not documented clearly enough to score). This category scores 0.";
   }
 
   scoreBreakdown.push({
@@ -849,22 +852,45 @@ export function calculateTubeBenderScore(
   // 10. S-Bend Capability (3 points)
   let sBendScore = 0;
   const rawSBend = (bender as any).sBendCapability;
-  const sBendCapability =
-    typeof rawSBend === "boolean"
-      ? rawSBend
-      : typeof rawSBend === "string"
-      ? ["yes", "true"].includes(rawSBend.trim().toLowerCase())
-      : false;
+  // Admin UIs often store booleans; "unchecked" can mean either explicit "No" OR simply "not entered".
+  // Distinguish using presence of evidence/source fields when available.
+  const sbendEvidenceText = [
+    (bender as any).sBendCapabilitySource1,
+    (bender as any).sBendCapabilitySource2,
+    (bender as any).sBendCapabilityNotes,
+  ]
+    .map((v: unknown) => String(v ?? "").trim())
+    .filter(Boolean)
+    .join(" | ");
+  const hasSBendEvidence = sbendEvidenceText.length > 0;
 
-  if (sBendCapability === true) sBendScore = 3;
+  let sBendState: "yes" | "no" | "unknown" = "unknown";
+  if (typeof rawSBend === "boolean") {
+    // If false but no evidence fields exist, treat as unknown (not entered) rather than a hard "No".
+    sBendState = rawSBend ? "yes" : (hasSBendEvidence ? "no" : "unknown");
+  } else if (typeof rawSBend === "string") {
+    const s = rawSBend.trim().toLowerCase();
+    if (["yes", "true", "y", "1"].includes(s)) sBendState = "yes";
+    else if (["no", "false", "n", "0"].includes(s)) sBendState = hasSBendEvidence ? "no" : "unknown";
+    else sBendState = "unknown";
+  } else {
+    sBendState = "unknown";
+  }
+
+  if (sBendState === "yes") sBendScore = 3;
+
+  const sBendReason =
+    sBendState === "yes"
+      ? "Meets TubeBenderReviews S-bend definition: two opposite-direction bends with ≤0.125\" straight (tangent) between them, verified via specs/photos."
+      : sBendState === "no"
+      ? "Published/entered data does not qualify under the TubeBenderReviews S-bend definition (≤0.125\" tangent between opposite bends). Marketing \"S-bend\" claims with inches of straight between bends do not qualify."
+      : "No published/entered S-bend capability data for this frame; this category scores 0 rather than guessing.";
 
   scoreBreakdown.push({
     criteria: "S-Bend Capability",
     points: sBendScore,
     maxPoints: 3,
-    reasoning: sBendCapability
-      ? "Meets TubeBenderReviews S-bend definition: two opposite-direction bends with ≤0.125\" straight (tangent) between them, verified via specs/photos."
-      : "No documented ability to form back-to-back opposite bends with ≤0.125\" tangent; marketing \"S-bend\" claims with several inches of straight between bends do not qualify.",
+    reasoning: sBendReason,
   });
   totalScore += sBendScore;
 
@@ -884,7 +910,7 @@ export function calculateTubeBenderScore(
     reasoning:
       usaManufacturingDisclosure > 0
         ? `Disclosure-based tier ${usaManufacturingDisclosure}/5 based solely on the manufacturer's own claims about where frames, dies, hydraulics, and assembly occur. We do not audit factories or offer legal opinions on FTC compliance; this scores the stated claim only.`
-        : "No disclosed USA manufacturing claims, clearly imported origin, or only very weak USA-flavored language.",
+        : "No disclosed USA manufacturing claims (or only vague/marketing language) in published/entered data; this category scores 0 rather than guessing.",
   });
   totalScore += usaManufacturingDisclosure;
 
@@ -900,7 +926,7 @@ export function calculateTubeBenderScore(
     reasoning:
       originTransparencyTier > 0
         ? `Transparency tier ${originTransparencyTier}/5 based on how clearly the manufacturer documents the origin of major components. This scores documentation quality only; it does not reward or penalize any specific country of origin.`
-        : "No meaningful origin disclosure, or only vague/marketing language without concrete component origin details.",
+        : "No meaningful origin disclosure in published/entered data (or only vague/marketing language); this category scores 0 rather than guessing.",
   });
   totalScore += originTransparencyTier;
 
@@ -923,7 +949,7 @@ export function calculateTubeBenderScore(
     reasoning:
       singleSourceScore === 2
         ? "Complete, fully functional system (frame + dies + hydraulics/lever) available from one primary manufacturer/storefront."
-        : "One or more required components must be sourced elsewhere, or the manufacturer does not clearly offer a complete system from a single source.",
+        : "No published/entered proof of a complete single-source system for this frame; this category scores 0 rather than guessing.",
   });
   totalScore += singleSourceScore;
 
@@ -948,7 +974,7 @@ export function calculateTubeBenderScore(
       "Some warranty language present, but short, limited, or vague in duration/coverage.";
   } else {
     warrantyReason =
-      "No meaningful written warranty, sold as-is, or warranty not mentioned in published documentation.";
+      "No published/entered written warranty terms for this frame (or sold as-is); this category scores 0 rather than guessing.";
   }
 
   scoreBreakdown.push({
