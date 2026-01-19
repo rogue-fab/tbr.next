@@ -9,6 +9,12 @@ import {
   type ScoreBreakdownItem,
 } from "./scoringEngine";
 
+import autoscaleSnapshot from "./autoscale/snapshot.json";
+
+// Value autoscale snapshot (manual refresh by design).
+// Keep this as a committed artifact so scoring is reproducible and FTC-defensible.
+import valueSnapshot from "./autoscale/value_snapshot.json";
+
 /**
  * UI should never match scoring categories by display labels.
  * The legacy engine emits human-readable `criteria` strings only; we map those
@@ -456,7 +462,22 @@ export function getProductScore(
   };
 
   try {
-    const scored = calculateTubeBenderScore(scoringInput);
+    // Merge incoming ctx with the committed autoscale snapshot.
+    // If ctx already contains valueP10/valueP90 (e.g., future admin override),
+    // ctx wins; otherwise fall back to snapshot.
+    const mergedCtx: ScoringContext = {
+      ...(ctx ?? {}),
+      valueP10:
+        (ctx?.valueP10 ?? null) != null
+          ? (ctx?.valueP10 as number | null)
+          : (valueSnapshot as any)?.valueBand?.valueP10 ?? null,
+      valueP90:
+        (ctx?.valueP90 ?? null) != null
+          ? (ctx?.valueP90 as number | null)
+          : (valueSnapshot as any)?.valueBand?.valueP90 ?? null,
+    };
+
+    const scored = calculateTubeBenderScore(scoringInput, mergedCtx);
     if (!Number.isFinite(scored.totalScore)) {
       return { total: null, source: "none" };
     }
@@ -482,7 +503,15 @@ export function getProductScore(
       points: 0,
       maxPoints: 0,
       reasoning: JSON.stringify(
-        { entryPrice, maxCapacity: scoringInput.maxCapacity, bendAngle: scoringInput.bendAngle, wallThicknessCapacity: scoringInput.wallThicknessCapacity },
+        {
+          entryPrice,
+          maxCapacity: scoringInput.maxCapacity,
+          bendAngle: scoringInput.bendAngle,
+          wallThicknessCapacity: scoringInput.wallThicknessCapacity,
+          // Show the value autoscale band actually used (or nulls if missing).
+          valueP10: (mergedCtx as any).valueP10 ?? null,
+          valueP90: (mergedCtx as any).valueP90 ?? null,
+        },
         null,
         2,
       ),

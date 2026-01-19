@@ -17,6 +17,15 @@ export type ScoringContext = {
   maxOdIn?: number | null;
   minBendAngleDeg?: number | null;
   maxBendAngleDeg?: number | null;
+
+  /**
+   * Value-for-money autoscale band (computed from a dataset snapshot).
+   * Uses P10/P90 of rawValue = capabilityPoints/entryPrice.
+   *
+   * If omitted, Value for Money falls back to legacy entryPrice bands.
+   */
+  valueP10?: number | null;
+  valueP90?: number | null;
 };
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -25,6 +34,22 @@ function clamp(n: number, lo: number, hi: number): number {
 
 function roundInt(n: number): number {
   return Math.round(n);
+}
+
+function lerpPointsClamped(
+  value: number,
+  lo: number,
+  hi: number,
+  minPoints: number,
+  maxPoints: number,
+): number {
+  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return 0;
+  if (hi <= lo) return 0;
+  const v = clamp(value, lo, hi);
+  const t = (v - lo) / (hi - lo);
+  const raw = minPoints + t * (maxPoints - minPoints);
+  return clamp(roundInt(raw), minPoints, maxPoints);
 }
 
 // NOTE: Autoscaling was tested and intentionally disabled for FTC safety and
@@ -327,34 +352,16 @@ export function calculateTubeBenderScore(
   let valueScore = 0;
   const entryPrice = typeof (bender as any).entryPrice === "number" ? (bender as any).entryPrice : NaN;
 
-  // Prefer numeric entryPrice (from getProductScore) when present.
-  // This keeps the category alive even if priceRange is empty.
-  if (Number.isFinite(entryPrice) && entryPrice > 0) {
-    // Simple numeric tiers (defensive / not pretending to be "perfect math").
-    // You can refine these bands later without breaking wiring.
-    if (entryPrice <= 1500) valueScore = 20;
-    else if (entryPrice <= 2000) valueScore = 18;
-    else if (entryPrice <= 3000) valueScore = 15;
-    else if (entryPrice <= 4500) valueScore = 12;
-    else if (entryPrice <= 6500) valueScore = 9;
-    else valueScore = 7;
-  } else {
-    // No documented entryPrice available: score 0 rather than guessing.
-    valueScore = 0;
-  }
-
+  // We compute Value after the other categories so we can reuse their actual points.
+  // Keep a placeholder breakdown item and overwrite it later.
   scoreBreakdown.push({
     criteria: "Value for Money",
-    points: valueScore,
+    points: 0,
     maxPoints: 20,
-    reasoning:
-      Number.isFinite(entryPrice) && entryPrice > 0
-        ? `Numeric entryPrice tiering using ${entryPrice.toFixed(
-            0,
-          )} as the starter-system price (frame + dies + power + stand) from getProductScore.`
-        : `No documented starter-system pricing (entryPrice) available (frame + dies + power + stand). This category scores 0 rather than guessing.`,
+    reasoning: "Value for Money pending calculation.",
   });
-  totalScore += valueScore;
+
+  // IMPORTANT: Value points are added at the end (after capability categories are scored).
 
   // 2. Ease of Use & Setup (10 points)
   //
@@ -984,6 +991,80 @@ export function calculateTubeBenderScore(
     reasoning: `${warrantyReason} This category is based strictly on published terms; we do not score how well the warranty is honored in practice.`,
   });
   totalScore += warrantySupportTier;
+
+  // 1. Value for Money (AUTOSCALED, mechanics-only)
+  //
+  // Raw value = (capabilityPoints / entryPrice)
+  // capabilityPoints includes ONLY these categories:
+  // 2,3,4,5,6,8,9,10,13,14
+  // Excludes: Value itself, USA/origin transparency, years-in-business.
+  //
+  // Autoscale uses dataset P10/P90 provided by ctx.valueP10/valueP90:
+  // - Clamp rawValue into [P10,P90]
+  // - Map to points: 1..20 (maxPoints)
+  // If entryPrice missing/invalid -> scores 0 (no guessing).
+  const maxValuePoints = 20;
+  const minValuePoints = 1;
+
+  const findPts = (name: string): number => {
+    const it = scoreBreakdown.find((x) => x.criteria === name);
+    return it ? it.points : 0;
+  };
+
+  const capabilityPoints =
+    findPts("Ease of Use & Setup") +
+    findPts("Max Diameter & CLR Capability") +
+    findPts("Bend Angle Capability") +
+    findPts("Stress Capacity & Materials") +
+    findPts("Die Selection & Shapes") +
+    findPts("Upgrade Path & Modularity") +
+    findPts("Mandrel Compatibility") +
+    findPts("S-Bend Capability") +
+    findPts("Single-Source System") +
+    findPts("Warranty (Published Terms Only)");
+
+  let valueReason: string;
+  if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+    valueScore = 0;
+    valueReason =
+      "No documented starter-system pricing (entryPrice) available (frame + dies + power + stand). This category scores 0 rather than guessing.";
+  } else {
+    const rawValue = capabilityPoints / entryPrice;
+    const p10 = Number(ctx?.valueP10 ?? NaN);
+    const p90 = Number(ctx?.valueP90 ?? NaN);
+
+    if (Number.isFinite(p10) && Number.isFinite(p90) && p90 > p10) {
+      valueScore = lerpPointsClamped(rawValue, p10, p90, minValuePoints, maxValuePoints);
+      valueReason =
+        `Autoscaled mechanics-only value using rawValue=(capabilityPoints/entryPrice). ` +
+        `capabilityPoints=${capabilityPoints}, entryPrice=${entryPrice.toFixed(0)}, rawValue=${rawValue.toExponential(3)}. ` +
+        `Dataset band: P10=${p10.toExponential(3)}, P90=${p90.toExponential(3)}. ` +
+        `Values are clamped into [P10,P90] and mapped to ${minValuePoints}..${maxValuePoints}.`;
+    } else {
+      // Backward-compatible fallback: simple entryPrice tiers (still evidence-based).
+      if (entryPrice <= 1500) valueScore = 20;
+      else if (entryPrice <= 2000) valueScore = 18;
+      else if (entryPrice <= 3000) valueScore = 15;
+      else if (entryPrice <= 4500) valueScore = 12;
+      else if (entryPrice <= 6500) valueScore = 9;
+      else valueScore = 7;
+
+      valueReason =
+        `Autoscale band missing (ctx.valueP10/valueP90). Falling back to legacy entryPrice tiering using entryPrice=${entryPrice.toFixed(
+          0,
+        )}.`;
+    }
+  }
+
+  // Overwrite the placeholder Value breakdown item (index 0).
+  scoreBreakdown[0] = {
+    criteria: "Value for Money",
+    points: valueScore,
+    maxPoints: maxValuePoints,
+    reasoning: valueReason,
+  };
+
+  totalScore += valueScore;
 
   return {
     totalScore,
