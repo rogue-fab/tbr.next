@@ -1,19 +1,15 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import AdminClient from "../_client/AdminClient";
 
 export default function AdminAppPage() {
-  // AdminClient is a client component; app router can render it from here.
-  return (
-    <>
-      <AdminClient />
-      <div className="mx-auto max-w-5xl px-4 pb-10 pt-6 text-[11px] text-gray-400">
-        Build:{" "}
-        <span className="font-mono">
-          {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ??
-            process.env.VERCEL_GIT_COMMIT_SHA ??
-            "unknown"}
-        </span>
-      </div>
-    </>
-  );
+  // Hard gate: if no admin_token cookie, force login.
+  // This prevents the confusing "admin app loads but API 401s" situation.
+  const hasToken = cookies().has("admin_token");
+  if (!hasToken) {
+    redirect("/admin/login");
+  }
+
+  return <AdminClient />;
 }
 
