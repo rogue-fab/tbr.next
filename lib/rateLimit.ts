@@ -35,6 +35,14 @@ export function getClientId(request: NextRequest): string {
 
 let redisInstance: Redis | null = null;
 
+function isFailOpenEnabled(): boolean {
+  // Default to fail-open: rate limiting should not take down admin tooling.
+  // Set RATE_LIMIT_FAIL_OPEN=0 (or "false") to force fail-closed behavior.
+  const v = (process.env.RATE_LIMIT_FAIL_OPEN ?? "1").toLowerCase().trim();
+  if (v === "0" || v === "false" || v === "no") return false;
+  return true;
+}
+
 /**
  * Get Redis client, with defensive handling for missing env vars.
  * In production, throws if env vars are missing (fail closed).
@@ -53,7 +61,10 @@ function getRedis(): Redis | null {
     process.env.UPSTASH_REDIS_KV_REST_API_TOKEN ??
     null;
 
-  if (!url || !token) {
+  const urlTrimmed = (url ?? "").trim();
+  const tokenTrimmed = (token ?? "").trim();
+
+  if (!urlTrimmed || !tokenTrimmed) {
     const isProd = process.env.NODE_ENV === "production";
     if (isProd) {
       // In production, fail closed
@@ -70,7 +81,7 @@ function getRedis(): Redis | null {
     return null;
   }
 
-  redisInstance = new Redis({ url, token });
+  redisInstance = new Redis({ url: urlTrimmed, token: tokenTrimmed });
   return redisInstance;
 }
 
@@ -166,16 +177,39 @@ export async function enforceRateLimit(
   keyParts: (string | number)[],
 ) {
   const key = keyParts.map(String).join(":");
-  const result = await limiter.limit(key);
+  try {
+    const result = await limiter.limit(key);
+    return {
+      ok: result.success,
+      retryAfter: result.reset
+        ? Math.max(1, Math.ceil((result.reset - Date.now()) / 1000))
+        : 60,
+      remaining: result.remaining,
+      reset: result.reset,
+    };
+  } catch (err) {
+    const msg =
+      err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
+    console.warn(`[rateLimit] limiter.limit failed (key=${key}) - ${msg}`);
 
-  return {
-    ok: result.success,
-    retryAfter: result.reset
-      ? Math.max(1, Math.ceil((result.reset - Date.now()) / 1000))
-      : 60,
-    remaining: result.remaining,
-    reset: result.reset,
-  };
+    // Default: fail-open so admin and critical paths don't crash when Upstash is unreachable.
+    // If you want strict protection, set RATE_LIMIT_FAIL_OPEN=0.
+    if (isFailOpenEnabled()) {
+      return {
+        ok: true,
+        retryAfter: 0,
+        remaining: undefined,
+        reset: undefined,
+      };
+    }
+
+    return {
+      ok: false,
+      retryAfter: 60,
+      remaining: undefined,
+      reset: undefined,
+    };
+  }
 }
 
 /**
