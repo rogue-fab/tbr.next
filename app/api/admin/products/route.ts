@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { listProductIds } from "../../../../lib/data";
 import { mergeWithOverlay, info } from "../../../../lib/adminStore";
-import { badRequest } from "../../../../lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +15,13 @@ function isAuthorized(request: NextRequest): boolean {
   return cookieToken === envToken;
 }
 
+function unauthorized() {
+  return NextResponse.json(
+    { ok: false, error: "Not authorized" },
+    { status: 401 },
+  );
+}
+
 /**
  * GET /api/admin/products
  * Returns an array of products. Shape is { ok: true, data: [...] } to match admin client.
@@ -26,7 +32,7 @@ function isAuthorized(request: NextRequest): boolean {
 export async function GET(request: NextRequest) {
   try {
     if (!isAuthorized(request)) {
-      return badRequest("Not authorized");
+      return unauthorized();
     }
 
     const base = await listProductIds(); // [{id}]

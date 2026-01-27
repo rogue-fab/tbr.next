@@ -1,5 +1,6 @@
 // app/api/admin/products/[id]/publish/route.ts
 import { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { ok, badRequest } from "../../../../../../lib/http";
 import {
   getClientId,
@@ -22,12 +23,19 @@ function isAuthorized(request: NextRequest): boolean {
   return cookieToken === envToken;
 }
 
+function unauthorized() {
+  return NextResponse.json(
+    { ok: false, error: "Not authorized" },
+    { status: 401 },
+  );
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
   if (!isAuthorized(request)) {
-    return badRequest("Not authorized");
+    return unauthorized();
   }
 
   const productId = params?.id;
@@ -93,7 +101,7 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   if (!isAuthorized(request)) {
-    return badRequest("Not authorized");
+    return unauthorized();
   }
 
   const productId = params?.id;
