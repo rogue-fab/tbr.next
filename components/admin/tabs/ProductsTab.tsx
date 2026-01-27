@@ -1,6 +1,7 @@
+// NOTE: This file intentionally contains explicit admin API error surfacing for team use.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { generateAutoProsCons, type AutoProCon } from '../../../lib/proCons';
 // Admin grid reads from /api/admin/products; writes hit /api/admin/products/[id]
 
@@ -86,10 +87,23 @@ type RowCitationClipboard = {
   userCode: string;
 };
 
+type ApiDebug = {
+  at: string;
+  url: string;
+  endpoint: string;
+  status: number;
+  statusText: string;
+  bodySnippet: string;
+};
+
+const isAuthStatus = (status: number) => status === 401 || status === 403;
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
 export default function ProductsTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [apiDebug, setApiDebug] = useState<ApiDebug | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [citationClipboard, setCitationClipboard] =
     useState<RowCitationClipboard | null>(null);
@@ -117,6 +131,76 @@ export default function ProductsTab() {
   const [publishing, setPublishing] = useState(false);
   const [draftLoadError, setDraftLoadError] = useState<string | null>(null);
 
+  const pageUrl = useMemo(() => {
+    try {
+      return window.location.href;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  async function readBodySnippet(res: Response): Promise<string> {
+    // Defensive: admins sometimes return JSON errors, sometimes plain text.
+    // We want something short + safe to display.
+    const text = await res.text().catch(() => '');
+    const trimmed = (text || '').trim();
+    return clip(trimmed, 400);
+  }
+
+  function setApiError(opts: {
+    endpoint: string;
+    status: number;
+    statusText: string;
+    bodySnippet: string;
+  }) {
+    setApiDebug({
+      at: new Date().toISOString(),
+      url: pageUrl || (typeof window !== 'undefined' ? window.location.href : ''),
+      endpoint: opts.endpoint,
+      status: opts.status,
+      statusText: opts.statusText,
+      bodySnippet: opts.bodySnippet,
+    });
+  }
+
+  function clearApiError() {
+    setApiDebug(null);
+  }
+
+  async function copyDebugToClipboard() {
+    if (!apiDebug) return;
+    const msg = [
+      `[TBR Admin Debug] ${apiDebug.at}`,
+      `URL: ${apiDebug.url}`,
+      `Endpoint: ${apiDebug.endpoint}`,
+      `Status: ${apiDebug.status} ${apiDebug.statusText}`,
+      `Body: ${apiDebug.bodySnippet || '(empty)'}`,
+      isAuthStatus(apiDebug.status)
+        ? `Hint: 401/403 usually means you need to re-login at /admin (admin_token cookie is httpOnly).`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      await navigator.clipboard.writeText(msg);
+      alert('Copied debug details to clipboard.');
+    } catch {
+      // Fallback: at least show the text so the user can copy manually.
+      prompt('Copy debug details:', msg);
+    }
+  }
+
+  async function retryAll() {
+    setError(null);
+    clearApiError();
+    await fetchProducts();
+    if (selectedId) {
+      void loadDraftForProduct(selectedId);
+      void loadPublishedForProduct(selectedId);
+    }
+  }
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -124,16 +208,28 @@ export default function ProductsTab() {
   const loadPublishedForProduct = async (productId: string) => {
     setPublishedLoadError(null);
     try {
-      const res = await fetch(`/api/admin/products/${productId}/publish`, {
+      const endpoint = `/api/admin/products/${productId}/publish`;
+      const res = await fetch(endpoint, {
         method: "GET",
       });
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.error("Load published failed:", res.status, txt);
+        const snippet = await readBodySnippet(res);
+        console.error("Load published failed:", res.status, snippet);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
         setPublishedMeta(null);
-        setPublishedLoadError(`Failed to load published (${res.status})`);
+        setPublishedLoadError(
+          isAuthStatus(res.status)
+            ? `Failed to load published (${res.status}). Not authorized — re-login at /admin.`
+            : `Failed to load published (${res.status})`,
+        );
         return;
       }
+      clearApiError();
       const json = (await res.json()) as any;
       const p = json?.published ?? null;
       if (!p) {
@@ -156,14 +252,27 @@ export default function ProductsTab() {
   const loadDraftForProduct = async (id: string) => {
     setDraftLoadError(null);
     try {
-      const res = await fetch(`/api/admin/products/${id}/draft`, {
+      const endpoint = `/api/admin/products/${id}/draft`;
+      const res = await fetch(endpoint, {
         cache: "no-store",
       });
       if (!res.ok) {
-        setDraftLoadError(`Failed to load draft (${res.status})`);
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        setDraftLoadError(
+          isAuthStatus(res.status)
+            ? `Failed to load draft (${res.status}). Not authorized — re-login at /admin.`
+            : `Failed to load draft (${res.status})`,
+        );
         setDraftMeta(null);
         return;
       }
+      clearApiError();
       const json: any = await res.json();
       const draft = json?.draft ?? null;
       const fields = draft?.fields ?? {};
@@ -195,12 +304,25 @@ export default function ProductsTab() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/admin/products", { cache: "no-store" });
+      const endpoint = "/api/admin/products";
+      const res = await fetch(endpoint, { cache: "no-store" });
 
       if (!res.ok) {
-        setError("Failed to fetch products");
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        setError(
+          isAuthStatus(res.status)
+            ? `Failed to fetch products (${res.status}). Not authorized — re-login at /admin.`
+            : `Failed to fetch products (${res.status}).`,
+        );
         return;
       }
+      clearApiError();
       const json: any = await res.json();
       // Accept either { ok, data } or a raw array (defensive)
       let rows: any[] = [];
@@ -217,7 +339,13 @@ export default function ProductsTab() {
       setProducts(rows as Product[]);
       setError("");
     } catch {
-      setError("Failed to fetch products");
+      setApiError({
+        endpoint: "/api/admin/products",
+        status: 0,
+        statusText: "Network error",
+        bodySnippet: "Fetch threw before receiving a response (network/DNS/CORS/runtime).",
+      });
+      setError("Failed to fetch products (network error).");
     } finally {
       setLoading(false);
     }
@@ -261,6 +389,70 @@ export default function ProductsTab() {
     return <div className="py-8 text-center">Loading products...</div>;
   }
 
+  // Debug / API status panel (kept compact but explicit).
+  // This is critical when rolling the admin to a team: failures must be self-explanatory.
+  const DebugPanel = () => {
+    if (!apiDebug && !error && !draftLoadError && !publishedLoadError) return null;
+
+    const headline = apiDebug
+      ? `API issue: ${apiDebug.endpoint} → ${apiDebug.status} ${apiDebug.statusText}`
+      : `API issue detected`;
+
+    const hint =
+      apiDebug && isAuthStatus(apiDebug.status)
+        ? `Auth hint: 401/403 usually means you need to re-login at /admin (admin_token cookie is httpOnly).`
+        : null;
+
+    return (
+      <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <div className="font-semibold">{headline}</div>
+            {apiDebug ? (
+              <div className="mt-1 space-y-1">
+                <div className="text-[0.7rem] text-amber-800">
+                  <span className="font-semibold">When:</span> {apiDebug.at}
+                </div>
+                <div className="text-[0.7rem] text-amber-800 break-all">
+                  <span className="font-semibold">URL:</span> {apiDebug.url}
+                </div>
+                <div className="rounded border border-amber-200 bg-white p-2 font-mono text-[0.7rem] text-amber-900 whitespace-pre-wrap">
+                  {apiDebug.bodySnippet || "(empty response body)"}
+                </div>
+                {hint ? <div className="text-[0.7rem]">{hint}</div> : null}
+              </div>
+            ) : (
+              <div className="mt-1 text-[0.7rem] text-amber-800">
+                Something failed, but no structured API debug is available.
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={retryAll}
+              className="rounded border border-amber-400 bg-white px-2 py-1 text-[0.7rem] font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={copyDebugToClipboard}
+              disabled={!apiDebug}
+              className={`rounded border px-2 py-1 text-[0.7rem] font-semibold ${
+                apiDebug
+                  ? "border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+                  : "cursor-not-allowed border-amber-200 bg-amber-50 text-amber-300"
+              }`}
+            >
+              Copy debug
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (error) {
     return (
       <div className="py-8 text-center text-red-600">
@@ -295,7 +487,8 @@ export default function ProductsTab() {
     if (!selectedProduct) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/products/${selectedProduct.id}/draft`, {
+      const endpoint = `/api/admin/products/${selectedProduct.id}/draft`;
+      const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -305,12 +498,23 @@ export default function ProductsTab() {
       });
 
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.error("Save draft failed:", res.status, txt);
-        alert(`Save failed (${res.status}). Check console.`);
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        console.error("Save draft failed:", res.status, snippet);
+        alert(
+          isAuthStatus(res.status)
+            ? `Save failed (${res.status}). Not authorized — re-login at /admin.`
+            : `Save failed (${res.status}). See debug panel for details.`,
+        );
         return;
       }
 
+      clearApiError();
       setIsDirty(false);
 
       // Reload draft so UI reflects canonical saved state (timestamps/version/evidence)
@@ -327,15 +531,27 @@ export default function ProductsTab() {
     if (!selectedProduct) return;
     setPublishing(true);
     try {
-      const res = await fetch(`/api/admin/products/${selectedProduct.id}/publish`, {
+      const endpoint = `/api/admin/products/${selectedProduct.id}/publish`;
+      const res = await fetch(endpoint, {
         method: "POST",
       });
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.error("Publish failed:", res.status, txt);
-        alert(`Publish failed (${res.status}). Check console.`);
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        console.error("Publish failed:", res.status, snippet);
+        alert(
+          isAuthStatus(res.status)
+            ? `Publish failed (${res.status}). Not authorized — re-login at /admin.`
+            : `Publish failed (${res.status}). See debug panel for details.`,
+        );
         return;
       }
+      clearApiError();
       // After publish, reload both draft and published views (status/version will change)
       await loadDraftForProduct(selectedProduct.id);
       await loadPublishedForProduct(selectedProduct.id);
@@ -812,6 +1028,11 @@ export default function ProductsTab() {
 
             return (
     <div className="w-full rounded-lg bg-white shadow max-w-[1400px] mx-auto">
+      {/* Debug panel for explicit API/auth failures */}
+      <div className="px-6 pt-4">
+        <DebugPanel />
+      </div>
+
       {/* Header + product selector */}
       <div className="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
         <div>
