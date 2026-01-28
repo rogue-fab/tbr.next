@@ -3,6 +3,19 @@ import { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
+/**
+ * Vercel-specific environment detection.
+ * IMPORTANT: On Vercel Preview deployments, NODE_ENV is often "production".
+ * We only want "strict prod" behavior when VERCEL_ENV === "production".
+ */
+function isVercelProd(): boolean {
+  return (process.env.VERCEL_ENV ?? "").toLowerCase().trim() === "production";
+}
+
+function isVercelPreview(): boolean {
+  return (process.env.VERCEL_ENV ?? "").toLowerCase().trim() === "preview";
+}
+
 export function getClientIp(request: NextRequest): string {
   // Vercel sets x-forwarded-for. Take the first IP in the list.
   const xff = request.headers.get("x-forwarded-for");
@@ -65,7 +78,7 @@ function getRedis(): Redis | null {
   const tokenTrimmed = (token ?? "").trim();
 
   if (!urlTrimmed || !tokenTrimmed) {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = isVercelProd();
     if (isProd) {
       // In production, fail closed
       const msg =
@@ -76,13 +89,22 @@ function getRedis(): Redis | null {
       console.error(`[rateLimit] ${msg}`);
       throw new Error(msg);
     }
-    // In dev, return null to allow fail-open behavior
+    // In dev/preview, return null to allow fail-open behavior
     console.warn("[rateLimit] Missing Upstash Redis env vars. Rate limiting disabled in dev.");
     return null;
   }
 
   redisInstance = new Redis({ url: urlTrimmed, token: tokenTrimmed });
   return redisInstance;
+}
+
+/**
+ * On Vercel Preview, we want admin auth to be hard to brick.
+ * Disable *lockouts* entirely, and allow a much higher rate limit.
+ * (You can still keep read/write rate limiting if desired.)
+ */
+function isAuthThrottlingRelaxed(): boolean {
+  return !isVercelProd(); // relax on preview + dev/local
 }
 
 // Rate limiter for authentication endpoints (5 requests per 60 seconds)
@@ -100,9 +122,14 @@ function getRatelimitAuth(): Ratelimit {
   }
   // TS sometimes fails to narrow here depending on upstream types; force it.
   const redisClient = redis as Redis;
+  // On preview/dev: raise the ceiling so a couple bad attempts won't brick you.
+  const relaxed = isAuthThrottlingRelaxed();
+  const max = relaxed ? 60 : 5;
+  const window = "60 s";
+
   _ratelimitAuth = new Ratelimit({
     redis: redisClient,
-    limiter: Ratelimit.slidingWindow(5, "60 s"),
+    limiter: Ratelimit.slidingWindow(max, window),
     analytics: true,
   });
   return _ratelimitAuth;
@@ -218,6 +245,9 @@ export async function enforceRateLimit(
  */
 export async function checkAuthLockout(id: string): Promise<number | null> {
   try {
+    // Never lock out on preview/dev; it slows debugging and causes false positives.
+    if (isAuthThrottlingRelaxed()) return null;
+
     const redis = getRedis();
     if (!redis) return null;
     const lockKey = `admin_auth_lock:${id}`;
@@ -229,7 +259,7 @@ export async function checkAuthLockout(id: string): Promise<number | null> {
   } catch (err) {
     console.error("[rateLimit] Failed to check auth lockout:", err);
     // Fail closed in production
-    if (process.env.NODE_ENV === "production") {
+    if (isVercelProd()) {
       return 3600; // Assume locked if Redis fails in production
     }
     return null;
@@ -243,6 +273,9 @@ export async function checkAuthLockout(id: string): Promise<number | null> {
  */
 export async function recordAuthFailure(id: string): Promise<boolean> {
   try {
+    // Never record failures / trigger lockouts on preview/dev.
+    if (isAuthThrottlingRelaxed()) return false;
+
     const redis = getRedis();
     if (!redis) return false;
     const failKey = `admin_auth_fail:${id}`;
@@ -271,6 +304,9 @@ export async function recordAuthFailure(id: string): Promise<boolean> {
  */
 export async function clearAuthFailures(id: string): Promise<void> {
   try {
+    // No-op in preview/dev since we don't record lockouts there.
+    if (isAuthThrottlingRelaxed()) return;
+
     const redis = getRedis();
     if (!redis) return;
     await redis.del(`admin_auth_fail:${id}`);
