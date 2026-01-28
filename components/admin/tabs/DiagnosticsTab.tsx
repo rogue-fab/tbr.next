@@ -13,6 +13,15 @@ type AutoscaleOffender = {
   totalScore: number | null;
 };
 
+type EligibleRow = {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  entryPrice: number;
+  capabilityPoints: number;
+  rawValue: number;
+};
+
 type AutoscaleValueDiag = {
   status: "ok" | "warning" | "error";
   band?: { valueP10: number; valueP90: number };
@@ -25,6 +34,12 @@ type AutoscaleValueDiag = {
   offenders?: {
     belowP10: AutoscaleOffender[];
     aboveP90: AutoscaleOffender[];
+  };
+  entryPriceOutliers?: {
+    suspiciousThreshold: number;
+    suspiciousCount: number;
+    lowest: EligibleRow[];
+    highest: EligibleRow[];
   };
   errors?: string[];
 };
@@ -67,6 +82,75 @@ function StatusPill({ status }: { status: "ok" | "warning" | "error" | "loading"
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.cls}`}>
       {cfg.label}
     </span>
+  );
+}
+
+function EntryPriceOutliersPanel({
+  outliers,
+}: {
+  outliers: AutoscaleValueDiag["entryPriceOutliers"];
+}) {
+  if (!outliers) return null;
+
+  const { suspiciousThreshold, suspiciousCount, lowest, highest } = outliers;
+
+  const Table = ({ title, rows }: { title: string; rows: EligibleRow[] }) => {
+    if (!rows?.length) return null;
+    return (
+      <div className="mt-3">
+        <h5 className="text-sm font-semibold text-gray-900">{title}</h5>
+        <div className="mt-2 overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr className="text-left text-xs font-semibold text-gray-700">
+                <th className="px-3 py-2">ID</th>
+                <th className="px-3 py-2">Brand</th>
+                <th className="px-3 py-2">Model</th>
+                <th className="px-3 py-2">Entry Price</th>
+                <th className="px-3 py-2">Capability Pts</th>
+                <th className="px-3 py-2">rawValue</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {rows.map((r) => (
+                <tr key={`${title}-${r.id}`} className="text-gray-900">
+                  <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{r.id}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{r.brand ?? "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{r.model ?? "—"}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{formatMoney(r.entryPrice)}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{formatNumber(r.capabilityPoints, 0)}</td>
+                  <td className="px-3 py-2 whitespace-nowrap font-mono text-xs">{formatRawValue(r.rawValue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="mt-4 rounded-lg border border-gray-200 p-4">
+      <h4 className="text-sm font-semibold text-gray-900">Entry Price Outliers (eligible products only)</h4>
+      <p className="mt-1 text-xs text-gray-600 max-w-4xl">
+        This panel is a sanity check for pricing parses. If you see absurd values (e.g., hundreds of thousands or millions),
+        the autoscale warning is a symptom — the root cause is usually units/format parsing upstream.
+      </p>
+      {suspiciousCount > 0 ? (
+        <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-900">
+          Suspicious pricing detected: {suspiciousCount} eligible products have entryPrice ≥ {formatMoney(suspiciousThreshold)}.
+          This is usually a parse/units bug (cents vs dollars, commas/decimals, or unintended multipliers).
+        </div>
+      ) : null}
+      <div className="mt-3 grid gap-4 lg:grid-cols-2">
+        <div>
+          <Table title="Lowest entryPrice (top 5)" rows={lowest ?? []} />
+        </div>
+        <div>
+          <Table title="Highest entryPrice (top 5)" rows={highest ?? []} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -148,7 +232,7 @@ export function DiagnosticsTab() {
         }
 
         if (!json) {
-          const msg = `Expected JSON from /api/_debug/autoscale/value but received non-JSON response: ${bodyText.slice(0, 120)}`;
+          const msg = `Expected JSON from /api/admin/diagnostics/autoscale-value but received non-JSON response: ${bodyText.slice(0, 120)}`;
           if (!cancelled) {
             setData({ status: "error", errors: [msg] });
             setHttpError(msg);
@@ -184,6 +268,7 @@ export function DiagnosticsTab() {
   const counts = data?.counts;
   const offendersBelow = data?.offenders?.belowP10 ?? [];
   const offendersAbove = data?.offenders?.aboveP90 ?? [];
+  const entryPriceOutliers = data?.entryPriceOutliers;
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -276,6 +361,7 @@ export function DiagnosticsTab() {
 
         {status !== "loading" && status !== "error" && (
           <>
+            <EntryPriceOutliersPanel outliers={entryPriceOutliers} />
             <OffendersTable title="Offenders Below P10 (rawValue < valueP10)" rows={offendersBelow} />
             <OffendersTable title="Offenders Above P90 (rawValue > valueP90)" rows={offendersAbove} />
           </>

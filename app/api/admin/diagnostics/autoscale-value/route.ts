@@ -40,6 +40,22 @@ type OffenderRow = {
   totalScore: number | null;
 };
 
+type EligibleRow = {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  entryPrice: number;
+  capabilityPoints: number;
+  rawValue: number;
+};
+
+type EntryPriceOutliers = {
+  suspiciousThreshold: number;
+  suspiciousCount: number;
+  lowest: EligibleRow[];
+  highest: EligibleRow[];
+};
+
 function safeNumber(v: unknown): number {
   const n = typeof v === "number" ? v : Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : NaN;
@@ -90,6 +106,7 @@ export async function GET(): Promise<Response> {
   const all = loadLocalCatalogProducts() as any[];
   const belowP10: OffenderRow[] = [];
   const aboveP90: OffenderRow[] = [];
+  const eligibleRows: EligibleRow[] = [];
 
   let eligibleProducts = 0;
 
@@ -112,6 +129,14 @@ export async function GET(): Promise<Response> {
     if (!Number.isFinite(rawValue) || rawValue <= 0) continue;
 
     eligibleProducts += 1;
+    eligibleRows.push({
+      id,
+      brand: (p as any)?.brand ?? null,
+      model: (p as any)?.model ?? null,
+      entryPrice,
+      capabilityPoints,
+      rawValue,
+    });
 
     if (rawValue < p10 || rawValue > p90) {
       const valueItem = breakdown.find((b: any) => String(b?.criteria ?? "") === "Value for Money");
@@ -136,6 +161,20 @@ export async function GET(): Promise<Response> {
   belowP10.sort((a, b) => a.rawValue - b.rawValue);
   aboveP90.sort((a, b) => b.rawValue - a.rawValue);
 
+  // Entry price sanity: if these look crazy, it's almost always a parse/units bug upstream
+  // (e.g., cents vs dollars, comma/decimal parsing, unintended multipliers).
+  const suspiciousThreshold = 100000; // USD
+  const suspiciousCount = eligibleRows.filter((r) => r.entryPrice >= suspiciousThreshold).length;
+  const byPriceAsc = [...eligibleRows].sort((a, b) => a.entryPrice - b.entryPrice);
+  const byPriceDesc = [...eligibleRows].sort((a, b) => b.entryPrice - a.entryPrice);
+
+  const entryPriceOutliers: EntryPriceOutliers = {
+    suspiciousThreshold,
+    suspiciousCount,
+    lowest: byPriceAsc.slice(0, 5),
+    highest: byPriceDesc.slice(0, 5),
+  };
+
   const status = belowP10.length || aboveP90.length ? "warning" : "ok";
 
   return NextResponse.json({
@@ -147,6 +186,7 @@ export async function GET(): Promise<Response> {
       offendersBelowP10: belowP10.length,
       offendersAboveP90: aboveP90.length,
     },
+    entryPriceOutliers,
     offenders: {
       belowP10,
       aboveP90,
