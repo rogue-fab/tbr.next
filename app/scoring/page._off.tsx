@@ -14,6 +14,7 @@ const CATS_WITH_EXACT_RULES = new Set<string>([
   "originTransparency",
   "singleSourceSystem",
 ]);
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Tube Bender Scoring Methodology",
