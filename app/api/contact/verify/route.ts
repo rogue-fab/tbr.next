@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyContactToken } from "../../../../lib/contactToken";
 import { sendContactToAdmin } from "../../../../lib/email";
 
+export const dynamic = "force-dynamic";
+
 const HTML_TEMPLATE = (title: string, body: string) => `<!DOCTYPE html>
 <html lang="en">
 <head>
