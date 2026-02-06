@@ -15,18 +15,13 @@ if (!DATABASE_URL) {
   throw new Error("Missing DATABASE_URL env var");
 }
 
-// Reuse a single client in dev/hot-reload to avoid connection storms.
-export const sql: Sql =
-  globalThis.__tbr_sql__ ??
-  postgres(DATABASE_URL, {
-    // Good defaults for serverless/Next routes:
-    // Keep connections low and let the driver queue.
-    max: 5,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    prepare: false,
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__tbr_sql__ = sql;
-}
+// Reuse a single client per runtime instance (including production) to reduce
+// cold-start connection churn in serverless.
+export const sql: Sql = (globalThis.__tbr_sql__ ??= postgres(DATABASE_URL, {
+  // With Neon *pooler* URLs, keep client-side max low.
+  // The pooler handles concurrency; too many client connections can add overhead.
+  max: 2,
+  idle_timeout: 60,
+  connect_timeout: 10,
+  prepare: false,
+}));
