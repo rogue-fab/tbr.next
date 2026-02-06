@@ -1,10 +1,14 @@
 import React from "react";
 import Link from "next/link";
 import { getAllTubeBendersWithOverlay, findTubeBenderWithOverlay } from "../../../lib/catalogOverlay";
+import { generateAutoProsCons } from "../../../lib/proCons";
 import { slugOf, titleOf, slugForProduct } from "../../../lib/ids";
 import { getProductScore, TOTAL_POINTS } from "../../../lib/scoring";
 import ScoreBreakdownToggle from "../../../components/ScoreBreakdownToggle";
 import ReviewAuditPanel from "../../../components/ReviewAuditPanel";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const fallbackImg = "/images/products/placeholder.png";
 
@@ -117,13 +121,13 @@ type PageProps = {
   searchParams?: { [key: string]: string | string[] | undefined };
 };
 
-export default function ReviewPage({ params, searchParams }: PageProps) {
+export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Read from the merged catalog so admin overlay edits are reflected.
-  const all = getAllTubeBendersWithOverlay() as Product[];
+  const all = await getAllTubeBendersWithOverlay() as Product[];
   const lookup = buildLookup(all);
   const product =
     lookup.get(slugOf(params.slug)) ??
-    (findTubeBenderWithOverlay((b) => slugOf(b.id) === slugOf(params.slug) || slugOf(b.slug ?? "") === slugOf(params.slug)) as Product | undefined);
+    (await findTubeBenderWithOverlay((b) => slugOf(b.id) === slugOf(params.slug) || slugOf(b.slug ?? "") === slugOf(params.slug)) as Product | undefined);
 
   if (!product) {
     return (
@@ -140,6 +144,20 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
   const title = titleOf(product);
   const compareHref = `/compare?ids=${encodeURIComponent(product.id)}`;
   const img = imagePathForSlug(product.slug ?? product.id);
+
+
+//Log for diagnostic, pasted by JRG
+  console.log("SCORING INPUT KEYS:", Object.keys(product ?? {}));
+  console.log("SCORING INPUT SAMPLE:", {
+    id: (product as any)?.id,
+    usaManufacturingTier: (product as any)?.usaManufacturingTier,
+    originTransparencyTier: (product as any)?.originTransparencyTier,
+    maxCapacity: (product as any)?.maxCapacity,
+    maxBendAngle: (product as any)?.maxBendAngle,
+    maxWall175Dom: (product as any)?.maxWall175Dom,
+  });
+ 
+
   // Per-product score (total + breakdown) used both for the main score badge
   // and for the full "score math & citation log" breakdown below.
   const score = getProductScore(product);
@@ -147,6 +165,7 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
   // Allow the score breakdown panel to auto-open when navigated via
   // .../reviews/[slug]?score=details (used by the "pt details" links).
   const scoreParam = searchParams?.score;
+  const debugScore = searchParams?.debug === "1";
   const scoreDetailsOpen =
     typeof scoreParam === "string"
       ? scoreParam === "details"
@@ -166,7 +185,19 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
   const consSourcesArray = splitLines((product as any).consSources);
   const keyFeaturesArray = splitLines((product as any).keyFeatures);
 
-  const hasProsOrCons = prosArray.length > 0 || consArray.length > 0;
+  // Auto Pros/Cons (facts + dataset rank). Merge enabled auto items with manual items.
+  const auto = generateAutoProsCons(product as any, all as any[]);
+  const enabledAutoPros = auto.filter((item) => item.type === "pro" && item.enabled).map((item) => item.text);
+  const enabledAutoCons = auto.filter((item) => item.type === "con" && item.enabled).map((item) => item.text);
+
+  // We still compute these for the UI decisions below, but the card itself always renders for uniformity.
+  const hasAutoProsOrCons = enabledAutoPros.length > 0 || enabledAutoCons.length > 0;
+
+  // Merge: manual items take precedence, then enabled auto items
+  const finalPros = prosArray.length > 0 ? prosArray : enabledAutoPros;
+  const finalCons = consArray.length > 0 ? consArray : enabledAutoCons;
+
+  const hasProsOrCons = finalPros.length > 0 || finalCons.length > 0;
 
   const MATERIAL_KEYS = [
     "Mild steel",
@@ -282,8 +313,7 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
             ) : null}
 
             {/* Pros / Cons card */}
-            {hasProsOrCons && (
-              <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <h3 className="flex items-center gap-1 text-sm font-semibold text-emerald-700">
@@ -292,9 +322,9 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
                       </span>
                       Pros
                     </h3>
-                    {prosArray.length ? (
+                    {finalPros.length > 0 ? (
                       <ul className="mt-2 space-y-1 text-sm text-gray-800">
-                        {prosArray.map((line, idx) => (
+                        {finalPros.map((line, idx) => (
                           <li key={idx} className="flex gap-2">
                             <span className="mt-[3px] text-emerald-500">•</span>
                             <span>{line}</span>
@@ -303,7 +333,7 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
                       </ul>
                     ) : (
                       <p className="mt-2 text-xs text-gray-500">
-                        No pros entered yet.
+                        No pros listed. We explicitly only display pros when they are obvious from direct comparison within the range of models on this site and come from a clear, documented source (manufacturer documentation unless expressly stated otherwise inline with the pro).
                       </p>
                     )}
                   </div>
@@ -314,10 +344,12 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
                       </span>
                       Cons
                     </h3>
-                    {consArray.length ? (
+                    {finalCons.length > 0 ? (
                       <ul className="mt-2 space-y-2 text-sm text-gray-800">
-                        {consArray.map((line, idx) => {
-                          const source = consSourcesArray[idx] ?? "";
+                        {finalCons.map((line, idx) => {
+                          // Sources only apply to admin-entered cons (not auto-generated).
+                          const isAutoCon = consArray.length === 0 && idx < enabledAutoCons.length;
+                          const source = isAutoCon ? "" : (consSourcesArray[idx] ?? "");
                           return (
                             <li key={idx}>
                               <div className="flex gap-2">
@@ -335,13 +367,12 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
                       </ul>
                     ) : (
                       <p className="mt-2 text-xs text-gray-500">
-                        No cons listed. Only enter cons with a clear, documented source.
+                        No cons listed. We explicitly only display cons when they are obvious from direct comparison within the range of models on this site and come from a clear, documented source (manufacturer documentation unless expressly stated otherwise inline with the con).
                       </p>
                     )}
                   </div>
                 </div>
               </section>
-            )}
 
             {/* Key features */}
             {keyFeaturesArray.length ? (
@@ -569,11 +600,39 @@ export default function ReviewPage({ params, searchParams }: PageProps) {
       <div className="mx-auto mt-6 max-w-6xl px-6 pb-10 space-y-4">
         <ScoreBreakdownToggle score={score} />
 
-        {/* Existing audit / citation panel; this already shows sources and notes.
-           Placing the breakdown toggle immediately above it keeps all
-           transparency-related content together. */}
-        {product && <ReviewAuditPanel product={product as any} />}
+        {/* Citations / audit panel.
+            NOTE: ReviewAuditPanel already contains its own <details> disclosure,
+            so we do NOT wrap it in another <details> (nested disclosures get confusing). */}
+        <div className="mt-6">
+          {product && <ReviewAuditPanel product={product as any} />}
+        </div>
       </div>
+
+      {debugScore && score?.breakdown?.length ? (
+        <section className="mt-8">
+          <details className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">
+              Debug scoring (no devtools)
+            </summary>
+            <div className="mt-3 space-y-3">
+              <div className="text-xs text-gray-500">
+                Add <code className="rounded bg-gray-100 px-1 py-0.5">?debug=1</code> to toggle this panel.
+              </div>
+              <pre className="max-h-[520px] overflow-auto rounded bg-gray-50 p-3 text-[12px] leading-snug text-gray-900">
+{JSON.stringify(
+  {
+    total: score.total,
+    source: score.source,
+    breakdown: score.breakdown,
+  },
+  null,
+  2,
+)}
+              </pre>
+            </div>
+          </details>
+        </section>
+      ) : null}
 
       <div className="mx-auto max-w-6xl px-6 mt-6 text-sm text-muted-foreground">
         <Link className="underline" href="/reviews">Back to all reviews</Link>

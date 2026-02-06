@@ -36,6 +36,7 @@ const CompareCTA: React.FC<{ id: string }> = ({ id }) => {
 };
 
 import { useState } from 'react';
+import type { MandrelTier } from '../../lib/validators';
 import { useRouter } from 'next/navigation';
 import { TubeBender } from '../../lib/validators';
 import { ScoreBadge } from '../comparison/ScoreBadge';
@@ -67,6 +68,14 @@ export function SmartTubeBenderFinder() {
   });
   const [showResults, setShowResults] = useState(false);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+
+  const formatMandrel = (t: MandrelTier) => {
+    switch (t) {
+      case "bronze": return "Bronze";
+      case "economy": return "Economy";
+      case "none": return "None";
+    }
+  };
 
   const viewDetails = (id: string) => {
     if (!id) return;
@@ -124,7 +133,7 @@ export function SmartTubeBenderFinder() {
           cycleTime: '15-20 sec',
           weight: '850 lbs',
           price: '$4,995',
-          mandrel: 'Available',
+          mandrel: 'bronze',
           totalScore: 9.2,
           description: 'Professional hydraulic tube bender with excellent precision and durability.'
         },
@@ -142,7 +151,7 @@ export function SmartTubeBenderFinder() {
           cycleTime: '20-25 sec',
           weight: '650 lbs',
           price: '$3,295',
-          mandrel: 'Standard',
+          mandrel: 'economy',
           totalScore: 8.7,
           description: 'Reliable hydraulic bender with good performance and reasonable price.'
         },
@@ -160,7 +169,7 @@ export function SmartTubeBenderFinder() {
           cycleTime: '30-40 sec',
           weight: '450 lbs',
           price: '$2,195',
-          mandrel: 'No',
+          mandrel: 'none',
           totalScore: 7.9,
           description: 'Entry-level hydraulic bender with basic features and manual operation.'
         },
@@ -234,7 +243,9 @@ export function SmartTubeBenderFinder() {
                     </div>
                     <div>
                       <span className="text-gray-500">Mandrel:</span>
-                      <span className="ml-1 font-medium">{rec.item.mandrel}</span>
+                      <span className="ml-1 font-medium">
+                        {formatMandrel(rec.item.mandrel as MandrelTier)}
+                      </span>
                     </div>
                   </div>
                 </div>

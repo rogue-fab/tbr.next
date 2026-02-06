@@ -1,0 +1,70 @@
+{
+  "generatedAtUtc": "2026-01-19T22:21:53.313Z",
+  "value": {
+    "generatedAtUtc": "2026-01-19T22:21:53.313Z",
+    "rules": {
+      "includeOnlyIfEntryPriceGt0": true,
+      "includeOnlyIfCapabilityPointsGt0": true,
+      "capabilityCriteriaIncluded": [
+        "Ease of Use & Setup",
+        "Max Diameter & CLR Capability",
+        "Bend Angle Capability",
+        "Stress Capacity & Materials",
+        "Die Selection & Shapes",
+        "Upgrade Path & Modularity",
+        "Mandrel Compatibility",
+        "S-Bend Capability",
+        "Single-Source System",
+        "Warranty (Published Terms Only)"
+      ]
+    },
+    "counts": {
+      "totalProductsSeen": 28,
+      "samplesUsed": 12,
+      "offendersBelowP10": 2,
+      "offendersAboveP90": 2
+    },
+    "valueBand": {
+      "valueP10": 3.4257052917547356e-7,
+      "valueP90": 0.028963984879368104
+    },
+    "offenders": {
+      "belowP10": [
+        {
+          "id": "mittler-bros-2500",
+          "brand": "Mittler Bros",
+          "model": "2500",
+          "entryPrice": 32004200,
+          "capabilityPoints": 10,
+          "rawValue": 3.1245898975759433e-7
+        },
+        {
+          "id": "jd2-model-32-hydraulic",
+          "brand": "JD2",
+          "model": "Model 32 + Power Pack",
+          "entryPrice": 20452395,
+          "capabilityPoints": 7,
+          "rawValue": 3.422582049681712e-7
+        }
+      ],
+      "aboveP90": [
+        {
+          "id": "roguefab-m601",
+          "brand": "RogueFab",
+          "model": "M601",
+          "entryPrice": 1147,
+          "capabilityPoints": 42,
+          "rawValue": 0.036617262423714034
+        },
+        {
+          "id": "roguefab-m605",
+          "brand": "RogueFab",
+          "model": "M605",
+          "entryPrice": 1347,
+          "capabilityPoints": 40,
+          "rawValue": 0.02969561989606533
+        }
+      ]
+    }
+  }
+}

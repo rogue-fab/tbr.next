@@ -6,15 +6,18 @@ import { getProductScore } from "../lib/scoring";
 import { titleOf, slugForProduct } from "../lib/ids";
 import LandingCompareSection, { type LandingCompareRow } from "../components/LandingCompareSection";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata = {
   title: "TBR | TubeBenderReviews",
   description:
     "Compare popular tube benders side-by-side and find the best choice for your shop.",
 };
 
-export default function Page() {
+export default async function Page() {
   // Prepare data for landing compare section
-  const products = getAllTubeBendersWithOverlay();
+  const products = await getAllTubeBendersWithOverlay();
   const parseMoney = (raw: unknown): number | null => {
     if (raw === null || raw === undefined || raw === "") return null;
     if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;

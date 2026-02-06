@@ -105,7 +105,7 @@ export default function ReviewAuditPanel({ product }: Props) {
       {/* Simple native disclosure so we don't need any client hooks here */}
       <details className="mt-3">
         <summary className="cursor-pointer text-[0.75rem] font-medium text-blue-700 hover:text-blue-800">
-          Expand complete detail and citation list for this model&apos;s scoring
+          Expand audit trail &amp; citation list for this model
         </summary>
 
         <div className="mt-3 space-y-4">

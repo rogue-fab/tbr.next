@@ -8,6 +8,84 @@
  * Integration into the current catalog happens via adapter code elsewhere.
  */
 
+export type ScoringContext = {
+  /**
+   * Dataset min/max used for autoscaling in specific categories.
+   * If omitted, those categories fall back to fixed thresholds (backward compatible).
+   */
+  minOdIn?: number | null;
+  maxOdIn?: number | null;
+  minBendAngleDeg?: number | null;
+  maxBendAngleDeg?: number | null;
+
+  /**
+   * Value-for-money autoscale band (computed from a dataset snapshot).
+   * Uses P10/P90 of rawValue = capabilityPoints/entryPrice.
+   *
+   * If omitted, Value for Money falls back to legacy entryPrice bands.
+   */
+  valueP10?: number | null;
+  valueP90?: number | null;
+};
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function roundInt(n: number): number {
+  return Math.round(n);
+}
+
+function lerpPointsClamped(
+  value: number,
+  lo: number,
+  hi: number,
+  minPoints: number,
+  maxPoints: number,
+): number {
+  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return 0;
+  if (hi <= lo) return 0;
+  const v = clamp(value, lo, hi);
+  const t = (v - lo) / (hi - lo);
+  const raw = minPoints + t * (maxPoints - minPoints);
+  return clamp(roundInt(raw), minPoints, maxPoints);
+}
+
+// NOTE: Autoscaling was tested and intentionally disabled for FTC safety and
+// human reproducibility. The /scoring page defines fixed, explicit tiers for
+// each category. Do not re-enable autoscaling without a full methodology and
+// legal-risk review.
+/**
+ * Autoscale with "missing=0, lowest=1, highest=maxPoints" to maximize discrimination.
+ * - If dataset min/max are missing, signal caller to use legacy fallback.
+ * - If min==max, every defined value gets maxPoints (no discrimination possible).
+ */
+function minMaxScaledPoints(
+  value: number | undefined,
+  datasetMin: number | null | undefined,
+  datasetMax: number | null | undefined,
+  maxPoints: number,
+): number {
+  if (value == null || !Number.isFinite(value)) return 0; // undefined stays 0 by design
+  if (datasetMin == null || datasetMax == null) return -1;
+  if (!Number.isFinite(datasetMin) || !Number.isFinite(datasetMax)) return -1;
+  if (datasetMax <= 0) return -1;
+  if (datasetMin <= 0) return -1;
+
+  // Clamp input into observed dataset range so outliers don't produce >maxPoints.
+  const v = clamp(value, datasetMin, datasetMax);
+
+  // If all machines share the same value, give full points to all defined values.
+  if (datasetMax === datasetMin) return maxPoints;
+
+  // Map: datasetMin -> 1, datasetMax -> maxPoints
+  // points = 1 + round(((v - min)/(max - min)) * (maxPoints - 1))
+  const t = (v - datasetMin) / (datasetMax - datasetMin);
+  const raw = 1 + t * (maxPoints - 1);
+  return clamp(roundInt(raw), 1, maxPoints);
+}
+
 // Extract leading integer tier from a string like "5 – Frame + dies + hydraulics..."
 // or accept a numeric value directly. Clamps to [0, max].
 function parseTier(raw: unknown, max: number): number {
@@ -144,20 +222,22 @@ export interface ScoringInput {
   brand?: string;
   model?: string;
   priceRange?: string;
+  entryPrice?: number;
   powerType?: string;
-  /**
-   * Portability / how the machine lives in the shop.
-   *
-   * Expected normalized values:
-   * - "fixed"                        → 0  (must be anchored / immovable for use)
-   * - "portable"                     → 1  (self-contained & movable, no rolling option)
-   * - "portable_with_rolling_option" → 2  (portable, with a documented cart / rolling upgrade)
-   * - "rolling" or "rolling_standard"→ 3  (ships on wheels / designed to roll around the shop)
-   *
-   * Anything else is treated conservatively as 0 until the admin overlay is wired up.
-   */
-  portability?: string;
+  portability?: "fixed" | "portable" | "portable_with_rolling_option" | "rolling_standard" | string;
+
+  // Ease of Use & Setup (Category #2) – evidence-only fields
+  hasManual?: boolean;
+  hasOnMachineInstructions?: boolean;
+  hasAngleReference?: boolean;
+  hasAngleStop?: boolean;
+  rotationAid?: "none" | "magnet_on_tube" | "clamp_on_analog" | "clamp_on_digital" | "chuck_or_indexer" | string;
+  quickDieChange?: boolean;
+  hasMfrYoutubeModelContent?: boolean;
+  hasSetupMountingGuidance?: boolean;
   maxCapacity?: string;
+  maxTubeOD?: number;
+  maxBendAngle?: number;
   countryOfOrigin?: string;
   bendAngle?: number;
   wallThicknessCapacity?: string | number;
@@ -196,167 +276,194 @@ export interface ScoredResult {
  * implementation, with added null/undefined guards and string coercion so that
  * it is safe to call even when some fields are missing.
  */
-export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
+function portabilityPoints(portability: ScoringInput["portability"]): number {
+  switch (String(portability ?? "").trim().toLowerCase()) {
+    case "rolling_standard":
+      return 3;
+    case "portable_with_rolling_option":
+      return 2;
+    case "portable":
+      return 1;
+    case "fixed":
+    default:
+      return 0;
+  }
+}
+
+function easeChecklistPoints(input: ScoringInput): number {
+  let pts = 0;
+  if (input.hasManual) pts += 1;
+  if (input.hasOnMachineInstructions) pts += 1;
+  if (input.hasAngleReference) pts += 1;
+  if (input.hasAngleStop) pts += 1;
+
+  const ra = String(input.rotationAid ?? "").trim().toLowerCase();
+  // 1 pt only for clamp-on (analog/digital) or chuck/indexer. Magnet-only or none = 0.
+  if (ra === "clamp_on_analog" || ra === "clamp_on_digital" || ra === "chuck_or_indexer") pts += 1;
+
+  if (input.quickDieChange) pts += 1;
+  if (input.hasMfrYoutubeModelContent) pts += 1;
+  return pts;
+}
+
+/**
+ * Canonical resolver for Max OD (inches).
+ *
+ * Accepts legacy aliases but centralizes interpretation in ONE place.
+ * If value is missing or unparseable, returns null (scores 0).
+ *
+ * NOTE: This intentionally avoids dataset-relative logic.
+ * Fixed tiers are the authoritative scoring model for Category #3.
+ */
+function resolveMaxOdIn(bender: ScoringInput): number | null {
+  const raw =
+    (bender as any)?.maxCapacity ??
+    (bender as any)?.capacity ??
+    null;
+  const n = Number(String(raw ?? "").trim());
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Canonical resolver for maximum bend angle (degrees).
+ *
+ * Prefers `maxBendAngle` when present; falls back to legacy `bendAngle`.
+ * Returns null if missing or unparseable.
+ *
+ * Fixed-tier scoring only. Dataset-relative autoscaling is intentionally disabled.
+ */
+function resolveMaxBendAngleDeg(bender: ScoringInput): number | null {
+  const raw =
+    (bender as any)?.maxBendAngle ??
+    (bender as any)?.bendAngle ??
+    null;
+  const n = Number(String(raw ?? "").trim());
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function calculateTubeBenderScore(
+  bender: ScoringInput,
+  ctx?: ScoringContext,
+): ScoredResult {
   const scoreBreakdown: ScoreBreakdownItem[] = [];
   let totalScore = 0;
 
   // 1. Value for Money (legacy stub; real value is layered in getProductScore)
   let valueScore = 0;
-  const priceRange = String(bender.priceRange ?? "").toLowerCase();
-  if (priceRange.includes("$780") || priceRange.includes("$885")) valueScore = 20;
-  else if (priceRange.includes("$839") || priceRange.includes("$970")) valueScore = 19;
-  else if (priceRange.includes("$1,000") || priceRange.includes("$1,250")) valueScore = 17;
-  else if (priceRange.includes("$1,105") || priceRange.includes("$1,755")) valueScore = 16;
-  else if (priceRange.includes("$1,609") || priceRange.includes("$1,895")) valueScore = 15;
-  else if (priceRange.includes("$2,050") || priceRange.includes("$2,895")) valueScore = 12;
-  else if (priceRange.includes("$3,850") || priceRange.includes("$5,000")) valueScore = 8;
+  const entryPrice = typeof (bender as any).entryPrice === "number" ? (bender as any).entryPrice : NaN;
 
+  // We compute Value after the other categories so we can reuse their actual points.
+  // Keep a placeholder breakdown item and overwrite it later.
   scoreBreakdown.push({
     criteria: "Value for Money",
-    points: valueScore,
+    points: 0,
     maxPoints: 20,
-    reasoning: `Legacy price-band heuristic on ${bender.priceRange ?? "N/A"}; overridden by the modern features-per-dollar scoring in getProductScore.`,
+    reasoning: "Value for Money pending calculation.",
   });
-  totalScore += valueScore;
 
-  // 2. Ease of Use & Setup (11 points)
+  // IMPORTANT: Value points are added at the end (after capability categories are scored).
+
+  // 2. Ease of Use & Setup (10 points)
   //
-  // This combines:
-  // - A base ergonomics/operation score (7–11 pts) driven by legacy
-  //   brand/power-type heuristics.
-  // - A portability tier (0–3 pts) from the admin "portability" field:
-  //     0 = fixed base only
-  //     1 = portable, no rolling option
-  //     2 = portable with optional rolling base/cart
-  //     3 = rolling base as a standard feature
-  //
-  // The final category score is clamped to 11/11.
-  const brand = String(bender.brand ?? "");
-  const powerType = String(bender.powerType ?? "");
+  // Evidence-only scoring: 0–3 portability + 0–7 evidence checklist. No brand scoring. No subjective tiers.
+  const easePort = portabilityPoints(bender.portability);
+  const easeChk = easeChecklistPoints(bender);
+  const easePoints = Math.min(10, easePort + easeChk);
 
-  let easeBase = 0;
-  if (brand === "RogueFab") easeBase = 11;
-  else if (brand === "SWAG Off Road") easeBase = 10;
-  else if (brand === "JD2") easeBase = 9;
-  else if (powerType.toLowerCase().includes("manual")) easeBase = 8;
-  else if (powerType.toLowerCase().includes("hydraulic")) easeBase = 9;
-  else easeBase = 7;
-
-  const portabilityRaw = String(
-    (bender as any).portability ?? (bender as any).mobility ?? "",
-  )
-    .trim()
-    .toLowerCase();
-
-  let portabilityScore = 0;
-  let portabilityLabel = "fixed base / no portability data";
-
-  if (portabilityRaw) {
-    if (
-      portabilityRaw.includes("rolling") &&
-      (portabilityRaw.includes("standard") ||
-        portabilityRaw.includes("included") ||
-        portabilityRaw.includes("built-in"))
-    ) {
-      portabilityScore = 3;
-      portabilityLabel = "rolling base as a standard feature";
-    } else if (
-      portabilityRaw.includes("rolling") ||
-      portabilityRaw.includes("cart")
-    ) {
-      portabilityScore = 2;
-      portabilityLabel = "portable with optional rolling base/cart";
-    } else if (portabilityRaw.includes("portable")) {
-      portabilityScore = 1;
-      portabilityLabel = "portable (no rolling option)";
-    } else if (
-      portabilityRaw.includes("fixed") ||
-      portabilityRaw.includes("floor") ||
-      portabilityRaw.includes("bench")
-    ) {
-      portabilityScore = 0;
-      portabilityLabel = "fixed base that must be mounted to use";
-    } else {
-      portabilityScore = 0;
-      portabilityLabel =
-        "unspecified portability; treated as fixed for scoring purposes";
-    }
-  }
-
-  let easeScore = easeBase + portabilityScore;
-  if (easeScore > 11) easeScore = 11;
+  const portabilityLabel =
+    easePort === 3
+      ? "rolling_standard"
+      : easePort === 2
+      ? "portable_with_rolling_option"
+      : easePort === 1
+      ? "portable"
+      : "fixed";
 
   scoreBreakdown.push({
     criteria: "Ease of Use & Setup",
-    points: easeScore,
-    maxPoints: 11,
-    reasoning: `${powerType || "Unknown power type"} operation with ${
-      brand || "unknown brand"
-    } ergonomics (base score ${easeBase}/11) and portability tier: ${portabilityLabel} (+${portabilityScore} pts).`,
-  });
-  totalScore += easeScore;
-
-  // 3. Max Diameter & CLR Capability (10 points)
-  //
-  // NOTE: As of now this category scores *only* maximum round tube OD based on
-  // published specs. CLR is not yet wired into the numeric score because CLR
-  // data is not standardized across all machines. The /scoring page copy is
-  // explicit about this so we are not pretending to use CLR in the math before
-  // the data exists; CLR ranges will be added once we have consistent data for
-  // every machine in the comparison.
-  let capacityScore = 0;
-  const maxCapacity = String(bender.maxCapacity ?? "").toLowerCase();
-  if (maxCapacity.includes("2.5") || maxCapacity.includes("2-1/2")) capacityScore = 10;
-  else if (maxCapacity.includes("2-3/8") || maxCapacity.includes("2.375")) capacityScore = 9;
-  else if (maxCapacity.includes("2.25") || maxCapacity.includes("2-1/4")) capacityScore = 8;
-  else if (maxCapacity.includes("2.0") || maxCapacity.includes('2"')) capacityScore = 7;
-  else if (maxCapacity.includes("1.75") || maxCapacity.includes("1-3/4")) capacityScore = 5;
-  else if (maxCapacity.includes("1.5") || maxCapacity.includes("1-1/2")) capacityScore = 3;
-  else if (maxCapacity) capacityScore = 2;
-
-  scoreBreakdown.push({
-    criteria: "Max Diameter & CLR Capability",
-    points: capacityScore,
+    points: easePoints,
     maxPoints: 10,
-    reasoning: `${
-      bender.maxCapacity ?? "Unknown"
-    } maximum round tube capacity based on published specs. Math today is OD-only; CLR ranges will be added to the score once consistent CLR data is available for all machines.`,
+    reasoning:
+      `Portability: ${easePort}/3. Evidence checklist: ${easeChk}/7. ` +
+      `Manual=${bender.hasManual ? "Yes" : "No"}, On-machine instructions=${bender.hasOnMachineInstructions ? "Yes" : "No"}, ` +
+      `Angle reference=${bender.hasAngleReference ? "Yes" : "No"}, Angle stop=${bender.hasAngleStop ? "Yes" : "No"}, ` +
+      `Rotation aid=${String(bender.rotationAid ?? "none")}, Quick die change=${bender.quickDieChange ? "Yes" : "No"}, ` +
+      `Mfr YouTube model content=${bender.hasMfrYoutubeModelContent ? "Yes" : "No"}.`,
   });
-  totalScore += capacityScore;
+  totalScore += easePoints;
 
-  // 4. Bend Angle Capability (9 points)
-  //
-  // Explicit tiers:
-  // - ≥ 195° → 9 pts
-  // - 180–194° → 7 pts
-  // - 120–179° → 4 pts
-  // - < 120° → 2 pts
-  // - no published angle → 0 pts
-  let angleScore = 0;
-  const bendAngle = typeof bender.bendAngle === "number" ? bender.bendAngle : NaN;
-  if (!Number.isNaN(bendAngle)) {
-    if (bendAngle >= 195) angleScore = 9;
-    else if (bendAngle >= 180) angleScore = 7;
-    else if (bendAngle >= 120) angleScore = 4;
-    else angleScore = 2;
+  // 3. Max Diameter & CLR Capability (10 pts)
+  // Fixed tiers only (FTC-safe, human reproducible). CLR is display-only (not scored).
+  {
+    const maxPoints = 10;
+    const od = (() => {
+      // legacy input is often a string field (maxCapacity) representing OD in inches
+      const raw = bender?.maxCapacity ?? (bender as any)?.capacity ?? "";
+      const n = Number(String(raw).trim());
+      return Number.isFinite(n) ? n : undefined;
+    })();
+
+    let pts = 0;
+    const v = od ?? 0;
+    if (v >= 2.5) pts = 10;
+    else if (v >= 2.375) pts = 9;
+    else if (v >= 2.25) pts = 8;
+    else if (v >= 2.0) pts = 7;
+    else if (v >= 1.75) pts = 5;
+    else if (v >= 1.5) pts = 3;
+    else if (v > 0) pts = 2;
+    else pts = 0;
+
+    totalScore += pts;
+    scoreBreakdown.push({
+      criteria: "Max Diameter & CLR Capability",
+      points: pts,
+      maxPoints,
+      reasoning:
+        od != null
+          ? `Fixed OD tiers. OD=${od} in. CLR is display-only (not scored).`
+          : "No published/entered max OD (capacity) value; this category scores 0 rather than guessing. CLR is display-only (not scored).",
+    });
   }
 
-  scoreBreakdown.push({
-    criteria: "Bend Angle Capability",
-    points: angleScore,
-    maxPoints: 9,
-    reasoning: Number.isNaN(bendAngle) ? "No published bend angle" : `${bendAngle}° maximum bend angle`,
-  });
-  totalScore += angleScore;
+  // 4. Bend Angle Capability (9 pts)
+  // Fixed tiers only (FTC-safe, human reproducible).
+  {
+    const maxPoints = 9;
+    const angle = (() => {
+      const raw = bender?.bendAngle ?? (bender as any)?.maxBendAngle ?? "";
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : undefined;
+    })();
 
-  // 5. Wall Thickness Capability (9 points)
+    let pts = 0;
+    const a = angle ?? 0;
+    if (a >= 195) pts = 9;
+    else if (a >= 180) pts = 7;
+    else if (a >= 120) pts = 4;
+    else if (a > 0) pts = 2;
+    else pts = 0;
+
+    totalScore += pts;
+    scoreBreakdown.push({
+      criteria: "Bend Angle Capability",
+      points: pts,
+      maxPoints,
+      reasoning:
+        angle != null
+          ? `Fixed angle tiers. Angle=${angle} deg.`
+          : "No published/entered max bend angle value; this category scores 0 rather than guessing.",
+    });
+  }
+
+  // 5. Stress Capacity & Materials (10 points)
   //
-  // This combines:
-  // - Thickness: 0–6 points based on the thickest published 1.75" OD DOM wall.
-  // - Materials: 0–3 points based on documented material compatibility.
+  // Evidence-only scoring:
+  // - Thickness points (0–6) from published max wall thickness for 1.75" OD DOM.
+  // - Materials points (0–4) from count of documented compatible materials (from a fixed list).
   //
-  // If there is no published max wall for 1.75" OD, we do NOT fabricate data:
-  // the entire category is scored as 0 and the reasoning says so.
+  // Non-negotiable FTC rule:
+  // If wall thickness is missing/unknown, the ENTIRE category scores 0 (we do not infer stress capacity).
   let thicknessScore = 0;
   let materialScore = 0;
   const wallRaw = bender.wallThicknessCapacity;
@@ -366,17 +473,50 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
   if (wallRaw !== undefined && wallRaw !== null && wallRaw !== "") {
     const thickness = parseFloat(String(wallRaw));
     if (Number.isFinite(thickness)) {
-      if (thickness >= 0.156) thicknessScore = 6;
-      else if (thickness >= 0.120) thicknessScore = 5;
-      else if (thickness >= 0.095) thicknessScore = 4;
-      else if (thickness > 0) thicknessScore = 3;
-      wallReasonPart = `${wallRaw}" wall capacity for 1.75" OD DOM.`;
+      // Thickness points (0–6) — fixed thresholds
+      // 0: undefined/missing
+      // 1: ≥ 0.095"
+      // 2: ≥ 0.120"
+      // 3: ≥ 0.156"
+      // 4: ≥ 0.188"
+      // 5: ≥ 0.250"
+      // 6: ≥ 0.875" (solid bar; half of 1.75" is 0.875")
+      if (thickness >= 0.875) {
+        thicknessScore = 6;
+        wallReasonPart = `Supports solid bar bending up to 1.75" diameter (0.875").`;
+      } else if (thickness >= 0.25) {
+        thicknessScore = 5;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.188) {
+        thicknessScore = 4;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.156) {
+        thicknessScore = 3;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.12) {
+        thicknessScore = 2;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else if (thickness >= 0.095) {
+        thicknessScore = 1;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+      } else {
+        thicknessScore = 0;
+        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM (below scoring threshold).`;
+      }
     } else {
       thicknessScore = 0;
       wallReasonPart = `Unparseable wall thickness value: ${String(wallRaw)}.`;
     }
 
-    // Materials scoring (0–3 points)
+    // Materials scoring (0–4 points)
+    // Fixed list (count only what is explicitly documented):
+    // Steel, Stainless, 4130, Aluminum, Titanium, Copper, Brass
+    // Points:
+    // 0 = not listed
+    // 1 = 1+ in list
+    // 2 = 3+ in list
+    // 3 = 5+ in list
+    // 4 = 7+ in list (all covered)
     const rawMaterials = Array.isArray(bender.materials)
       ? (bender.materials as unknown[])
       : [];
@@ -385,85 +525,56 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
       .map((m) => String(m || "").trim().toLowerCase())
       .filter(Boolean);
 
-    let hasMild = false;
-    let has4130 = false;
+    let hasSteel = false;
     let hasStainless = false;
+    let has4130 = false;
     let hasAluminum = false;
     let hasTitanium = false;
-    let hasCopperBrass = false;
-    let hasOtherMat = false;
+    let hasCopper = false;
+    let hasBrass = false;
 
     for (const label of materialSlugs) {
-      if (label.includes("mild")) hasMild = true;
-      if (label.includes("4130") || label.includes("chromoly")) has4130 = true;
-      if (
-        label.includes("stainless") ||
-        label.includes("304") ||
-        label.includes("316")
-      )
+      // Stainless first so "stainless steel" doesn't double-count as "steel"
+      if (label.includes("stainless") || label === "ss" || label.includes("304") || label.includes("316")) {
         hasStainless = true;
+        continue;
+      }
+      if (label.includes("4130") || label.includes("chromoly") || label.includes("chromo")) has4130 = true;
       if (label.includes("alum")) hasAluminum = true;
       if (label.includes("titanium") || label === "ti") hasTitanium = true;
-      if (
-        label.includes("copper") ||
-        label.includes("brass") ||
-        label.includes("bronze")
-      )
-        hasCopperBrass = true;
-      if (
-        !label.includes("mild") &&
-        !label.includes("4130") &&
-        !label.includes("chromoly") &&
-        !label.includes("stainless") &&
-        !label.includes("304") &&
-        !label.includes("316") &&
-        !label.includes("alum") &&
-        !label.includes("titanium") &&
-        label !== "ti" &&
-        !label.includes("copper") &&
-        !label.includes("brass") &&
-        !label.includes("bronze")
-      ) {
-        hasOtherMat = true;
+      if (label.includes("copper") || label === "cu") hasCopper = true;
+      // Treat "bronze" as part of the Brass bucket (common real-world docs use brass/bronze interchangeably as copper alloys)
+      if (label.includes("brass") || label.includes("bronze")) hasBrass = true;
+      if (label.includes("mild") || label.includes("carbon steel") || label === "steel" || (label.includes("steel") && !label.includes("stainless"))) {
+        hasSteel = true;
       }
     }
-
-    let rawMaterialWeight = 0;
-    if (hasMild) rawMaterialWeight += 2;
-    if (has4130) rawMaterialWeight += 2;
-    if (hasStainless) rawMaterialWeight += 1.5;
-    if (hasAluminum) rawMaterialWeight += 1.5;
-    if (hasTitanium) rawMaterialWeight += 1;
-    if (hasCopperBrass) rawMaterialWeight += 1;
-    if (hasOtherMat) rawMaterialWeight += 1;
 
     if (rawMaterials.length === 0) {
       materialScore = 0;
       materialReasonPart =
-        "No published material compatibility list; material coverage not scored.";
+        "No published material compatibility list; materials sub-score is 0.";
     } else {
-      const maxRawMaterialWeight = 2 + 2 + 1.5 + 1.5 + 1 + 1 + 1; // 10
-      const normalised =
-        maxRawMaterialWeight > 0
-          ? (3 * rawMaterialWeight) / maxRawMaterialWeight
-          : 0;
-      materialScore = Math.round(
-        Math.max(0, Math.min(3, normalised)),
-      );
+      const covered: string[] = [];
+      if (hasSteel) covered.push("steel");
+      if (hasStainless) covered.push("stainless");
+      if (has4130) covered.push("4130");
+      if (hasAluminum) covered.push("aluminum");
+      if (hasTitanium) covered.push("titanium");
+      if (hasCopper) covered.push("copper");
+      if (hasBrass) covered.push("brass/bronze");
 
-      const matLabels: string[] = [];
-      if (hasMild) matLabels.push("mild steel");
-      if (has4130) matLabels.push("4130 chromoly");
-      if (hasStainless) matLabels.push("stainless (304/316)");
-      if (hasAluminum) matLabels.push("aluminum");
-      if (hasTitanium) matLabels.push("titanium");
-      if (hasCopperBrass) matLabels.push("copper/brass/bronze");
-      if (hasOtherMat) matLabels.push("other documented alloys");
+      const coveredCount = covered.length;
+      if (coveredCount >= 7) materialScore = 4;
+      else if (coveredCount >= 5) materialScore = 3;
+      else if (coveredCount >= 3) materialScore = 2;
+      else if (coveredCount >= 1) materialScore = 1;
+      else materialScore = 0;
 
       materialReasonPart =
-        matLabels.length > 0
-          ? `Documented material coverage includes: ${matLabels.join(", ")}.`
-          : "Materials list provided but could not be mapped to known categories.";
+        coveredCount > 0
+          ? `Documented materials (${coveredCount}/7): ${covered.join(", ")}.`
+          : "Materials list provided but none matched the scored material list (steel, stainless, 4130, aluminum, titanium, copper, brass).";
     }
   } else {
     // No published wall data at the reference size: entire category scores 0.
@@ -473,15 +584,12 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
       "No published max wall thickness for 1.75\" OD DOM; this category is scored as 0 rather than guessing.";
   }
 
-  const wallScore = Math.max(
-    0,
-    Math.min(9, thicknessScore + materialScore),
-  );
+  const wallScore = Math.max(0, Math.min(10, thicknessScore + materialScore));
 
   scoreBreakdown.push({
-    criteria: "Wall Thickness Capability",
+    criteria: "Stress Capacity & Materials",
     points: wallScore,
-    maxPoints: 9,
+    maxPoints: 10,
     reasoning: `${wallReasonPart} ${materialReasonPart}`.trim(),
   });
   totalScore += wallScore;
@@ -571,7 +679,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     maxPoints: 8,
     reasoning:
       coveredShapes.length === 0
-        ? "No documented tube/pipe die families beyond basic or unspecified coverage."
+        ? "No published/entered die-family coverage for this frame; this category scores 0 rather than guessing."
         : `Documented die coverage for: ${coveredShapes.join(
             ", ",
           )}. Points are awarded only for die families the bender manufacturer explicitly documents as compatible for this frame, including any clearly claimed third-party die ecosystems.`,
@@ -580,26 +688,36 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
 
   // 7. Track Record (Years in Business) (3 points)
   //
-  // Still a light, brand-based heuristic. Admin-facing /scoring copy explains
-  // that this is intentionally low-weight compared to performance categories.
+  // Scored ONLY from stated years-in-business when available.
+  // If years are missing, this category scores 0 rather than guessing from brand.
   let businessScore = 0;
-  if (brand === "Hossfeld") businessScore = 3;
-  else if (brand === "JD2") businessScore = 2;
-  else if (brand === "Pro-Tools" || brand === "Baileigh") businessScore = 2;
-  else if (brand === "RogueFab") businessScore = 1;
-  else if (brand === "SWAG Off Road") businessScore = 1;
-  else businessScore = 1;
+  const years = (bender as any).yearsInBusiness;
+  const yearsNum =
+    typeof years === "number"
+      ? years
+      : (() => {
+          const n = parseFloat(String(years ?? "").replace(/[^0-9.+-]/g, ""));
+          return Number.isFinite(n) ? n : NaN;
+        })();
+
+  // Prefer numeric years when available; otherwise score 0.
+  if (Number.isFinite(yearsNum)) {
+    if (yearsNum >= 25) businessScore = 3;
+    else if (yearsNum >= 10) businessScore = 2;
+    else if (yearsNum > 0) businessScore = 1;
+    else businessScore = 0;
+  } else {
+    businessScore = 0;
+  }
 
   scoreBreakdown.push({
     criteria: "Track Record (Years in Business)",
     points: businessScore,
     maxPoints: 3,
     reasoning:
-      businessScore >= 2
-        ? "Established industry veteran with a long operating history."
-        : businessScore >= 1
-        ? "Proven track record, but not as long-standing as the oldest brands."
-        : "Newer market entry.",
+      Number.isFinite(yearsNum) && yearsNum > 0
+        ? `Scored from stated years in business: ${yearsNum}.`
+        : "No published/entered years-in-business value; this category scores 0 rather than guessing from brand.",
   });
   totalScore += businessScore;
 
@@ -690,17 +808,17 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     maxPoints: 8,
     reasoning:
       upgradePieces.length === 0
-        ? "No documented upgrade path beyond the base configuration for power, LRA control, or bend-quality tooling."
+        ? "No published/entered upgrade-path data beyond the base configuration for power, LRA control, or bend-quality tooling; this category scores 0 rather than guessing."
         : `Documented upgrade path covering: ${upgradePieces.join(", ")}.`,
   });
   totalScore += upgradeScore;
 
   // 9. Mandrel Compatibility (4 points)
   //
-  // 3-tier mapping:
-  // - 0 pts: none
-  // - 2 pts: "economy" mandrels (non-bronze, plastic/steel, etc.)
-  // - 4 pts: bronze / full mandrel system ("available" or explicitly "bronze")
+  // 3-tier mapping (canonical tokens):
+  // - "none"    → 0 pts
+  // - "economy" → 2 pts (plastic/aluminum/steel or otherwise non-bronze)
+  // - "bronze"  → 4 pts (nickel/bronze or equivalent bronze-class system, factory-supported)
   let mandrelScore = 0;
   const mandrelRaw = String(
     (bender as any).mandrel ?? (bender as any).mandrelBender ?? "",
@@ -708,21 +826,26 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     .trim()
     .toLowerCase();
 
-  if (mandrelRaw === "bronze" || mandrelRaw === "available") {
+  if (mandrelRaw === "bronze" || mandrelRaw.includes("bronze") || mandrelRaw.includes("nickel")) {
     mandrelScore = 4;
   } else if (mandrelRaw === "economy") {
     mandrelScore = 2;
+  } else {
+    mandrelScore = 0;
   }
 
   let mandrelReason: string;
   if (mandrelScore === 4) {
     mandrelReason =
-      "Mandrel bending capability documented by the manufacturer for this frame with a full bronze or equivalent mandrel system.";
+      "Mandrel bending capability documented by the manufacturer for this frame with a bronze-class mandrel system (e.g., nickel/bronze), or an explicitly equivalent factory-supported system.";
   } else if (mandrelScore === 2) {
     mandrelReason =
       "Economy mandrel option documented by the manufacturer for this frame (non-bronze mandrels such as plastic, aluminum, or steel).";
   } else {
-    mandrelReason = "No documented mandrel capability for this frame.";
+    mandrelReason =
+      mandrelRaw.length === 0
+        ? "No published/entered mandrel capability data for this frame; this category scores 0 rather than guessing."
+        : "Mandrel tier is explicitly none (or not documented clearly enough to score). This category scores 0.";
   }
 
   scoreBreakdown.push({
@@ -736,22 +859,45 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
   // 10. S-Bend Capability (3 points)
   let sBendScore = 0;
   const rawSBend = (bender as any).sBendCapability;
-  const sBendCapability =
-    typeof rawSBend === "boolean"
-      ? rawSBend
-      : typeof rawSBend === "string"
-      ? ["yes", "true"].includes(rawSBend.trim().toLowerCase())
-      : false;
+  // Admin UIs often store booleans; "unchecked" can mean either explicit "No" OR simply "not entered".
+  // Distinguish using presence of evidence/source fields when available.
+  const sbendEvidenceText = [
+    (bender as any).sBendCapabilitySource1,
+    (bender as any).sBendCapabilitySource2,
+    (bender as any).sBendCapabilityNotes,
+  ]
+    .map((v: unknown) => String(v ?? "").trim())
+    .filter(Boolean)
+    .join(" | ");
+  const hasSBendEvidence = sbendEvidenceText.length > 0;
 
-  if (sBendCapability === true) sBendScore = 3;
+  let sBendState: "yes" | "no" | "unknown" = "unknown";
+  if (typeof rawSBend === "boolean") {
+    // If false but no evidence fields exist, treat as unknown (not entered) rather than a hard "No".
+    sBendState = rawSBend ? "yes" : (hasSBendEvidence ? "no" : "unknown");
+  } else if (typeof rawSBend === "string") {
+    const s = rawSBend.trim().toLowerCase();
+    if (["yes", "true", "y", "1"].includes(s)) sBendState = "yes";
+    else if (["no", "false", "n", "0"].includes(s)) sBendState = hasSBendEvidence ? "no" : "unknown";
+    else sBendState = "unknown";
+  } else {
+    sBendState = "unknown";
+  }
+
+  if (sBendState === "yes") sBendScore = 3;
+
+  const sBendReason =
+    sBendState === "yes"
+      ? "Meets TubeBenderReviews S-bend definition: two opposite-direction bends with ≤0.125\" straight (tangent) between them, verified via specs/photos."
+      : sBendState === "no"
+      ? "Published/entered data does not qualify under the TubeBenderReviews S-bend definition (≤0.125\" tangent between opposite bends). Marketing \"S-bend\" claims with inches of straight between bends do not qualify."
+      : "No published/entered S-bend capability data for this frame; this category scores 0 rather than guessing.";
 
   scoreBreakdown.push({
     criteria: "S-Bend Capability",
     points: sBendScore,
     maxPoints: 3,
-    reasoning: sBendCapability
-      ? "Meets TubeBenderReviews S-bend definition: two opposite-direction bends with ≤0.125\" straight (tangent) between them, verified via specs/photos."
-      : "No documented ability to form back-to-back opposite bends with ≤0.125\" tangent; marketing \"S-bend\" claims with several inches of straight between bends do not qualify.",
+    reasoning: sBendReason,
   });
   totalScore += sBendScore;
 
@@ -771,7 +917,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     reasoning:
       usaManufacturingDisclosure > 0
         ? `Disclosure-based tier ${usaManufacturingDisclosure}/5 based solely on the manufacturer's own claims about where frames, dies, hydraulics, and assembly occur. We do not audit factories or offer legal opinions on FTC compliance; this scores the stated claim only.`
-        : "No disclosed USA manufacturing claims, clearly imported origin, or only very weak USA-flavored language.",
+        : "No disclosed USA manufacturing claims (or only vague/marketing language) in published/entered data; this category scores 0 rather than guessing.",
   });
   totalScore += usaManufacturingDisclosure;
 
@@ -787,7 +933,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     reasoning:
       originTransparencyTier > 0
         ? `Transparency tier ${originTransparencyTier}/5 based on how clearly the manufacturer documents the origin of major components. This scores documentation quality only; it does not reward or penalize any specific country of origin.`
-        : "No meaningful origin disclosure, or only vague/marketing language without concrete component origin details.",
+        : "No meaningful origin disclosure in published/entered data (or only vague/marketing language); this category scores 0 rather than guessing.",
   });
   totalScore += originTransparencyTier;
 
@@ -810,7 +956,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     reasoning:
       singleSourceScore === 2
         ? "Complete, fully functional system (frame + dies + hydraulics/lever) available from one primary manufacturer/storefront."
-        : "One or more required components must be sourced elsewhere, or the manufacturer does not clearly offer a complete system from a single source.",
+        : "No published/entered proof of a complete single-source system for this frame; this category scores 0 rather than guessing.",
   });
   totalScore += singleSourceScore;
 
@@ -835,7 +981,7 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
       "Some warranty language present, but short, limited, or vague in duration/coverage.";
   } else {
     warrantyReason =
-      "No meaningful written warranty, sold as-is, or warranty not mentioned in published documentation.";
+      "No published/entered written warranty terms for this frame (or sold as-is); this category scores 0 rather than guessing.";
   }
 
   scoreBreakdown.push({
@@ -845,6 +991,80 @@ export function calculateTubeBenderScore(bender: ScoringInput): ScoredResult {
     reasoning: `${warrantyReason} This category is based strictly on published terms; we do not score how well the warranty is honored in practice.`,
   });
   totalScore += warrantySupportTier;
+
+  // 1. Value for Money (AUTOSCALED, mechanics-only)
+  //
+  // Raw value = (capabilityPoints / entryPrice)
+  // capabilityPoints includes ONLY these categories:
+  // 2,3,4,5,6,8,9,10,13,14
+  // Excludes: Value itself, USA/origin transparency, years-in-business.
+  //
+  // Autoscale uses dataset P10/P90 provided by ctx.valueP10/valueP90:
+  // - Clamp rawValue into [P10,P90]
+  // - Map to points: 1..20 (maxPoints)
+  // If entryPrice missing/invalid -> scores 0 (no guessing).
+  const maxValuePoints = 20;
+  const minValuePoints = 1;
+
+  const findPts = (name: string): number => {
+    const it = scoreBreakdown.find((x) => x.criteria === name);
+    return it ? it.points : 0;
+  };
+
+  const capabilityPoints =
+    findPts("Ease of Use & Setup") +
+    findPts("Max Diameter & CLR Capability") +
+    findPts("Bend Angle Capability") +
+    findPts("Stress Capacity & Materials") +
+    findPts("Die Selection & Shapes") +
+    findPts("Upgrade Path & Modularity") +
+    findPts("Mandrel Compatibility") +
+    findPts("S-Bend Capability") +
+    findPts("Single-Source System") +
+    findPts("Warranty (Published Terms Only)");
+
+  let valueReason: string;
+  if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+    valueScore = 0;
+    valueReason =
+      "No documented starter-system pricing (entryPrice) available (frame + dies + power + stand). This category scores 0 rather than guessing.";
+  } else {
+    const rawValue = capabilityPoints / entryPrice;
+    const p10 = Number(ctx?.valueP10 ?? NaN);
+    const p90 = Number(ctx?.valueP90 ?? NaN);
+
+    if (Number.isFinite(p10) && Number.isFinite(p90) && p90 > p10) {
+      valueScore = lerpPointsClamped(rawValue, p10, p90, minValuePoints, maxValuePoints);
+      valueReason =
+        `Autoscaled mechanics-only value using rawValue=(capabilityPoints/entryPrice). ` +
+        `capabilityPoints=${capabilityPoints}, entryPrice=${entryPrice.toFixed(0)}, rawValue=${rawValue.toExponential(3)}. ` +
+        `Dataset band: P10=${p10.toExponential(3)}, P90=${p90.toExponential(3)}. ` +
+        `Values are clamped into [P10,P90] and mapped to ${minValuePoints}..${maxValuePoints}.`;
+    } else {
+      // Backward-compatible fallback: simple entryPrice tiers (still evidence-based).
+      if (entryPrice <= 1500) valueScore = 20;
+      else if (entryPrice <= 2000) valueScore = 18;
+      else if (entryPrice <= 3000) valueScore = 15;
+      else if (entryPrice <= 4500) valueScore = 12;
+      else if (entryPrice <= 6500) valueScore = 9;
+      else valueScore = 7;
+
+      valueReason =
+        `Autoscale band missing (ctx.valueP10/valueP90). Falling back to legacy entryPrice tiering using entryPrice=${entryPrice.toFixed(
+          0,
+        )}.`;
+    }
+  }
+
+  // Overwrite the placeholder Value breakdown item (index 0).
+  scoreBreakdown[0] = {
+    criteria: "Value for Money",
+    points: valueScore,
+    maxPoints: maxValuePoints,
+    reasoning: valueReason,
+  };
+
+  totalScore += valueScore;
 
   return {
     totalScore,

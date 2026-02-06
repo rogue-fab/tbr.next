@@ -154,3 +154,12 @@ ${message.replace(/</g, "&lt;")}
     html,
   });
 }
+
+/**
+ * Backwards-compatible export:
+ * Some routes import `sendContactToAdmin` (older naming).
+ * The canonical implementation is `sendContactForwardEmail`.
+ */
+export async function sendContactToAdmin(payload: ContactTokenPayload) {
+  return sendContactForwardEmail(payload);
+}

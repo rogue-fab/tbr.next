@@ -1,0 +1,14 @@
+﻿{
+  "fields": {
+    "madeInUSAClaimed": true,
+    "notes": "local test"
+  },
+  "evidence": [
+    {
+      "fieldKey": "madeInUSAClaimed",
+      "sourceType": "web-page",
+      "url": "https://example2.com",
+      "verifiedAt": "2025-12-22T00:00:00.000Z"
+    }
+  ]
+}

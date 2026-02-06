@@ -1,20 +1,59 @@
 'use client';
 
+import * as React from 'react';
 import ProductsTab from '../../../components/admin/tabs/ProductsTab';
+import { DiagnosticsTab } from '../../../components/admin/tabs/DiagnosticsTab';
+import { BannerTab } from '../../../components/admin/tabs/BannerTab';
 
 export default function AdminClient() {
+  const [tab, setTab] = React.useState<'products' | 'diagnostics' | 'banner'>('products');
+
   return (
-    <main className="min-h-screen bg-gray-50">
-      {/* Full-bleed wrapper: escapes any parent max-width container */}
-      <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen bg-gray-50">
-        <div className="px-4 py-6 lg:px-8 lg:py-8">
-          <h1 className="mb-4 text-2xl font-semibold text-gray-900">Products</h1>
-          {/* Inner content is allowed to use the full viewport width */}
-          <div className="w-full max-w-none">
-            <ProductsTab />
-          </div>
-        </div>
+    <div className="px-4 py-6">
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex gap-6" aria-label="Tabs">
+          <button
+            type="button"
+            onClick={() => setTab('products')}
+            className={[
+              'whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium',
+              tab === 'products'
+                ? 'border-gray-900 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+            ].join(' ')}
+          >
+            Products
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('diagnostics')}
+            className={[
+              'whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium',
+              tab === 'diagnostics'
+                ? 'border-gray-900 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+            ].join(' ')}
+          >
+            Diagnostics
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('banner')}
+            className={[
+              'whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium',
+              tab === 'banner'
+                ? 'border-gray-900 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+            ].join(' ')}
+          >
+            Banner
+          </button>
+        </nav>
       </div>
-    </main>
+
+      {tab === 'products' && <ProductsTab />}
+      {tab === 'diagnostics' && <DiagnosticsTab />}
+      {tab === 'banner' && <BannerTab />}
+    </div>
   );
 }

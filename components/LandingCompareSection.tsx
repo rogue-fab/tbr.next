@@ -3,31 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { TOTAL_POINTS } from "../lib/scoring";
+import type { MandrelTier } from "../lib/validators";
 
 const FALLBACK_IMG = "/images/products/placeholder.png";
-
-/**
- * Derive a filesystem-safe image path from a product slug.
- *
- * Rules:
- * - Lowercase
- * - Only allow [a–z0–9-]
- * - Replace all other characters with "-"
- * - Collapse repeated "-" and trim from ends
- * - Final path: /images/products/{safe-slug}.jpg
- *
- * If the slug is missing or sanitizes to an empty string, we fall back to
- * the shared placeholder image so nothing breaks.
- */
-function imagePathForSlug(slug: string | null | undefined): string {
-  const raw = (slug ?? "").toLowerCase().trim();
-  if (!raw) return FALLBACK_IMG;
-
-  const safe = raw.replace(/[^a-z0-9-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  if (!safe) return FALLBACK_IMG;
-
-  return `/images/products/${safe}.jpg`;
-}
 
 export type LandingCompareRow = {
   id: string;
@@ -45,11 +23,6 @@ export type LandingCompareRow = {
   sBend?: boolean | null;
   /** Optional product image; falls back if missing */
   image?: string | null;
-  /** Optional brand-level Google rating data (read-only, not part of the score) */
-  brandGoogleRating?: number | null;
-  brandGoogleReviewCount?: number | null;
-  brandGoogleReviewsUrl?: string | null;
-  brandGoogleRatingCheckedAt?: string | null;
 };
 
 type Props = {
@@ -69,78 +42,85 @@ function formatPriceRange(min: number | null, max: number | null): string {
   return lo ?? hi ?? "—";
 }
 
-/**
- * Map internal FTC origin buckets to consumer-facing labels.
- *
- * Admin buckets (stored in `country`):
- * - FTC-unqualified "Made in USA"
- * - Assembled in USA / qualified USA claim
- * - Non-USA or no USA claim
- *
- * Public display (front end):
- * - "Made in USA (full-origin claim)"
- * - "USA-assembled / Mixed origin"
- * - "Imported / International origin"
- */
-function displayOriginLabel(country?: string | null): string {
-  const raw = (country ?? "").trim();
-  if (!raw) return "Origin not specified";
-
-  const lower = raw.toLowerCase();
-
-  if (lower.includes("ftc-unqualified") && lower.includes("made in usa")) {
-    return "Made in USA (full-origin claim)";
-  }
-
-  if (
-    lower.includes("assembled in usa") ||
-    lower.includes("qualified usa claim")
-  ) {
-    return "USA-assembled / Mixed origin";
-  }
-
-  // Catch-all for clearly non-USA or unspecified origin.
-  return "Imported / International origin";
-}
-
-/** Add " marks to max diameter when it's a bare number, leave alone if already annotated. */
-function formatMaxDiameter(value?: string | null): string {
-  if (!value) return "—";
-  const v = String(value).trim();
-  if (!v) return "—";
-
-  const lower = v.toLowerCase();
-  // If it already looks like it has units / quotes, don't touch it.
-  if (v.includes('"') || lower.includes("mm") || lower.includes(" od") || lower.includes("in")) {
-    return v;
-  }
-
-  // Default: treat as inches and append quote.
-  return `${v}"`;
-}
-
-function powerFlags(powerType?: string | null) {
+function normalizePower(powerType?: string | null): "manual" | "hydraulic" | "other" | "unknown" {
   const s = (powerType ?? "").toLowerCase();
-  const hasManual = /\bmanual\b/.test(s);
-  const hasAirHydro = s.includes("air") && s.includes("hydraulic");
-  const hasElecHydro = s.includes("electric") && s.includes("hydraulic");
-  const hasAnyHydraulic =
-    hasAirHydro ||
-    hasElecHydro ||
-    (s.includes("hydraulic") && !hasAirHydro && !hasElecHydro);
-  return { hasManual, hasAirHydro, hasElecHydro, hasAnyHydraulic };
+  if (!s) return "unknown";
+  if (s.includes("manual") && s.includes("hydraulic")) return "other";
+  if (s.includes("manual")) return "manual";
+  if (s.includes("hydraulic") || s.includes("electric") || s.includes("air")) return "hydraulic";
+  return "other";
 }
 
-function isMandrelOn(mandrel?: string | null): boolean {
-  const s = (mandrel ?? "").toLowerCase();
-  return s === "available" || s === "standard" || s === "yes";
+function normalizeMandrelTier(v?: MandrelTier | string | null): MandrelTier | "unknown" {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return "none";
+  if (s === "none" || s === "no" || s === "not available" || s === "n/a") return "none";
+  if (s === "economy") return "economy";
+  if (s === "bronze") return "bronze";
+
+  // Legacy labels (FTC-safe direction: preserve intent, but never "upgrade" unknowns).
+  if (s === "available" || s === "standard") return "bronze";
+  if (s.includes("nickel") || s.includes("bronze") || s.includes("brass")) return "bronze";
+  if (s.includes("plastic") || s.includes("aluminum") || s.includes("aluminium") || s.includes("steel"))
+    return "economy";
+
+  return "unknown";
 }
 
-function isSBendOn(flag?: boolean | null): boolean {
-  // We normalize S-bend to a boolean in app/page.tsx.
-  return flag === true;
+function isMandrelOn(mandrel?: MandrelTier | string | null): boolean {
+  const t = normalizeMandrelTier(mandrel);
+  return t === "bronze" || t === "economy";
 }
 
+function MandrelPill({ value }: { value?: MandrelTier | string | null }) {
+  const t = normalizeMandrelTier(value);
+
+  if (t === "bronze") {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-emerald-50 border-emerald-400 text-emerald-700">
+        Bronze Mandrel
+      </span>
+    );
+  }
+
+  if (t === "economy") {
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-amber-50 border-amber-400 text-amber-800">
+        Economy Mandrel
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-gray-50 border-gray-200 text-gray-500">
+      No Mandrel
+    </span>
+  );
+}
+
+function SBendPill({ value }: { value?: boolean | null }) {
+  if (value === true) {
+    return (
+      <span
+        className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5
+                   text-[11px] font-medium border
+                   bg-emerald-50 border-emerald-400 text-emerald-700"
+      >
+        S-bending
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5
+                 text-[11px] font-medium border
+                 bg-gray-50 border-gray-200 text-gray-500"
+    >
+      No S-bends
+    </span>
+  );
+}
 
 function ScoreCircle({ score, href }: { score: number | null; href: string }) {
   const clamped =
@@ -244,9 +224,7 @@ function Pill({ children, active }: { children: React.ReactNode; active: boolean
   return (
     <span
       className={[
-        // Standardized pill styling: consistent size, tight leading, supports 2-line labels.
-        "inline-flex items-center justify-center rounded-full border px-2.5 py-0.5",
-        "text-[0.7rem] leading-tight font-medium min-h-[1.75rem] whitespace-pre-line text-center",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border",
         active
           ? "bg-emerald-50 border-emerald-400 text-emerald-700"
           : "bg-gray-50 border-gray-200 text-gray-500",
@@ -254,49 +232,6 @@ function Pill({ children, active }: { children: React.ReactNode; active: boolean
     >
       {children}
     </span>
-  );
-}
-
-function PowerPills({
-  powerType,
-}: {
-  powerType?: string | null;
-}) {
-  const { hasManual, hasAirHydro, hasElecHydro } = powerFlags(powerType);
-
-  return (
-    <div className="flex flex-col gap-[2px] text-[0.6rem] leading-[0.9]">
-      <span
-        className={[
-          "inline-flex items-center rounded-full px-2 py-[1px] text-[0.6rem] border",
-          hasManual
-            ? "bg-gray-200 border-gray-500 text-gray-900 font-semibold"
-            : "bg-white border-gray-200 text-gray-400",
-        ].join(" ")}
-      >
-        Manual
-      </span>
-      <span
-        className={[
-          "inline-flex items-center rounded-full px-2 py-[1px] text-[0.6rem] border",
-          hasAirHydro
-            ? "bg-gray-200 border-gray-500 text-gray-900 font-semibold"
-            : "bg-white border-gray-200 text-gray-400",
-        ].join(" ")}
-      >
-        Air / hydraulic
-      </span>
-      <span
-        className={[
-          "inline-flex items-center rounded-full px-2 py-[1px] text-[0.6rem] border",
-          hasElecHydro
-            ? "bg-gray-200 border-gray-500 text-gray-900 font-semibold"
-            : "bg-white border-gray-200 text-gray-400",
-        ].join(" ")}
-      >
-        Electric / hydraulic
-      </span>
-    </div>
   );
 }
 
@@ -317,18 +252,19 @@ export default function LandingCompareSection({ rows }: Props) {
     return list.filter((row) => {
       if (minScore > 0 && (row.score ?? 0) < minScore) return false;
 
-      const { hasManual, hasAnyHydraulic } = powerFlags(row.powerType);
-      if (power === "manual" && !hasManual) return false;
-      if (power === "hydraulic" && !hasAnyHydraulic) return false;
+      const normPower = normalizePower(row.powerType);
+      if (power === "manual" && normPower !== "manual") return false;
+      if (power === "hydraulic" && normPower !== "hydraulic") return false;
 
-      // USA-only filter: only include machines that are in the
-      // strict FTC-unqualified "Made in USA" bucket.
-      if (origin === "usaOnly") {
-        const bucket = (row.country ?? "").toLowerCase();
-        const isFullUsa =
-          bucket.includes("ftc-unqualified") &&
-          bucket.includes("made in usa");
-        if (!isFullUsa) return false;
+      const c = (row.country ?? "").toLowerCase();
+      if (
+        origin === "usaOnly" &&
+        c &&
+        c !== "usa" &&
+        c !== "united states" &&
+        c !== "united states of america"
+      ) {
+        return false;
       }
 
       if (mandrelOnly && !isMandrelOn(row.mandrel)) return false;
@@ -411,28 +347,8 @@ export default function LandingCompareSection({ rows }: Props) {
               <th className="px-3 py-2 text-left">Max Diameter</th>
               <th className="px-3 py-2 text-left">Power</th>
               <th className="px-3 py-2 text-left">Made in</th>
-              <th className="px-3 py-2 text-left">
-                <div className="flex flex-col gap-0.5">
-                  <span>Mandrel</span>
-                  <Link
-                    href="/scoring#mandrel-compatibility"
-                    className="text-[0.65rem] font-normal lowercase text-blue-600 underline hover:text-blue-700"
-                  >
-                    what is this?
-                  </Link>
-                </div>
-              </th>
-              <th className="px-3 py-2 text-left">
-                <div className="flex flex-col gap-0.5">
-                  <span>S-bend</span>
-                  <Link
-                    href="/scoring#s-bend-capability"
-                    className="text-[0.65rem] font-normal lowercase text-blue-600 underline hover:text-blue-700"
-                  >
-                    what is this?
-                  </Link>
-                </div>
-              </th>
+              <th className="px-3 py-2 text-left">Mandrel</th>
+              <th className="px-3 py-2 text-left">S-bend</th>
               <th className="px-3 py-2 text-left">Actions</th>
             </tr>
           </thead>
@@ -449,9 +365,7 @@ export default function LandingCompareSection({ rows }: Props) {
             )}
             {filtered.map((row, index) => {
               const rank = index + 1;
-              const imgSrc = imagePathForSlug(row.slug);
-              const mandrelOn = isMandrelOn(row.mandrel);
-              const sBendOn = isSBendOn(row.sBend);
+              const imgSrc = row.image || FALLBACK_IMG;
               return (
                 <tr
                   key={row.id}
@@ -483,51 +397,6 @@ export default function LandingCompareSection({ rows }: Props) {
                             {[row.brand, row.model].filter(Boolean).join(" ")}
                           </div>
                         )}
-
-                        {row.brandGoogleRating != null && row.brandGoogleReviewCount != null && row.brandGoogleReviewCount > 0 && (
-                          <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-gray-600">
-                            {/* Stars */}
-                            <div className="flex items-center" aria-hidden="true">
-                              {Array.from({ length: 5 }).map((_, i) => {
-                                const filled = i < Math.round(row.brandGoogleRating ?? 0);
-                                return (
-                                  <svg
-                                    key={i}
-                                    className={`h-3.5 w-3.5 ${
-                                      filled ? "text-amber-500" : "text-gray-300"
-                                    }`}
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                  >
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.955a1 1 0 00.95.69h4.162c.967 0 1.371 1.24.588 1.81l-3.37 2.449a1 1 0 00-.364 1.118l1.286 3.955c.3.922-.755 1.688-1.54 1.118l-3.37-2.45a1 1 0 00-1.175 0l-3.37 2.45c-.785.57-1.84-.196-1.54-1.118l1.286-3.955a1 1 0 00-.364-1.118L2.014 9.382c-.783-.57-.379-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.955z" />
-                                  </svg>
-                                );
-                              })}
-                            </div>
-
-                            {/* Rating number */}
-                            <span className="font-medium">
-                              {row.brandGoogleRating.toFixed(2)}
-                            </span>
-
-                            {/* Review count (linked if we have a URL) */}
-                            {row.brandGoogleReviewsUrl ? (
-                              <a
-                                href={row.brandGoogleReviewsUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[0.6rem] text-gray-500 underline-offset-2 hover:underline"
-                                title="View Google reviews (opens in a new tab)"
-                              >
-                                ({row.brandGoogleReviewCount.toLocaleString()} reviews)
-                              </a>
-                            ) : (
-                              <span className="text-[0.6rem] text-gray-500">
-                                ({row.brandGoogleReviewCount.toLocaleString()} reviews)
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </td>
@@ -541,41 +410,19 @@ export default function LandingCompareSection({ rows }: Props) {
                     {formatPriceRange(row.priceMin, row.priceMax)}
                   </td>
                   <td className="px-3 py-3 align-middle text-sm text-gray-800">
-                    {formatMaxDiameter(row.maxCapacity)}
-                  </td>
-                  <td className="px-3 py-3 align-middle">
-                    <PowerPills powerType={row.powerType} />
+                    {row.maxCapacity || "—"}
                   </td>
                   <td className="px-3 py-3 align-middle text-sm text-gray-800">
-                    {displayOriginLabel(row.country)}
+                    {row.powerType || "—"}
+                  </td>
+                  <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                    {row.country || "—"}
                   </td>
                   <td className="px-3 py-3 align-middle">
-                    {(() => {
-                      const on = isMandrelOn(row.mandrel);
-                      return (
-                        <Pill active={on}>
-                          {on ? "Available" : "No Option"}
-                        </Pill>
-                      );
-                    })()}
+                    <MandrelPill value={row.mandrel} />
                   </td>
                   <td className="px-3 py-3 align-middle">
-                    {(() => {
-                      const on = isSBendOn(row.sBend);
-                      return (
-                        <Pill active={on}>
-                          {on ? (
-                            "S-Bend Capable"
-                          ) : (
-                            <>
-                              No
-                              <br />
-                              S-Bends
-                            </>
-                          )}
-                        </Pill>
-                      );
-                    })()}
+                    <SBendPill value={row.sBend} />
                   </td>
                   <td className="px-3 py-3 align-middle">
                     <Link
@@ -591,13 +438,6 @@ export default function LandingCompareSection({ rows }: Props) {
           </tbody>
         </table>
       </div>
-
-      <p className="mt-2 text-[0.7rem] text-gray-500">
-        Star icons under each brand come from that manufacturer&apos;s Google Business
-        listing (rating and review count). They are{" "}
-        <span className="font-semibold">not part of the TubeBenderReviews score</span>;
-        they&apos;re shown for context only.
-      </p>
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createContactToken } from "../../../lib/contactToken";
-import { sendContactVerificationEmail } from "../../../lib/email-smtp";
+import { sendContactVerificationEmail } from "../../../lib/email";
 
 type ContactPayload = {
   name?: string;
@@ -51,15 +51,7 @@ export async function POST(req: NextRequest) {
   try {
     const body: ContactPayload = await req.json();
 
-    const {
-      name,
-      email,
-      subject,
-      message,
-      messageType,
-      securityAnswer,
-      website,
-    } = body;
+    const { name, email, subject, message, messageType, securityAnswer, website } = body;
 
     // Basic validation
     if (!name || !email || !subject || !message) {
@@ -69,12 +61,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (
-      typeof name !== "string" ||
-      typeof email !== "string" ||
-      typeof subject !== "string" ||
-      typeof message !== "string"
-    ) {
+    if (typeof name !== "string" || typeof email !== "string" || typeof subject !== "string" || typeof message !== "string") {
       return NextResponse.json(
         { ok: false, error: "Invalid field types" },
         { status: 400 }
@@ -121,18 +108,15 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(),
     };
 
-    // Create verification token (signed, short-lived)
+    // Create verification token
     const token = createContactToken(payload);
 
     // Construct verification URL
-    const base =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://www.tubebenderreviews.com";
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "https://tubebenderreviews.com";
     const verifyUrl = new URL("/api/contact/verify", base);
     verifyUrl.searchParams.set("token", token);
 
-    // Send verification email to the user.
-    // They must click the link to actually send the message to the admin inbox.
+    // Send verification email
     await sendContactVerificationEmail({
       to: payload.email,
       name: payload.name,

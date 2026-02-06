@@ -1,0 +1,51 @@
+{
+  "generatedAtUtc": "2026-01-20T19:08:50.038Z",
+  "rules": {
+    "includeOnlyIfEntryPriceGt0": true,
+    "includeOnlyIfCapabilityPointsGt0": true,
+    "capabilityCriteriaIncluded": [
+      "Ease of Use & Setup",
+      "Max Diameter & CLR Capability",
+      "Bend Angle Capability",
+      "Stress Capacity & Materials",
+      "Die Selection & Shapes",
+      "Upgrade Path & Modularity",
+      "Mandrel Compatibility",
+      "S-Bend Capability",
+      "Single-Source System",
+      "Warranty (Published Terms Only)"
+    ]
+  },
+  "counts": {
+    "totalProductsSeen": 28,
+    "samplesUsed": 9,
+    "offendersBelowP10": 1,
+    "offendersAboveP90": 1
+  },
+  "valueBand": {
+    "valueP10": 3.362983619260558e-7,
+    "valueP90": 0.0000024600546018038875
+  },
+  "offenders": {
+    "belowP10": [
+      {
+        "id": "mittler-bros-2500",
+        "brand": "Mittler Bros",
+        "model": "2500",
+        "entryPrice": 32004200,
+        "capabilityPoints": 10,
+        "rawValue": 3.1245898975759433e-7
+      }
+    ],
+    "aboveP90": [
+      {
+        "id": "jmr-tbm-250r-raceline",
+        "brand": "JMR Manufacturing",
+        "model": "TBM-250R",
+        "entryPrice": 780950,
+        "capabilityPoints": 7,
+        "rawValue": 0.000008963441961713297
+      }
+    ]
+  }
+}

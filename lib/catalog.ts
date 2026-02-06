@@ -1,8 +1,3 @@
-/**
- * Canonical, minimal catalog for TubeBenderReviews.
- * This file is the single source of truth used by pages and the public API.
- */
-
 export type ProductCitationSourceType =
   | "web-page"
   | "pdf"
@@ -10,31 +5,27 @@ export type ProductCitationSourceType =
   | "email"
   | "other";
 
-/**
- * Structured citation for any score-driving or spec-driving fact.
- *
- * Most of these will come from the admin overlay (citationsRaw → parsed),
- * not from the base catalog.
- */
 export type ProductCitation = {
-  /** Stable id within a product (not globally unique, just for UI keys). */
   id: string;
-  /** Scoring category key (e.g. "valueForMoney", "bendAngleCapability"). */
+  /** Scoring category key (e.g. "valueForMoney") */
   category: string;
-  /** Optional more granular field name (e.g. "bendAngle", "maxCapacity"). */
-  field?: string | null;
-  /** Type of source – web page, PDF, manual, etc. */
+  /** Optional: specific field within the category */
+  field: string | null;
   sourceType: ProductCitationSourceType;
-  /** URL or internal reference to the source. */
+  /** URL or internal doc reference */
   urlOrRef: string;
-  /** Human-readable title or label for the source. */
-  title?: string | null;
-  /** Date accessed (for web/PDF), preferably YYYY-MM-DD. */
-  accessed?: string | null;
-  /** Optional explanatory note (e.g. page/section and what was used). */
-  note?: string | null;
+  /** Short label for humans */
+  title: string | null;
+  /** YYYY-MM-DD preferred */
+  accessed: string | null;
+  /** Page/section/notes */
+  note: string | null;
 };
 
+/**
+ * Canonical, minimal catalog for TubeBenderReviews.
+ * This file is the single source of truth used by pages and the public API.
+ */
 export type Product = {
   /** Stable canonical id used in routes and compare. */
   id: string;
@@ -59,44 +50,25 @@ export type Product = {
   dimensions?: string;
   warranty?: string;
   price?: string | number;
-  /**
-   * Optional reference-only field for how long the manufacturer has been
-   * operating under this brand / product line. Currently used only for admin
-   * display; scoring still uses conservative brand-based tiers for the
-   * "Years in Business" category.
-   */
-  yearsInBusiness?: string | number;
 
   /**
    * Lawyer-safe, disclosure-based scoring tiers.
-   *
-   * These are *only* interpretations of what the manufacturer explicitly claims
-   * in their own materials. They do NOT assert where anything is actually
-   * made and do NOT represent any opinion on whether warranties are honored.
-   *
-   * Values are stored as overlay-editable strings (e.g. "3 – …") and
-   * normalized to numeric tiers by the scoring engine.
+   * Optional and typically overlay-driven; kept here so catalog + overlay can share a single shape.
    */
   usaManufacturingTier?: string | number | null;
   originTransparencyTier?: string | number | null;
   singleSourceSystemTier?: string | number | null;
   warrantyTier?: string | number | null;
+
   // Review content fields (admin-editable via overlay)
   pros?: string | null;
   cons?: string | null;
   consSources?: string | null;
   keyFeatures?: string | null;
   materials?: string | null;
-  // Citations and source documentation (overlay-driven)
-  /**
-   * Raw, line-based citations as entered in the admin UI. This is parsed
-   * into `citations` for use by the public UI.
-   *
-   * Format per line:
-   *   category | sourceType | urlOrRef | title | accessed (YYYY-MM-DD) | note
-   */
+
+  // Citations (admin overlay / scoring audit)
   citationsRaw?: string | null;
-  /** Parsed citations. Typically populated from overlay + citationsRaw. */
   citations?: ProductCitation[] | null;
 };
 
@@ -110,7 +82,7 @@ export type Product = {
  * - Additional IDs are UI-only for now and can be wired to the API later.
  */
 export const allTubeBenders: Product[] = [
-  // --- Canonical RogueFab M6 family (now split per model) ------------------
+  // --- Canonical RogueFab M6 family (split per model) ----------------------
   {
     id: "roguefab-m601",
     slug: "roguefab-m601",

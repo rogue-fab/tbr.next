@@ -1,6 +1,8 @@
+// NOTE: This file intentionally contains explicit admin API error surfacing for team use.
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { generateAutoProsCons, type AutoProCon } from '../../../lib/proCons';
 // Admin grid reads from /api/admin/products; writes hit /api/admin/products/[id]
 
 type Product = {
@@ -13,7 +15,7 @@ type Product = {
   powerType?: string;
   bendAngle?: string | number;
   wallThicknessCapacity?: string;
-  sBendCapability?: string | boolean;
+  sBendCapability?: string | boolean | null;
   // Other descriptive/display fields
   clrRange?: string;
   cycleTime?: string;
@@ -71,6 +73,9 @@ type Product = {
   // Raw citations field (line-based, parsed into structured citations server-side)
   citationsRaw?: string;
 
+  // Persisted enabled states for generated pros/cons (draft/published overlay)
+  autoProsCons?: AutoProCon[];
+
   // Dynamic per-field citation data (we don't enumerate every key here)
   [key: string]: any;
 };
@@ -82,26 +87,242 @@ type RowCitationClipboard = {
   userCode: string;
 };
 
+type ApiDebug = {
+  at: string;
+  url: string;
+  endpoint: string;
+  status: number;
+  statusText: string;
+  bodySnippet: string;
+};
+
+const isAuthStatus = (status: number) => status === 401 || status === 403;
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
 export default function ProductsTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [apiDebug, setApiDebug] = useState<ApiDebug | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [citationClipboard, setCitationClipboard] =
     useState<RowCitationClipboard | null>(null);
+
+  // Draft/publish workflow state (explicit Save/Publish only)
+  const [draftMeta, setDraftMeta] = useState<{
+    id: string;
+    status: string;
+    version: number;
+    updatedAt: string;
+  } | null>(null);
+
+  const [publishedMeta, setPublishedMeta] = useState<{
+    id: string;
+    status: string;
+    version: number;
+    updatedAt: string;
+  } | null>(null);
+  const [publishedLoadError, setPublishedLoadError] = useState<string | null>(
+    null,
+  );
+
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null);
+
+  const pageUrl = useMemo(() => {
+    try {
+      return window.location.href;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  async function readBodySnippet(res: Response): Promise<string> {
+    // Defensive: admins sometimes return JSON errors, sometimes plain text.
+    // We want something short + safe to display.
+    const text = await res.text().catch(() => '');
+    const trimmed = (text || '').trim();
+    return clip(trimmed, 400);
+  }
+
+  function setApiError(opts: {
+    endpoint: string;
+    status: number;
+    statusText: string;
+    bodySnippet: string;
+  }) {
+    setApiDebug({
+      at: new Date().toISOString(),
+      url: pageUrl || (typeof window !== 'undefined' ? window.location.href : ''),
+      endpoint: opts.endpoint,
+      status: opts.status,
+      statusText: opts.statusText,
+      bodySnippet: opts.bodySnippet,
+    });
+  }
+
+  function clearApiError() {
+    setApiDebug(null);
+  }
+
+  async function copyDebugToClipboard() {
+    if (!apiDebug) return;
+    const msg = [
+      `[TBR Admin Debug] ${apiDebug.at}`,
+      `URL: ${apiDebug.url}`,
+      `Endpoint: ${apiDebug.endpoint}`,
+      `Status: ${apiDebug.status} ${apiDebug.statusText}`,
+      `Body: ${apiDebug.bodySnippet || '(empty)'}`,
+      isAuthStatus(apiDebug.status)
+        ? `Hint: 401/403 usually means you need to re-login at /admin (admin_token cookie is httpOnly).`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      await navigator.clipboard.writeText(msg);
+      alert('Copied debug details to clipboard.');
+    } catch {
+      // Fallback: at least show the text so the user can copy manually.
+      prompt('Copy debug details:', msg);
+    }
+  }
+
+  async function retryAll() {
+    setError(null);
+    clearApiError();
+    await fetchProducts();
+    if (selectedId) {
+      void loadDraftForProduct(selectedId);
+      void loadPublishedForProduct(selectedId);
+    }
+  }
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
+  const loadPublishedForProduct = async (productId: string) => {
+    setPublishedLoadError(null);
     try {
-      const res = await fetch("/api/admin/products", { cache: "no-store" });
-
+      const endpoint = `/api/admin/products/${productId}/publish`;
+      const res = await fetch(endpoint, {
+        method: "GET",
+      });
       if (!res.ok) {
-        setError("Failed to fetch products");
+        const snippet = await readBodySnippet(res);
+        console.error("Load published failed:", res.status, snippet);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        setPublishedMeta(null);
+        setPublishedLoadError(
+          isAuthStatus(res.status)
+            ? `Failed to load published (${res.status}). Not authorized — re-login at /admin.`
+            : `Failed to load published (${res.status})`,
+        );
         return;
       }
+      clearApiError();
+      const json = (await res.json()) as any;
+      const p = json?.published ?? null;
+      if (!p) {
+        setPublishedMeta(null);
+        return;
+      }
+      setPublishedMeta({
+        id: String(p.id),
+        status: String(p.status),
+        version: Number(p.version ?? 0),
+        updatedAt: String(p.updatedAt ?? p.updated_at ?? ""),
+      });
+    } catch (err) {
+      console.error("Load published error:", err);
+      setPublishedMeta(null);
+      setPublishedLoadError("Failed to load published");
+    }
+  };
+
+  const loadDraftForProduct = async (id: string) => {
+    setDraftLoadError(null);
+    try {
+      const endpoint = `/api/admin/products/${id}/draft`;
+      const res = await fetch(endpoint, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        setDraftLoadError(
+          isAuthStatus(res.status)
+            ? `Failed to load draft (${res.status}). Not authorized — re-login at /admin.`
+            : `Failed to load draft (${res.status})`,
+        );
+        setDraftMeta(null);
+        return;
+      }
+      clearApiError();
+      const json: any = await res.json();
+      const draft = json?.draft ?? null;
+      const fields = draft?.fields ?? {};
+      const score = draft?.score ?? {};
+
+      // Merge draft fields into the local editable product row (no writes).
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, ...(fields || {}) } : p)),
+      );
+
+      if (draft) {
+        setDraftMeta({
+          id: draft.id,
+          status: draft.status,
+          version: Number(draft.version ?? 0),
+          updatedAt: String(draft.updatedAt ?? ""),
+        });
+      } else {
+        setDraftMeta(null);
+      }
+
+      setIsDirty(false);
+    } catch (e) {
+      console.error("Failed to load draft:", e);
+      setDraftLoadError("Failed to load draft");
+      setDraftMeta(null);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const endpoint = "/api/admin/products";
+      const res = await fetch(endpoint, { cache: "no-store" });
+
+      if (!res.ok) {
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        setError(
+          isAuthStatus(res.status)
+            ? `Failed to fetch products (${res.status}). Not authorized — re-login at /admin.`
+            : `Failed to fetch products (${res.status}).`,
+        );
+        return;
+      }
+      clearApiError();
       const json: any = await res.json();
       // Accept either { ok, data } or a raw array (defensive)
       let rows: any[] = [];
@@ -118,39 +339,25 @@ export default function ProductsTab() {
       setProducts(rows as Product[]);
       setError("");
     } catch {
-      setError("Failed to fetch products");
+      setApiError({
+        endpoint: "/api/admin/products",
+        status: 0,
+        statusText: "Network error",
+        bodySnippet: "Fetch threw before receiving a response (network/DNS/CORS/runtime).",
+      });
+      setError("Failed to fetch products (network error).");
     } finally {
       setLoading(false);
     }
   };
 
   // Update helper – keep type loose so we can use dynamic citation keys.
-  // Also perform an optimistic local update so fields (especially select/tier fields)
-  // keep their selected value visible immediately after blur.
+  // NOTE: Batch 4.1 removes autosave. All edits are local until Save Draft.
   const updateProduct = async (id: string, field: string, value: string) => {
-    // Optimistic local update
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
     );
-
-    try {
-      const response = await fetch(`/api/admin/products/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ [field]: value }),
-      });
-
-      if (response.ok) {
-        // Keep the optimistic value; we still refresh to pick up any server-side normalization.
-        fetchProducts();
-      } else {
-        console.error("Failed to update product");
-      }
-    } catch (error) {
-      console.error("Error updating product:", error);
-    }
+    setIsDirty(true);
   };
 
   // Local-only update helper so we can keep inputs responsive while typing
@@ -159,6 +366,7 @@ export default function ProductsTab() {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
     );
+    setIsDirty(true);
   };
 
   // Default to first product once loaded
@@ -168,9 +376,82 @@ export default function ProductsTab() {
     }
   }, [products, selectedId]);
 
+  // Load draft when selection changes (and after products first load).
+  useEffect(() => {
+    if (!selectedId) return;
+    if (!products.find((p) => p.id === selectedId)) return;
+    void loadDraftForProduct(selectedId);
+    void loadPublishedForProduct(selectedId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, products.length]);
+
   if (loading) {
     return <div className="py-8 text-center">Loading products...</div>;
   }
+
+  // Debug / API status panel (kept compact but explicit).
+  // This is critical when rolling the admin to a team: failures must be self-explanatory.
+  const DebugPanel = () => {
+    if (!apiDebug && !error && !draftLoadError && !publishedLoadError) return null;
+
+    const headline = apiDebug
+      ? `API issue: ${apiDebug.endpoint} → ${apiDebug.status} ${apiDebug.statusText}`
+      : `API issue detected`;
+
+    const hint =
+      apiDebug && isAuthStatus(apiDebug.status)
+        ? `Auth hint: 401/403 usually means you need to re-login at /admin (admin_token cookie is httpOnly).`
+        : null;
+
+    return (
+      <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <div className="font-semibold">{headline}</div>
+            {apiDebug ? (
+              <div className="mt-1 space-y-1">
+                <div className="text-[0.7rem] text-amber-800">
+                  <span className="font-semibold">When:</span> {apiDebug.at}
+                </div>
+                <div className="text-[0.7rem] text-amber-800 break-all">
+                  <span className="font-semibold">URL:</span> {apiDebug.url}
+                </div>
+                <div className="rounded border border-amber-200 bg-white p-2 font-mono text-[0.7rem] text-amber-900 whitespace-pre-wrap">
+                  {apiDebug.bodySnippet || "(empty response body)"}
+                </div>
+                {hint ? <div className="text-[0.7rem]">{hint}</div> : null}
+              </div>
+            ) : (
+              <div className="mt-1 text-[0.7rem] text-amber-800">
+                Something failed, but no structured API debug is available.
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={retryAll}
+              className="rounded border border-amber-400 bg-white px-2 py-1 text-[0.7rem] font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={copyDebugToClipboard}
+              disabled={!apiDebug}
+              className={`rounded border px-2 py-1 text-[0.7rem] font-semibold ${
+                apiDebug
+                  ? "border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+                  : "cursor-not-allowed border-amber-200 bg-amber-50 text-amber-300"
+              }`}
+            >
+              Copy debug
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (error) {
     return (
@@ -182,6 +463,102 @@ export default function ProductsTab() {
 
   const selectedProduct =
     products.find((p) => p.id === selectedId) ?? products[0] ?? null;
+
+  const buildFieldsPayload = (p: Product) => {
+    // Do not persist identity/display-only keys.
+    // We intentionally keep this permissive: whatever the UI edits becomes draft fields.
+    const {
+      id,
+      brand,
+      model,
+      image,
+      ...rest
+    } = (p as any) || {};
+
+    // Remove undefined so Neon JSON stays clean.
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(rest)) {
+      if (typeof v !== "undefined") out[k] = v;
+    }
+    return out;
+  };
+
+  const saveDraft = async () => {
+    if (!selectedProduct) return;
+    setSaving(true);
+    try {
+      const endpoint = `/api/admin/products/${selectedProduct.id}/draft`;
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fields: buildFieldsPayload(selectedProduct),
+          evidence: [],
+        }),
+      });
+
+      if (!res.ok) {
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        console.error("Save draft failed:", res.status, snippet);
+        alert(
+          isAuthStatus(res.status)
+            ? `Save failed (${res.status}). Not authorized — re-login at /admin.`
+            : `Save failed (${res.status}). See debug panel for details.`,
+        );
+        return;
+      }
+
+      clearApiError();
+      setIsDirty(false);
+
+      // Reload draft so UI reflects canonical saved state (timestamps/version/evidence)
+      await loadDraftForProduct(selectedProduct.id);
+      // Published doesn't change on save, but loading keeps UI consistent if server
+      // normalizes anything you might later mirror on the read side.
+      await loadPublishedForProduct(selectedProduct.id);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const publishDraft = async () => {
+    if (!selectedProduct) return;
+    setPublishing(true);
+    try {
+      const endpoint = `/api/admin/products/${selectedProduct.id}/publish`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const snippet = await readBodySnippet(res);
+        setApiError({
+          endpoint,
+          status: res.status,
+          statusText: res.statusText || 'Error',
+          bodySnippet: snippet,
+        });
+        console.error("Publish failed:", res.status, snippet);
+        alert(
+          isAuthStatus(res.status)
+            ? `Publish failed (${res.status}). Not authorized — re-login at /admin.`
+            : `Publish failed (${res.status}). See debug panel for details.`,
+        );
+        return;
+      }
+      clearApiError();
+      // After publish, reload both draft and published views (status/version will change)
+      await loadDraftForProduct(selectedProduct.id);
+      await loadPublishedForProduct(selectedProduct.id);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   if (!selectedProduct) {
   return (
@@ -291,6 +668,67 @@ export default function ProductsTab() {
         "rolling_standard",
       ],
     },
+    // --- Ease of Use & Setup (Category #2) – Evidence-only, robotic, reproducible ---
+    {
+      key: "hasManual",
+      label: "* Manual available (online or explicitly included) (Yes/No)",
+      description:
+        "1 pt if the manufacturer provides a downloadable manual OR explicitly states a manual is included. If not shown/promised, score 0.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasOnMachineInstructions",
+      label: "* On-machine operation instructions/tips shown/promised (Yes/No)",
+      description:
+        "1 pt only if photos/video/listing show printed/engraved/label instructions on the machine, OR the listing explicitly promises them. Not obvious = 0.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasAngleReference",
+      label: "* Built-in bend angle reference (scale/reference, not a loose cube) (Yes/No)",
+      description:
+        "1 pt if the machine/tooling has a built-in scale or reference for bend angle (shown or promised). Loose magnetic angle cubes on the tube do NOT count.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasAngleStop",
+      label: "* Angle stop available (mechanical or equivalent) (Yes/No)",
+      description:
+        "1 pt if the manufacturer documents a bend-angle stop (mechanical or equivalent). Auto-stop (electronic) is already tracked elsewhere; this is for simple stops too.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "rotationAid",
+      label: "* Rotation aid type (evidence-only)",
+      description:
+        "Scores 1 pt ONLY for: chuck/indexer, clamp-on analog, or clamp-on digital. Magnet-only-on-tube scores 0 (fails on non-ferrous like aluminum). None/unknown = 0.",
+      options: [
+        "none",
+        "magnet_on_tube",
+        "clamp_on_analog",
+        "clamp_on_digital",
+        "chuck_or_indexer",
+      ],
+    },
+    {
+      key: "quickDieChange",
+      label: "* Quick die change engineered aid (documented) (Yes/No)",
+      description:
+        "1 pt ONLY if the manufacturer documents an engineered process/tool/feature that materially reduces die-change friction (e.g., lock/retainer/tooling that enables one-hand change or eliminates juggling parts). If not documented, 0.",
+      options: ["", "Yes", "No"],
+    },
+    {
+      key: "hasMfrYoutubeModelContent",
+      label: "* Official YouTube content for this exact model (robotic rule) (Yes/No)",
+      description:
+        "1 pt ONLY if the manufacturer-owned YouTube channel has instructional content featuring this exact model AND it appears in the top 10 YouTube search results for: (BRAND + MODEL). Otherwise 0.",
+      options: ["", "Yes", "No"],
+    },
+    // NOTE: Ease-of-use checklist items are now handled by explicit, evidence-only flags
+    // in the scoring engine + customer-facing /scoring page. We intentionally removed the
+    // old "setup/mounting guidance" checklist item because it was too collinear with
+    // "manual available" and didn't add defensible signal. Do not re-add it unless the
+    // scoring rules change.
     {
       key: "bendAngle",
       label: "* Bend Angle (°)",
@@ -313,8 +751,10 @@ export default function ProductsTab() {
       key: "mandrel",
       label: "* Mandrel option",
       description:
-        "Available / None. Only mark as Available when the manufacturer documents mandrel support or upgrades.",
-      options: ["Available", "None"],
+        "Select the highest documented mandrel capability for this frame. If the manufacturer does not clearly document mandrel support for this specific model, pick None.",
+      // IMPORTANT: these are canonical tokens consumed by scoring + UI.
+      // Keep them stable and machine-readable (no marketing labels).
+      options: ["none", "economy", "bronze"],
     },
     {
       key: "sBendCapability",
@@ -558,8 +998,41 @@ export default function ProductsTab() {
     updateProduct(selectedProduct.id, "dieShapes", serialized);
   };
 
+  // --- Auto Pros/Cons (generated) -------------------------------------------
+  const splitLines = (raw?: string | null): string[] =>
+    String(raw ?? "")
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const manualPros = splitLines((selectedProduct as any).pros);
+  const manualCons = splitLines((selectedProduct as any).cons);
+  const manualOverridesAuto = manualPros.length > 0 || manualCons.length > 0;
+
+  // Generate using current in-memory rows (includes draft field merges).
+  const autoItems: AutoProCon[] = generateAutoProsCons(
+    selectedProduct as any,
+    (products as any[]) ?? []
+  );
+
+  // Persist enabled states by writing the full list (type/text/enabled) to the product draft field.
+  // This matches lib/proCons behavior (it reads p.autoProsCons and keys by text).
+  const setAutoItemEnabled = (text: string, enabled: boolean) => {
+    const next = autoItems.map((it) =>
+      it.text === text ? { ...it, enabled } : it
+    );
+    // Store as a proper array (not CSV) so we can evolve safely.
+    updateProduct(selectedProduct.id, "autoProsCons", next as any);
+  };
+  // --------------------------------------------------------------------------
+
             return (
     <div className="w-full rounded-lg bg-white shadow max-w-[1400px] mx-auto">
+      {/* Debug panel for explicit API/auth failures */}
+      <div className="px-6 pt-4">
+        <DebugPanel />
+      </div>
+
       {/* Header + product selector */}
       <div className="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
         <div>
@@ -581,7 +1054,7 @@ export default function ProductsTab() {
             letters, numbers, and dashes.
           </p>
         </div>
-        <div className="flex flex-col gap-1 text-sm md:items-end">
+        <div className="flex flex-col gap-2 text-sm md:items-end">
           <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
             Select model
           </label>
@@ -617,6 +1090,69 @@ export default function ProductsTab() {
               );
             })}
           </select>
+
+          {/* Explicit Save/Publish controls (no autosave) */}
+          <div className="mt-2 flex w-full max-w-xs items-center justify-between gap-2">
+            <div className="text-[0.7rem] text-gray-500 leading-tight">
+              <div>
+                {draftMeta ? (
+                  <span>
+                    Draft v{draftMeta.version} • {draftMeta.status} •{" "}
+                    {draftMeta.updatedAt
+                      ? new Date(draftMeta.updatedAt).toLocaleString()
+                      : "—"}
+                  </span>
+                ) : (
+                  <span>No draft loaded</span>
+                )}
+                {draftLoadError ? (
+                  <span className="ml-2 text-red-600">{draftLoadError}</span>
+                ) : null}
+              </div>
+              <div>
+                {publishedMeta ? (
+                  <span>
+                    Published v{publishedMeta.version} •{" "}
+                    {publishedMeta.updatedAt
+                      ? new Date(publishedMeta.updatedAt).toLocaleString()
+                      : "—"}
+                  </span>
+                ) : (
+                  <span>Not published yet</span>
+                )}
+                {publishedLoadError ? (
+                  <span className="ml-2 text-red-600">{publishedLoadError}</span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex w-full max-w-xs gap-2">
+            <button
+              onClick={saveDraft}
+              disabled={saving || !isDirty}
+              className={`flex-1 rounded border px-3 py-1 text-sm ${
+                saving || !isDirty
+                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                  : "border-gray-900 bg-white text-gray-900 hover:bg-gray-50"
+              }`}
+              title={!isDirty ? "No changes to save" : "Save current draft"}
+            >
+              {saving ? "Saving..." : "Save draft"}
+            </button>
+            <button
+              onClick={publishDraft}
+              disabled={publishing || isDirty}
+              className={`flex-1 rounded border px-3 py-1 text-sm ${
+                publishing || isDirty
+                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                  : "border-gray-900 bg-gray-900 text-white hover:bg-black"
+              }`}
+              title={isDirty ? "Save draft before publishing" : "Publish current draft"}
+            >
+              {publishing ? "Publishing..." : "Publish"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -738,13 +1274,6 @@ export default function ProductsTab() {
                               e.target.value,
                             );
                           }}
-                          onBlur={(e) =>
-                            updateProduct(
-                              selectedProduct.id,
-                              source1Key,
-                              e.target.value,
-                            )
-                          }
                           placeholder="Spec page, PDF, catalog ref, etc."
                         />
                       </div>
@@ -760,13 +1289,6 @@ export default function ProductsTab() {
                               e.target.value,
                             );
                           }}
-                          onBlur={(e) =>
-                            updateProduct(
-                              selectedProduct.id,
-                              source2Key,
-                              e.target.value,
-                            )
-                          }
                           placeholder="YYYY-MM-DD"
                         />
                   </div>
@@ -782,13 +1304,6 @@ export default function ProductsTab() {
                               e.target.value,
                             );
                           }}
-                          onBlur={(e) =>
-                            updateProduct(
-                              selectedProduct.id,
-                              notesKey,
-                              e.target.value,
-                            )
-                          }
                           placeholder="How we found it, or cross-references"
                         />
                       </div>
@@ -809,7 +1324,7 @@ export default function ProductsTab() {
     // Only normalize to uppercase once editing is finished.
     const upper = e.target.value.toUpperCase();
     updateProductLocalField(selectedProduct.id, userKey, upper);
-    updateProduct(selectedProduct.id, userKey, upper);
+    // No autosave: Save Draft button commits changes.
   }}
   placeholder="XXXNNNN"
 />
@@ -841,22 +1356,23 @@ export default function ProductsTab() {
                           }`}
                           onClick={() => {
                             if (!citationClipboard) return;
-                            updateProduct(
+                            // Optimistically update UI in one pass
+                            updateProductLocalField(
                               selectedProduct.id,
                               source1Key,
                               citationClipboard.source1,
                             );
-                            updateProduct(
+                            updateProductLocalField(
                               selectedProduct.id,
                               source2Key,
                               citationClipboard.source2,
                             );
-                            updateProduct(
+                            updateProductLocalField(
                               selectedProduct.id,
                               notesKey,
                               citationClipboard.notes,
                             );
-                            updateProduct(
+                            updateProductLocalField(
                               selectedProduct.id,
                               userKey,
                               citationClipboard.userCode,
@@ -1118,6 +1634,96 @@ export default function ProductsTab() {
           </div>
         </div>
       </section>
+
+      {/* Auto Pros/Cons (generated) */}
+      <section className="border-b border-gray-200 px-6 py-5">
+        <h3 className="text-base font-semibold text-gray-900">
+          Auto Pros / Cons (generated)
+        </h3>
+        <p className="mt-1 text-xs text-gray-500 max-w-4xl">
+          These bullets are mechanically generated from documented fields + dataset rank
+          (no opinions). They will appear on the review page{" "}
+          <span className="font-semibold">only when manual Pros/Cons are empty</span>.
+          Toggle items on/off to control what can appear as "auto".
+        </p>
+        {manualOverridesAuto ? (
+          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Manual Pros/Cons exist for this product right now, so the review page will
+            display the manual lists instead of auto-generated items.
+          </div>
+        ) : null}
+
+        {autoItems.length === 0 ? (
+          <div className="mt-3 text-xs text-gray-500">
+            No auto items generated. (This usually means key spec fields are missing across the dataset.)
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
+            {/* Pros */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
+                  ✔
+                </span>
+                <h4 className="text-sm font-semibold text-gray-900">Auto Pros</h4>
+              </div>
+              <div className="mt-3 space-y-2">
+                {autoItems.filter((it) => it.type === "pro").map((it) => (
+                  <label key={it.text} className="flex gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={!!it.enabled}
+                      onChange={(e) => setAutoItemEnabled(it.text, e.target.checked)}
+                    />
+                    <span className={it.enabled ? "" : "text-gray-400 line-through"}>
+                      {it.text}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Cons */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs">
+                  !
+                </span>
+                <h4 className="text-sm font-semibold text-gray-900">Auto Cons</h4>
+              </div>
+              <div className="mt-3 space-y-2">
+                {autoItems.filter((it) => it.type === "con").map((it) => (
+                  <label key={it.text} className="flex gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={!!it.enabled}
+                      onChange={(e) => setAutoItemEnabled(it.text, e.target.checked)}
+                    />
+                    <span className={it.enabled ? "" : "text-gray-400 line-through"}>
+                      {it.text}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 text-[0.7rem] text-gray-500 max-w-4xl">
+          Notes:
+          <ul className="list-disc pl-5 mt-1 space-y-1">
+            <li>
+              Enabled states are saved into <code className="rounded bg-gray-50 px-1">autoProsCons</code>{" "}
+              when you click <span className="font-semibold">Save draft</span>.
+            </li>
+            <li>
+              The generator keys enabled state by exact <span className="font-semibold">text</span>. If you later change the generator wording, old saved toggles won't match.
+            </li>
+          </ul>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1147,10 +1753,7 @@ function EditableField({
     setIsEditing(false);
   };
 
-  const handleCancel = () => {
-    setEditValue(value);
-    setIsEditing(false);
-  };
+  // Cancel isn't wired; keep it simple and avoid extra state churn.
 
   if (isEditing) {
     if (options) {

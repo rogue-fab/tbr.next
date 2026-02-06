@@ -7,6 +7,9 @@ import { slugOf, parseIds, titleOf, slugForProduct } from "../../lib/ids";
 import { getProductScore, TOTAL_POINTS } from "../../lib/scoring";
 // NOTE: Only accepts canonical product identifiers (id/slug/name/brand+model)
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type Product = {
   id: string;
   slug?: string;
@@ -60,8 +63,8 @@ function dedupePreserveOrder(items: Product[]): Product[] {
 }
 
 type ComparePageProps = { searchParams?: { ids?: string | string[] } };
-export default function ComparePage({ searchParams }: ComparePageProps) {
-  const products = getAllTubeBendersWithOverlay() as Product[];
+export default async function ComparePage({ searchParams }: ComparePageProps) {
+  const products = (await getAllTubeBendersWithOverlay()) as Product[];
   const tokens = parseIds(searchParams?.ids); // raw query tokens
 
   let rows: Product[] = [];

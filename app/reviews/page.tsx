@@ -4,6 +4,9 @@ import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
 import { getProductScore, TOTAL_POINTS } from "../../lib/scoring";
 import { slugForProduct, titleOf } from "../../lib/ids";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata = {
   title: "Tube Bender Reviews | TubeBenderReviews",
   description:
@@ -33,8 +36,8 @@ function displayOriginLabel(country?: string): string {
   return "Imported / International origin";
 }
 
-export default function ReviewsIndexPage() {
-  const products = getAllTubeBendersWithOverlay();
+export default async function ReviewsIndexPage() {
+  const products = await getAllTubeBendersWithOverlay();
 
   const rows = products
     .map((p) => {

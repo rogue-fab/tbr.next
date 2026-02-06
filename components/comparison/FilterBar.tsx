@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { TubeBender } from '../../lib/validators';
+import { TubeBender, MandrelTier } from '../../lib/validators';
+
+const MANDREL_OPTIONS: Array<{ value: MandrelTier; label: string }> = [
+  { value: "bronze", label: "Bronze" },
+  { value: "economy", label: "Economy" },
+  { value: "none", label: "None" },
+];
 
 interface FilterBarProps {
   className?: string;
@@ -13,8 +19,8 @@ export function FilterBar({ className = '' }: FilterBarProps) {
   const searchParams = useSearchParams();
   
   const [textFilter, setTextFilter] = useState(searchParams.get('search') || '');
-  const [mandrelFilter, setMandrelFilter] = useState<TubeBender['mandrel'] | 'all'>(
-    (searchParams.get('mandrel') as TubeBender['mandrel'] | 'all') || 'all'
+  const [mandrelFilter, setMandrelFilter] = useState<MandrelTier | "all">(
+    ((searchParams.get("mandrel") as MandrelTier | "all") || "all")
   );
 
   // Debounced search effect
@@ -32,7 +38,7 @@ export function FilterBar({ className = '' }: FilterBarProps) {
     return () => clearTimeout(timer);
   }, [textFilter, router, searchParams]);
 
-  const handleMandrelChange = useCallback((mandrel: TubeBender['mandrel'] | 'all') => {
+  const handleMandrelChange = useCallback((mandrel: MandrelTier | "all") => {
     setMandrelFilter(mandrel);
     const params = new URLSearchParams(searchParams);
     if (mandrel === 'all') {
@@ -80,13 +86,15 @@ export function FilterBar({ className = '' }: FilterBarProps) {
           <select
             id="mandrel-filter"
             value={mandrelFilter}
-            onChange={(e) => handleMandrelChange(e.target.value as TubeBender['mandrel'] | 'all')}
+            onChange={(e) => handleMandrelChange(e.target.value as MandrelTier | "all")}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Options</option>
-            <option value="Available">Available</option>
-            <option value="Standard">Standard</option>
-            <option value="No">No</option>
+            {MANDREL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -95,18 +103,20 @@ export function FilterBar({ className = '' }: FilterBarProps) {
       <div className="mt-4">
         <span className="text-sm font-medium text-gray-700 mr-2">Quick Filters:</span>
         <div className="flex flex-wrap gap-2 mt-1">
-          {(['Available', 'Standard', 'No'] as const).map((mandrel) => (
+          {MANDREL_OPTIONS.map((opt) => (
             <button
-              key={mandrel}
-              onClick={() => handleMandrelChange(mandrelFilter === mandrel ? 'all' : mandrel)}
+              key={opt.value}
+              onClick={() =>
+                handleMandrelChange(mandrelFilter === opt.value ? "all" : opt.value)
+              }
               className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                mandrelFilter === mandrel
+                mandrelFilter === opt.value
                   ? 'bg-blue-500 text-white border-blue-500'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
               }`}
-              aria-pressed={mandrelFilter === mandrel}
+              aria-pressed={mandrelFilter === opt.value}
             >
-              {mandrel}
+              {opt.label}
             </button>
           ))}
         </div>
