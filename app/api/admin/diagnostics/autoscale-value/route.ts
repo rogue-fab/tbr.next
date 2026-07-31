@@ -15,6 +15,7 @@ const valueSnapshot = JSON.parse(
 );
 import { getProductScore } from "../../../../../lib/scoring";
 import * as catalog from "../../../../../lib/catalog";
+import { isAuthorized, unauthorized } from "../../../../../lib/adminAuth";
 
 const VALUE_INCLUDED_CRITERIA: string[] = [
   "Ease of Use & Setup",
@@ -88,22 +89,6 @@ function loadLocalCatalogProducts(): any[] {
 
 function asId(v: unknown): string {
   return String(v ?? "").trim();
-}
-
-const ADMIN_COOKIE_NAME = "admin_token";
-
-function isAuthorized(request: NextRequest): boolean {
-  const envToken = process.env.ADMIN_TOKEN?.trim();
-  if (!envToken) return false;
-  const cookieToken = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return cookieToken === envToken;
-}
-
-function unauthorized() {
-  return NextResponse.json(
-    { ok: false, error: "Not authorized" },
-    { status: 401 },
-  );
 }
 
 export async function GET(request: NextRequest): Promise<Response> {

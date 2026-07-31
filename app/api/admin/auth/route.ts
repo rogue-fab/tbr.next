@@ -1,6 +1,12 @@
 // app/api/admin/auth/route.ts
 import { NextRequest } from 'next/server';
 import { ok, badRequest } from '../../../../lib/http';
+import {
+  ADMIN_COOKIE_NAME,
+  SESSION_TTL_SECONDS,
+  createAdminSession,
+  constantTimeEqual,
+} from '../../../../lib/adminAuth';
 
 import {
   getClientIp,
@@ -32,11 +38,12 @@ export async function POST(request: NextRequest) {
 
     // If correct token is provided, allow login even if this client is currently rate-limited/locked out.
     // (If an attacker has the correct token, they already have admin access.)
-    if (submittedToken === adminToken) {
+    if (constantTimeEqual(submittedToken, adminToken)) {
       await clearAuthFailures(clientId);
 
       const response = ok({ message: 'Authentication successful' });
-      response.cookies.set('admin_token', adminToken, {
+      // Store a signed session token (HMAC keyed by ADMIN_TOKEN), NOT the raw secret.
+      response.cookies.set(ADMIN_COOKIE_NAME, createAdminSession(), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         // Admin UI is same-site; Strict is a cheap hardening win.
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
         // Must be visible to BOTH /admin pages and /api/admin/* routes.
         // Using '/' keeps auth consistent across the admin surface.
         path: '/',
-        maxAge: 60 * 60 * 24 * 7 // 7 days
+        maxAge: SESSION_TTL_SECONDS,
       });
       return response;
     }

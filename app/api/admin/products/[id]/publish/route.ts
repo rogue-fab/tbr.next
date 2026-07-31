@@ -1,7 +1,7 @@
 // app/api/admin/products/[id]/publish/route.ts
 import { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
 import { ok, badRequest } from "../../../../../../lib/http";
+import { isAuthorized, unauthorized } from "../../../../../../lib/adminAuth";
 import {
   getClientId,
   ratelimitAdminRead,
@@ -13,22 +13,6 @@ import {
   getLatestPublishedVersion,
   getEvidenceForVersion,
 } from "../../../../../../lib/productVersionsRepo";
-
-const ADMIN_COOKIE_NAME = "admin_token";
-
-function isAuthorized(request: NextRequest): boolean {
-  const envToken = process.env.ADMIN_TOKEN?.trim();
-  if (!envToken) return false;
-  const cookieToken = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return cookieToken === envToken;
-}
-
-function unauthorized() {
-  return NextResponse.json(
-    { ok: false, error: "Not authorized" },
-    { status: 401 },
-  );
-}
 
 export async function GET(
   request: NextRequest,

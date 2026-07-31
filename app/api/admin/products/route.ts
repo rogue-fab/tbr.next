@@ -2,25 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { listProductIds } from "../../../../lib/data";
 import { mergeWithOverlay, info } from "../../../../lib/adminStore";
+import { isAuthorized, unauthorized } from "../../../../lib/adminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ADMIN_COOKIE_NAME = "admin_token";
-
-function isAuthorized(request: NextRequest): boolean {
-  const envToken = process.env.ADMIN_TOKEN?.trim();
-  if (!envToken) return false;
-  const cookieToken = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
-  return cookieToken === envToken;
-}
-
-function unauthorized() {
-  return NextResponse.json(
-    { ok: false, error: "Not authorized" },
-    { status: 401 },
-  );
-}
 
 /**
  * GET /api/admin/products
