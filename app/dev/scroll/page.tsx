@@ -1,4 +1,13 @@
+import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
+import { ADMIN_COOKIE_NAME, verifyAdminSession } from "../../../lib/adminAuth";
+
 export default function DevScroll() {
+  const token = cookies().get(ADMIN_COOKIE_NAME)?.value;
+  if (!verifyAdminSession(token)) {
+    notFound();
+  }
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="mb-4 text-xl font-semibold">Sticky Header Visual Check</h1>

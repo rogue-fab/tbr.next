@@ -2,9 +2,10 @@
  * Inspect what the bundler included from our data modules.
  * GET /api/_debug/datasets -> JSON summary (keys, lengths, sample shapes)
  */
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import * as catalogNS from "../../../../lib/catalog";
 import * as bendersNS from "../../../../lib/tube-benders";
+import { isAuthorized, unauthorized } from "../../../../lib/adminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,7 +57,9 @@ function describe(ns: AnyRec) {
   return out;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) return unauthorized();
+
   return NextResponse.json({
     ok: true,
     catalog: describe(catalogNS as AnyRec),

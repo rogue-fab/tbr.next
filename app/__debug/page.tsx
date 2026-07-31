@@ -1,5 +1,8 @@
 import { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import { notFound } from 'next/navigation';
 import { DebugPanel } from '../../components/debug/DebugPanel';
+import { ADMIN_COOKIE_NAME, verifyAdminSession } from '../../lib/adminAuth';
 
 export const metadata: Metadata = {
   title: 'Debug Panel - Tube Bender Reviews',
@@ -8,6 +11,11 @@ export const metadata: Metadata = {
 };
 
 export default function DebugPage() {
+  const token = cookies().get(ADMIN_COOKIE_NAME)?.value;
+  if (!verifyAdminSession(token)) {
+    notFound();
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">

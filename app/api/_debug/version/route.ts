@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { isAuthorized, unauthorized } from "../../../../lib/adminAuth";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
+  if (!isAuthorized(request)) return unauthorized();
+
   // Vercel provides these at build/runtime depending on plan/config.
   const sha =
     process.env.VERCEL_GIT_COMMIT_SHA ||
