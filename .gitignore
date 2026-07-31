@@ -43,3 +43,7 @@ next-env.d.ts
 # Local nested repo quarantine
 _NESTED_REPO__tbr.next/
 
+# Operator/scratch PowerShell scripts — kept locally, never shipped in the repo.
+# security-gates.yml blocks *.ps1 artifacts, so ignoring them keeps the gate green.
+*.ps1
+
