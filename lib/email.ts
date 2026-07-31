@@ -34,6 +34,19 @@ function assertMailConfigured() {
   }
 }
 
+/**
+ * Escape user-supplied values before interpolating into HTML email bodies.
+ * Prevents HTML/link injection into the recipient's (and the admin's) mail client.
+ */
+function escapeHtml(input: unknown): string {
+  return String(input ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 type VerificationEmailArgs = {
   to: string;
   name: string;
@@ -69,15 +82,15 @@ export async function sendContactVerificationEmail(
   ].join("\n");
 
   const html = `
-    <p>Hi ${safeName},</p>
+    <p>Hi ${escapeHtml(safeName)},</p>
     <p>You submitted the following message to <strong>TubeBenderReviews.com</strong>:</p>
     <p>
-      <strong>Type:</strong> ${messageType || "General"}<br />
-      <strong>Subject:</strong> ${subject}
+      <strong>Type:</strong> ${escapeHtml(messageType || "General")}<br />
+      <strong>Subject:</strong> ${escapeHtml(subject)}
     </p>
     <pre style="white-space:pre-wrap;font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;border:1px solid #e5e7eb;border-radius:6px;padding:10px;background:#f9fafb;">
 
-${message.replace(/</g, "&lt;")}
+${escapeHtml(message)}
 
     </pre>
     <p>
@@ -132,15 +145,15 @@ export async function sendContactForwardEmail(
   const html = `
     <p>New verified contact submission from <strong>TubeBenderReviews.com</strong></p>
     <p>
-      <strong>From:</strong> ${name} &lt;${email}&gt;<br />
-      <strong>Type:</strong> ${messageType || "General"}<br />
-      <strong>Subject:</strong> ${subject}<br />
+      <strong>From:</strong> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;<br />
+      <strong>Type:</strong> ${escapeHtml(messageType || "General")}<br />
+      <strong>Subject:</strong> ${escapeHtml(subject)}<br />
       <strong>Submitted at:</strong> ${created.toISOString()}
     </p>
     <p><strong>Message:</strong></p>
     <pre style="white-space:pre-wrap;font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;border:1px solid #e5e7eb;border-radius:6px;padding:10px;background:#f9fafb;">
 
-${message.replace(/</g, "&lt;")}
+${escapeHtml(message)}
 
     </pre>
   `;
