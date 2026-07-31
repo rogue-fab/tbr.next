@@ -17,10 +17,13 @@ function isVercelPreview(): boolean {
 }
 
 export function getClientIp(request: NextRequest): string {
-  // Vercel sets x-forwarded-for. Take the first IP in the list.
+  // Prefer Vercel's trusted client IP. Only fall back to the client-supplied
+  // X-Forwarded-For header when request.ip is absent (e.g. local dev), because
+  // XFF can be spoofed to rotate the rate-limit/lockout key.
+  if (request.ip) return request.ip;
   const xff = request.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0].trim();
-  return request.ip ?? "0.0.0.0";
+  return "0.0.0.0";
 }
 
 /**
@@ -202,6 +205,7 @@ export const ratelimitAdminWrite = ratelimitAdmin;
 export async function enforceRateLimit(
   limiter: Ratelimit,
   keyParts: (string | number)[],
+  opts?: { failOpen?: boolean },
 ) {
   const key = keyParts.map(String).join(":");
   try {
@@ -219,9 +223,11 @@ export async function enforceRateLimit(
       err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
     console.warn(`[rateLimit] limiter.limit failed (key=${key}) - ${msg}`);
 
-    // Default: fail-open so admin and critical paths don't crash when Upstash is unreachable.
-    // If you want strict protection, set RATE_LIMIT_FAIL_OPEN=0.
-    if (isFailOpenEnabled()) {
+    // Per-call override wins; otherwise use the global RATE_LIMIT_FAIL_OPEN default.
+    // Auth passes failOpen:false so brute-force protection stays on during a Redis
+    // outage (a correct token still logs in without reaching the limiter).
+    const failOpen = opts?.failOpen ?? isFailOpenEnabled();
+    if (failOpen) {
       return {
         ok: true,
         retryAfter: 0,

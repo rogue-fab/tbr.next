@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rateLimitResult = await enforceRateLimit(ratelimitAuth, ['admin_auth', clientId]);
+    // failOpen:false — keep brute-force protection on even if Redis is down.
+    // (A correct token is checked earlier and never reaches this limiter.)
+    const rateLimitResult = await enforceRateLimit(ratelimitAuth, ['admin_auth', clientId], { failOpen: false });
     if (!rateLimitResult.ok) {
       return Response.json(
         { error: 'Too many attempts' },
