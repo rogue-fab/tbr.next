@@ -21,7 +21,12 @@ export default async function Page() {
   const parseMoney = (raw: unknown): number | null => {
     if (raw === null || raw === undefined || raw === "") return null;
     if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-    const parsed = parseFloat(String(raw).replace(/[^0-9.+-]/g, ""));
+    // Normalize unicode dashes (en/em/minus) to ASCII hyphen first, so a range
+    // string like "$1,800 – $2,500" parses to its first value (1800) instead of
+    // being stripped to "18002500" (which rendered as ~$18M).
+    const parsed = parseFloat(
+      String(raw).replace(/[‒-―−]/g, "-").replace(/[^0-9.+-]/g, ""),
+    );
     return Number.isFinite(parsed) ? parsed : null;
   };
 
