@@ -227,7 +227,7 @@ export async function getLatestPublishedVersionsForProducts(productIds: string[]
       updated_at
     from product_versions
     where status = 'published'
-      and product_id = any(${sql.array(ids)})
+      and product_id in ${sql(ids)}
     order by product_id, version desc, updated_at desc
   `;
 
