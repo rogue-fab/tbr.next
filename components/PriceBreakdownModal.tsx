@@ -30,7 +30,7 @@ export default function PriceBreakdownModal({
 
   return (
     <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-lg">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Price breakdown</h3>
           <button

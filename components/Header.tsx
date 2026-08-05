@@ -19,7 +19,7 @@ export default function Header() {
   return (
     <header className="
   sticky top-0 z-40 w-full
-  border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/75
+  border-b border-gray-200 dark:border-gray-700 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/75
   dark:border-gray-800 dark:bg-gray-950/95 dark:supports-[backdrop-filter]:bg-gray-950/80
 ">
       <div className="mx-auto max-w-6xl w-full h-14 px-4 flex items-center justify-between">
@@ -51,7 +51,7 @@ export default function Header() {
                     "rounded-md px-3 py-1 text-sm transition",
                     active
                       ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800",
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-800",
                   ].join(" ")}
                 >
                   {l.label}

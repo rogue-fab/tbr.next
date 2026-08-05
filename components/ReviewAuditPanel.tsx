@@ -91,12 +91,12 @@ export default function ReviewAuditPanel({ product }: Props) {
   return (
     <section
       id="audit-details"
-      className="mt-8 rounded-xl border border-gray-200 bg-white px-4 py-4 text-xs text-gray-700 shadow-sm"
+      className="mt-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-4 text-xs text-gray-700 dark:text-gray-300 shadow-sm"
     >
-      <h2 className="text-sm font-semibold text-gray-900">
+      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
         Audit trail &amp; citations for this model
       </h2>
-      <p className="mt-1 text-[0.7rem] text-gray-600">
+      <p className="mt-1 text-[0.7rem] text-gray-600 dark:text-gray-400">
         This section shows the proof behind the specs that drive scoring for this
         specific model — including where each spec came from, when it was pulled,
         and who verified it.
@@ -110,54 +110,54 @@ export default function ReviewAuditPanel({ product }: Props) {
 
         <div className="mt-3 space-y-4">
           {groups.length > 0 && (
-            <div className="overflow-x-auto rounded border border-gray-200">
+            <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
               <table className="min-w-full border-collapse text-[0.7rem]">
-                <thead className="bg-gray-50">
-                  <tr className="border-b border-gray-200">
-                    <th className="px-2 py-1 text-left font-semibold text-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="px-2 py-1 text-left font-semibold text-gray-700 dark:text-gray-300">
                       Spec / field
                     </th>
-                    <th className="px-2 py-1 text-left font-semibold text-gray-700">
+                    <th className="px-2 py-1 text-left font-semibold text-gray-700 dark:text-gray-300">
                       Value used
                     </th>
-                    <th className="px-2 py-1 text-left font-semibold text-gray-700">
+                    <th className="px-2 py-1 text-left font-semibold text-gray-700 dark:text-gray-300">
                       Source / document
                     </th>
-                    <th className="px-2 py-1 text-left font-semibold text-gray-700">
+                    <th className="px-2 py-1 text-left font-semibold text-gray-700 dark:text-gray-300">
                       Accessed (YYYY-MM-DD)
                     </th>
-                    <th className="px-2 py-1 text-left font-semibold text-gray-700">
+                    <th className="px-2 py-1 text-left font-semibold text-gray-700 dark:text-gray-300">
                       Notes
                     </th>
-                    <th className="px-2 py-1 text-left font-semibold text-gray-700">
+                    <th className="px-2 py-1 text-left font-semibold text-gray-700 dark:text-gray-300">
                       Initials / Emp#
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {groups.map((g) => (
-                    <tr key={g.fieldKey} className="border-t border-gray-100">
-                      <td className="px-2 py-1 align-top text-gray-800">
+                    <tr key={g.fieldKey} className="border-t border-gray-100 dark:border-gray-800">
+                      <td className="px-2 py-1 align-top text-gray-800 dark:text-gray-200">
                         <div className="font-semibold">{g.fieldLabel}</div>
                         {g.fieldKey !== g.fieldLabel && (
-                          <div className="text-[0.65rem] text-gray-400">
+                          <div className="text-[0.65rem] text-gray-400 dark:text-gray-500">
                             ({g.fieldKey})
                           </div>
                         )}
                       </td>
-                      <td className="px-2 py-1 align-top text-gray-800">
+                      <td className="px-2 py-1 align-top text-gray-800 dark:text-gray-200">
                         {g.value || "—"}
                       </td>
-                      <td className="px-2 py-1 align-top text-gray-800 break-all">
+                      <td className="px-2 py-1 align-top text-gray-800 dark:text-gray-200 break-all">
                         {g.source1 || "—"}
                       </td>
-                      <td className="px-2 py-1 align-top text-gray-800">
+                      <td className="px-2 py-1 align-top text-gray-800 dark:text-gray-200">
                         {g.accessed || "—"}
                       </td>
-                      <td className="px-2 py-1 align-top text-gray-800">
+                      <td className="px-2 py-1 align-top text-gray-800 dark:text-gray-200">
                         {g.notes || "—"}
                       </td>
-                      <td className="px-2 py-1 align-top text-gray-800">
+                      <td className="px-2 py-1 align-top text-gray-800 dark:text-gray-200">
                         {g.userCode || "—"}
                       </td>
                     </tr>
@@ -168,11 +168,11 @@ export default function ReviewAuditPanel({ product }: Props) {
           )}
 
           {product.citationsRaw && (
-            <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
-              <div className="mb-1 text-[0.7rem] font-semibold text-gray-900">
+            <div className="rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2">
+              <div className="mb-1 text-[0.7rem] font-semibold text-gray-900 dark:text-gray-100">
                 Raw citation log
               </div>
-              <p className="mb-1 text-[0.65rem] text-gray-600">
+              <p className="mb-1 text-[0.65rem] text-gray-600 dark:text-gray-400">
                 This is the compact, machine-readable log pulled from the admin
                 overlay. Format:{" "}
                 <code className="font-mono text-[0.65rem]">
@@ -180,7 +180,7 @@ export default function ReviewAuditPanel({ product }: Props) {
                 </code>
                 .
               </p>
-              <pre className="mt-1 max-h-52 overflow-auto rounded bg-white px-2 py-1 text-[0.65rem] text-gray-800">
+              <pre className="mt-1 max-h-52 overflow-auto rounded bg-white dark:bg-gray-900 px-2 py-1 text-[0.65rem] text-gray-800 dark:text-gray-200">
                 {String(product.citationsRaw).trim()}
               </pre>
             </div>

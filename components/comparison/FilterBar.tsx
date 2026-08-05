@@ -50,11 +50,11 @@ export function FilterBar({ className = '' }: FilterBarProps) {
   }, [router, searchParams]);
 
     return (
-    <div className={`bg-white p-4 rounded-lg border border-gray-200 shadow-sm ${className}`}>
+    <div className={`bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}>
       <div className="flex flex-col sm:flex-row gap-4">
         {/* Text Search */}
         <div className="flex-1">
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Search
           </label>
           <div className="relative">
@@ -68,19 +68,19 @@ export function FilterBar({ className = '' }: FilterBarProps) {
               aria-describedby="search-description"
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
           </div>
-          <p id="search-description" className="mt-1 text-sm text-gray-500">
+          <p id="search-description" className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Filter by brand name or model number
           </p>
         </div>
 
         {/* Mandrel Filter */}
         <div className="sm:w-48">
-          <label htmlFor="mandrel-filter" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="mandrel-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Mandrel
           </label>
           <select
@@ -101,7 +101,7 @@ export function FilterBar({ className = '' }: FilterBarProps) {
 
       {/* Chip Filters */}
       <div className="mt-4">
-        <span className="text-sm font-medium text-gray-700 mr-2">Quick Filters:</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Quick Filters:</span>
         <div className="flex flex-wrap gap-2 mt-1">
           {MANDREL_OPTIONS.map((opt) => (
             <button
@@ -112,7 +112,7 @@ export function FilterBar({ className = '' }: FilterBarProps) {
               className={`px-3 py-1 text-sm rounded-full border transition-colors ${
                 mandrelFilter === opt.value
                   ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
               aria-pressed={mandrelFilter === opt.value}
             >

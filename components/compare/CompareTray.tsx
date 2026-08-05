@@ -34,7 +34,7 @@ export default function CompareTray() {
   return (
     <div className="fixed inset-x-0 bottom-4 z-50">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white/80 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-gray-700 dark:bg-gray-900/70">
+        <div className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white/80 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-gray-700 dark:bg-gray-900/70">
           <p className="text-sm">
             {ids.length} model{ids.length > 1 ? "s" : ""} selected for comparison
           </p>
@@ -44,7 +44,7 @@ export default function CompareTray() {
                 KEYS.forEach((k) => localStorage.removeItem(k));
                 setIds([]);
               }}
-              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 dark:hover:bg-gray-800"
             >
               Clear
             </button>

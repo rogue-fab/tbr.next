@@ -197,26 +197,26 @@ export function SmartTubeBenderFinder() {
 
   if (showResults) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
         <div className="text-center mb-8">
           <div className="flex items-baseline justify-between mb-4">
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
               Your Personalized Recommendations
             </h2>
             <span className="text-sm text-slate-500">{recommendations.length} results</span>
           </div>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-gray-600 dark:text-gray-400">
             Based on your requirements, here are the best tube benders for your needs
           </p>
         </div>
 
         <div className="space-y-6">
           {recommendations.map((rec) => (
-            <div key={rec.item.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div key={rec.item.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                       {rec.item.brand} {rec.item.model}
                     </h3>
                     <div className="flex items-center gap-2">
@@ -226,23 +226,23 @@ export function SmartTubeBenderFinder() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-gray-600 mb-3">{rec.item.description}</p>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">{rec.item.description}</p>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-500">Max Capacity:</span>
+                      <span className="text-gray-500 dark:text-gray-400">Max Capacity:</span>
                       <span className="ml-1 font-medium">{rec.item.maxCapacity}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Price:</span>
+                      <span className="text-gray-500 dark:text-gray-400">Price:</span>
                       <span className="ml-1 font-medium">{rec.item.price}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Weight:</span>
+                      <span className="text-gray-500 dark:text-gray-400">Weight:</span>
                       <span className="ml-1 font-medium">{rec.item.weight}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Mandrel:</span>
+                      <span className="text-gray-500 dark:text-gray-400">Mandrel:</span>
                       <span className="ml-1 font-medium">
                         {formatMandrel(rec.item.mandrel as MandrelTier)}
                       </span>
@@ -252,8 +252,8 @@ export function SmartTubeBenderFinder() {
               </div>
 
               <div className="mb-4">
-                <h4 className="font-medium text-gray-900 mb-2">Why this matches your needs:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Why this matches your needs:</h4>
+                <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
                   {rec.reasons.map((reason, idx) => (
                     <li key={idx}>{reason}</li>
                   ))}
@@ -287,12 +287,12 @@ export function SmartTubeBenderFinder() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-8">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
           Smart Tube Bender Finder
         </h2>
-        <p className="text-lg text-gray-600">
+        <p className="text-lg text-gray-600 dark:text-gray-400">
           Step {currentStep} of 5
         </p>
         
@@ -309,16 +309,16 @@ export function SmartTubeBenderFinder() {
         {currentStep === 1 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 What is the diameter of your tubes?
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 This helps us determine the capacity requirements for your tube bender.
               </p>
               
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700 mb-2 block">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Tube Diameter (inches)
                   </span>
                   <input
@@ -330,7 +330,7 @@ export function SmartTubeBenderFinder() {
                     onChange={(e) => updateFinderData('tubeDiameter', parseFloat(e.target.value))}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   />
-                                     <div className="flex justify-between text-sm text-gray-500 mt-1">
+                                     <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
                      <span>0.5&quot;</span>
                      <span className="font-medium text-blue-600">{finderData.tubeDiameter}&quot;</span>
                      <span>4&quot;</span>
@@ -344,16 +344,16 @@ export function SmartTubeBenderFinder() {
         {currentStep === 2 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 What material are you working with?
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 Different materials require different bending forces and techniques.
               </p>
               
               <div className="space-y-3">
                 {tubeMaterials.map((material) => (
-                  <label key={material.value} className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label key={material.value} className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                     <input
                       type="radio"
                       name="tubeMaterial"
@@ -362,7 +362,7 @@ export function SmartTubeBenderFinder() {
                       onChange={(e) => updateFinderData('tubeMaterial', e.target.value)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-900">
+                    <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                       {material.label}
                     </span>
                   </label>
@@ -375,16 +375,16 @@ export function SmartTubeBenderFinder() {
         {currentStep === 3 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 What bend radius do you need?
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 The bend radius affects the minimum centerline radius (CLR) your bender needs.
               </p>
               
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-sm font-medium text-gray-700 mb-2 block">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Bend Radius (inches)
                   </span>
                   <input
@@ -396,7 +396,7 @@ export function SmartTubeBenderFinder() {
                     onChange={(e) => updateFinderData('bendRadius', parseFloat(e.target.value))}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   />
-                                     <div className="flex justify-between text-sm text-gray-500 mt-1">
+                                     <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
                      <span>1&quot;</span>
                      <span className="font-medium text-blue-600">{finderData.bendRadius}&quot;</span>
                      <span>10&quot;</span>
@@ -410,16 +410,16 @@ export function SmartTubeBenderFinder() {
         {currentStep === 4 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 What&apos;s your production volume?
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 This helps determine whether you need a manual or hydraulic bender.
               </p>
               
               <div className="space-y-3">
                 {productionVolumes.map((volume) => (
-                  <label key={volume.value} className="flex items-start p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label key={volume.value} className="flex items-start p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                     <input
                       type="radio"
                       name="productionVolume"
@@ -429,10 +429,10 @@ export function SmartTubeBenderFinder() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 mt-0.5"
                     />
                     <div className="ml-3">
-                      <span className="text-sm font-medium text-gray-900 block">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100 block">
                         {volume.label}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {volume.description}
                       </span>
                     </div>
@@ -446,16 +446,16 @@ export function SmartTubeBenderFinder() {
         {currentStep === 5 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 What&apos;s your budget range?
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 This helps us recommend options that fit your financial constraints.
               </p>
               
               <div className="space-y-3">
                 {budgetOptions.map((budget) => (
-                  <label key={budget.value} className="flex items-start p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label key={budget.value} className="flex items-start p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                     <input
                       type="radio"
                       name="budget"
@@ -465,10 +465,10 @@ export function SmartTubeBenderFinder() {
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 mt-0.5"
                     />
                     <div className="ml-3">
-                      <span className="text-sm font-medium text-gray-900 block">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100 block">
                         {budget.label}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {budget.description}
                       </span>
                     </div>
@@ -483,7 +483,7 @@ export function SmartTubeBenderFinder() {
           <button
             onClick={prevStep}
             disabled={currentStep === 1}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-md font-medium hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>

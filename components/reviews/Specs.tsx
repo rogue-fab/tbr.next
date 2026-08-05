@@ -28,14 +28,14 @@ export function Specs({ specs }: SpecsProps) {
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Specifications</h2>
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Specifications</h2>
       
       <div className="grid md:grid-cols-2 gap-6">
         {specItems.map((item) => (
-          <div key={item.label} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
-            <span className="text-gray-600 font-medium">{item.label}</span>
-            <span className="text-gray-900 font-semibold">{item.value}</span>
+          <div key={item.label} className="flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+            <span className="text-gray-600 dark:text-gray-400 font-medium">{item.label}</span>
+            <span className="text-gray-900 dark:text-gray-100 font-semibold">{item.value}</span>
           </div>
         ))}
       </div>

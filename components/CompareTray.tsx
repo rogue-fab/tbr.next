@@ -34,7 +34,7 @@ export default function CompareTray() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-white/95 shadow-lg backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           {ids.length} {ids.length === 1 ? 'model' : 'models'} selected
         </div>
         <div className="flex items-center gap-2">

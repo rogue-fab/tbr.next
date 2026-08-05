@@ -17,20 +17,20 @@ export default function ScoreBreakdownToggle({ score }: { score: ProductScore })
   const computedTotal = breakdown.reduce((sum, b) => sum + (Number(b.points) || 0), 0);
 
   return (
-    <details className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">
+    <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
+      <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900 dark:text-gray-100">
         Scoring audit (inputs + math)
       </summary>
 
-      <div className="mt-2 text-[0.7rem] text-gray-500">
+      <div className="mt-2 text-[0.7rem] text-gray-500 dark:text-gray-400">
         This section shows the exact inputs and calculations used to generate the score above.
       </div>
 
       {/* Inputs we actually used */}
       {(score as any)?.debugInput ? (
         <div className="mt-3">
-          <div className="text-xs font-semibold text-gray-900">Scoring inputs (interpreted)</div>
-          <pre className="mt-2 max-h-[240px] overflow-auto rounded bg-gray-50 p-3 text-[12px] leading-snug text-gray-900">
+          <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">Scoring inputs (interpreted)</div>
+          <pre className="mt-2 max-h-[240px] overflow-auto rounded bg-gray-50 dark:bg-gray-900 p-3 text-[12px] leading-snug text-gray-900 dark:text-gray-100">
 {JSON.stringify((score as any).debugInput, null, 2)}
           </pre>
         </div>
@@ -38,12 +38,12 @@ export default function ScoreBreakdownToggle({ score }: { score: ProductScore })
 
       {/* Category rows */}
       <div className="mt-3 space-y-2">
-        <div className="flex items-baseline justify-between text-xs text-gray-600">
+        <div className="flex items-baseline justify-between text-xs text-gray-600 dark:text-gray-400">
           <span>
-            Total (breakdown): <span className="font-semibold text-gray-900">{computedTotal}</span> / {TOTAL_POINTS}
+            Total (breakdown): <span className="font-semibold text-gray-900 dark:text-gray-100">{computedTotal}</span> / {TOTAL_POINTS}
           </span>
           <span>
-            Total (badge): <span className="font-semibold text-gray-900">{score?.total ?? "—"}</span> / {TOTAL_POINTS}
+            Total (badge): <span className="font-semibold text-gray-900 dark:text-gray-100">{score?.total ?? "—"}</span> / {TOTAL_POINTS}
           </span>
         </div>
 
@@ -57,16 +57,16 @@ export default function ScoreBreakdownToggle({ score }: { score: ProductScore })
               <div key={cat.key} className="p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold text-gray-900">{cat.name}</div>
+                    <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">{cat.name}</div>
                     {hit?.reasoning ? (
-                      <div className="mt-1 text-[0.7rem] text-gray-500">{hit.reasoning}</div>
+                      <div className="mt-1 text-[0.7rem] text-gray-500 dark:text-gray-400">{hit.reasoning}</div>
                     ) : (
-                      <div className="mt-1 text-[0.7rem] text-gray-400">
+                      <div className="mt-1 text-[0.7rem] text-gray-400 dark:text-gray-500">
                         No breakdown entry matched this category key. (Adapter key-mapping issue)
                       </div>
                     )}
                   </div>
-                  <div className="shrink-0 text-[0.75rem] font-semibold text-gray-900">
+                  <div className="shrink-0 text-[0.75rem] font-semibold text-gray-900 dark:text-gray-100">
                     {pts}/{max}
                   </div>
                 </div>

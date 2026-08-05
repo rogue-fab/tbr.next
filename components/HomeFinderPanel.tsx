@@ -55,7 +55,7 @@ export default function HomeFinderPanel() {
 
   return (
     <form
-      className="rounded-md border bg-white p-4 space-y-3 text-sm dark:bg-gray-900 dark:border-gray-800"
+      className="rounded-md border bg-white dark:bg-gray-900 p-4 space-y-3 text-sm dark:bg-gray-900 dark:border-gray-800"
       onSubmit={(e) => e.preventDefault()}
     >
       <div>
@@ -140,7 +140,7 @@ export default function HomeFinderPanel() {
       <div className="pt-2">
         <button
           type="button"
-          className="w-full rounded-md border px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="w-full rounded-md border px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:bg-gray-800"
           onClick={() => {
             const q = clearAll(sp);
             router.replace(`?${q.toString()}`);

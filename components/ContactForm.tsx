@@ -98,7 +98,7 @@ export default function ContactForm() {
       {/* Heading */}
       <div>
         <h1 className="text-3xl font-semibold mb-2">Contact Us</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           We welcome feedback on accuracy, fairness, and product information.
         </p>
       </div>
@@ -126,12 +126,12 @@ export default function ContactForm() {
       </div>
 
       {/* Contact Form */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-sm">
         <h2 className="text-lg font-semibold mb-4">Send Us a Message</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Your Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -140,13 +140,13 @@ export default function ContactForm() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full rounded border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
           </div>
 
           {/* Email */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email Address <span className="text-red-500">*</span>
             </label>
             <input
@@ -155,13 +155,13 @@ export default function ContactForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full rounded border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
           </div>
 
           {/* Message Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Message Type <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -175,7 +175,7 @@ export default function ContactForm() {
                       "rounded border px-3 py-2 text-xs font-medium transition",
                       messageType === type
                         ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
+                        : "border-gray-300 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800",
                     ].join(" ")}
                   >
                     {type}
@@ -187,7 +187,7 @@ export default function ContactForm() {
 
           {/* Subject */}
           <div>
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Subject <span className="text-red-500">*</span>
             </label>
             <input
@@ -196,13 +196,13 @@ export default function ContactForm() {
               required
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full rounded border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
           </div>
 
           {/* Message */}
           <div>
-            <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Message <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -211,13 +211,13 @@ export default function ContactForm() {
               rows={6}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full rounded border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
           </div>
 
           {/* Security Verification */}
           <div>
-            <label htmlFor="security" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="security" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Security verification: what is 1 + 4? <span className="text-red-500">*</span>
             </label>
             <input
@@ -226,7 +226,7 @@ export default function ContactForm() {
               required
               value={securityAnswer}
               onChange={(e) => setSecurityAnswer(e.target.value)}
-              className="w-full max-w-xs rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="w-full max-w-xs rounded border border-gray-300 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
           </div>
 
@@ -242,7 +242,7 @@ export default function ContactForm() {
           </div>
 
           {/* Privacy Statement */}
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             <strong>Privacy:</strong> We only use this info to reply to your message. We don&apos;t sell it, share it, or add you to any mailing list, and we don&apos;t store your message in our database.
           </p>
 
@@ -282,8 +282,8 @@ export default function ContactForm() {
 
         <div className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">Accuracy Concerns</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Accuracy Concerns</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               If you believe we&apos;ve made an error in specs, pricing, or capabilities, please
               include specific claims and sources. We prioritize accuracy and will update
               information with verifiable documentation.
@@ -291,8 +291,8 @@ export default function ContactForm() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">Fairness Questions</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Fairness Questions</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Our scoring is criteria-based and transparent. If you have concerns about fairness,
               please reference specific scoring categories and explain why you believe the
               evaluation is incorrect.
@@ -300,8 +300,8 @@ export default function ContactForm() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">Manufacturers</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Manufacturers</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               We welcome corrections, updated specs, images, or pricing from manufacturers. Please
               provide official documentation or links to product pages when submitting updates.
             </p>
@@ -312,7 +312,7 @@ export default function ContactForm() {
       {/* Manufacturer Contacts */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Manufacturer Contacts</h2>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           For product-specific questions and warranty claims, please contact manufacturers
           directly. We cannot provide official support for any brand.
         </p>
@@ -331,7 +331,7 @@ export default function ContactForm() {
               href={manufacturer.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-900 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               {manufacturer.name} →
             </a>

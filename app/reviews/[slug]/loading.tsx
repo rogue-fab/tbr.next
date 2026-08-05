@@ -1,8 +1,8 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Loading */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid lg:grid-cols-2 gap-8 items-start">
             <div className="relative">
@@ -14,7 +14,7 @@ export default function Loading() {
               <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
               <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
               <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse"></div>
-              <div className="grid grid-cols-2 gap-4 py-4 border-t border-gray-200">
+              <div className="grid grid-cols-2 gap-4 py-4 border-t border-gray-200 dark:border-gray-700">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="space-y-2">
                     <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
@@ -33,11 +33,11 @@ export default function Loading() {
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {/* Specs Loading */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
               <div className="h-8 bg-gray-200 rounded w-32 mb-6 animate-pulse"></div>
               <div className="grid md:grid-cols-2 gap-6">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-                  <div key={i} className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <div key={i} className="flex justify-between items-center py-3 border-b border-gray-100 dark:border-gray-800">
                     <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
                     <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
                   </div>
@@ -46,7 +46,7 @@ export default function Loading() {
             </div>
 
             {/* Pros/Cons Loading */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
               <div className="h-8 bg-gray-200 rounded w-32 mb-6 animate-pulse"></div>
               <div className="grid md:grid-cols-2 gap-8">
                 {[1, 2].map((section) => (
@@ -66,7 +66,7 @@ export default function Loading() {
             </div>
 
             {/* Score Breakdown Loading */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
               <div className="h-8 bg-gray-200 rounded w-48 mb-6 animate-pulse"></div>
               <div className="space-y-6">
                 {[1, 2, 3, 4, 5].map((item) => (
@@ -84,7 +84,7 @@ export default function Loading() {
 
           {/* Sidebar Loading */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 sticky top-8">
               <div className="h-6 bg-gray-200 rounded w-32 mb-4 animate-pulse"></div>
               <div className="space-y-4">
                 <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>

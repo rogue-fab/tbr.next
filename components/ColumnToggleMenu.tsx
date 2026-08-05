@@ -54,7 +54,7 @@ export default function ColumnToggleMenu({ visibleCols, setVisibleCols, allColum
       <button
         ref={btnRef}
         type="button"
-        className="px-3 py-1.5 rounded-md border bg-white text-sm shadow-sm hover:bg-slate-50"
+        className="px-3 py-1.5 rounded-md border bg-white dark:bg-gray-900 text-sm shadow-sm hover:bg-slate-50"
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
@@ -67,7 +67,7 @@ export default function ColumnToggleMenu({ visibleCols, setVisibleCols, allColum
           ref={popRef}
           role="dialog"
           aria-label="Toggle columns"
-          className="absolute right-0 z-20 mt-2 w-56 rounded-xl border bg-white shadow-lg p-2"
+          className="absolute right-0 z-20 mt-2 w-56 rounded-xl border bg-white dark:bg-gray-900 shadow-lg p-2"
         >
           <div className="max-h-64 overflow-auto">
             {allColumns.map(col => (

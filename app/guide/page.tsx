@@ -62,7 +62,7 @@ export default function GuidePage() {
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
           <Link
             href={compareHref}
-            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             Compare {canonicalIds.length} item{canonicalIds.length === 1 ? "" : "s"}
           </Link>

@@ -92,7 +92,7 @@ function MandrelPill({ value }: { value?: MandrelTier | string | null }) {
   }
 
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-gray-50 border-gray-200 text-gray-500">
+    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">
       No Mandrel
     </span>
   );
@@ -115,7 +115,7 @@ function SBendPill({ value }: { value?: boolean | null }) {
     <span
       className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5
                  text-[11px] font-medium border
-                 bg-gray-50 border-gray-200 text-gray-500"
+                 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
     >
       No S-bends
     </span>
@@ -176,7 +176,7 @@ function ScoreCircle({ score, href }: { score: number | null; href: string }) {
           <span className="text-xs font-semibold" style={{ color }}>
             {clamped != null ? clamped : "—"}
           </span>
-          <span className="text-[0.6rem] text-gray-500">/ {TOTAL_POINTS}</span>
+          <span className="text-[0.6rem] text-gray-500 dark:text-gray-400">/ {TOTAL_POINTS}</span>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ function RankBadge({ rank }: { rank: number }) {
     bg = "bg-orange-50 border-orange-300 text-orange-700";
   } else if (rank > 3) {
     icon = "★";
-    bg = "bg-gray-50 border-gray-200 text-gray-500";
+    bg = "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400";
   }
 
   return (
@@ -227,7 +227,7 @@ function Pill({ children, active }: { children: React.ReactNode; active: boolean
         "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border",
         active
           ? "bg-emerald-50 border-emerald-400 text-emerald-700"
-          : "bg-gray-50 border-gray-200 text-gray-500",
+          : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400",
       ].join(" ")}
     >
       {children}
@@ -278,19 +278,19 @@ export default function LandingCompareSection({ rows }: Props) {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Tube Bender Comparison</h2>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Products ranked by our 100-point scoring system — highest rated first.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="hidden sm:inline-block text-[0.7rem] uppercase tracking-wide text-gray-400">
+          <span className="hidden sm:inline-block text-[0.7rem] uppercase tracking-wide text-gray-400 dark:text-gray-500">
             Filters
           </span>
           <div className="flex flex-wrap gap-2 text-xs">
             <label className="flex items-center gap-1">
-              <span className="text-gray-600">Min score</span>
+              <span className="text-gray-600 dark:text-gray-400">Min score</span>
               <select
-                className="rounded border border-gray-300 bg-white px-2 py-1"
+                className="rounded border border-gray-300 bg-white dark:bg-gray-900 px-2 py-1"
                 value={String(minScore)}
                 onChange={(e) => setMinScore(Number(e.target.value) || 0)}
               >
@@ -302,9 +302,9 @@ export default function LandingCompareSection({ rows }: Props) {
               </select>
             </label>
             <label className="flex items-center gap-1">
-              <span className="text-gray-600">Power</span>
+              <span className="text-gray-600 dark:text-gray-400">Power</span>
               <select
-                className="rounded border border-gray-300 bg-white px-2 py-1"
+                className="rounded border border-gray-300 bg-white dark:bg-gray-900 px-2 py-1"
                 value={power}
                 onChange={(e) => setPower(e.target.value as typeof power)}
               >
@@ -314,9 +314,9 @@ export default function LandingCompareSection({ rows }: Props) {
               </select>
             </label>
             <label className="flex items-center gap-1">
-              <span className="text-gray-600">Origin</span>
+              <span className="text-gray-600 dark:text-gray-400">Origin</span>
               <select
-                className="rounded border border-gray-300 bg-white px-2 py-1"
+                className="rounded border border-gray-300 bg-white dark:bg-gray-900 px-2 py-1"
                 value={origin}
                 onChange={(e) => setOrigin(e.target.value as typeof origin)}
               >
@@ -331,7 +331,7 @@ export default function LandingCompareSection({ rows }: Props) {
                 checked={mandrelOnly}
                 onChange={(e) => setMandrelOnly(e.target.checked)}
               />
-              <span className="text-gray-600">Mandrel-ready only</span>
+              <span className="text-gray-600 dark:text-gray-400">Mandrel-ready only</span>
             </label>
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function LandingCompareSection({ rows }: Props) {
       <div className="overflow-x-auto">
         <table className="min-w-[820px] w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <tr className="bg-gray-50 dark:bg-gray-900 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
               <th className="px-3 py-2 text-left">Model</th>
               <th className="px-3 py-2 text-left">Rating</th>
               <th className="px-3 py-2 text-left">Price (complete setup)</th>
@@ -352,12 +352,12 @@ export default function LandingCompareSection({ rows }: Props) {
               <th className="px-3 py-2 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="divide-y divide-gray-100 bg-white dark:bg-gray-900">
             {filtered.length === 0 && (
               <tr>
                 <td
                   colSpan={9}
-                  className="px-3 py-6 text-center text-sm text-gray-500"
+                  className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   No models match the current filters. Try relaxing your filters.
                 </td>
@@ -376,7 +376,7 @@ export default function LandingCompareSection({ rows }: Props) {
                       <div className="hidden sm:block">
                         <RankBadge rank={rank} />
                       </div>
-                      <div className="h-14 w-20 overflow-hidden rounded-md bg-gray-100 flex-shrink-0">
+                      <div className="h-14 w-20 overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800 flex-shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imgSrc}
@@ -388,12 +388,12 @@ export default function LandingCompareSection({ rows }: Props) {
                       <div className="flex flex-col">
                         <Link
                           href={`/reviews/${row.slug}`}
-                          className="text-sm font-semibold text-gray-900 hover:underline"
+                          className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:underline"
                         >
                           {row.name}
                         </Link>
                         {(row.brand || row.model) && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {[row.brand, row.model].filter(Boolean).join(" ")}
                           </div>
                         )}
@@ -406,16 +406,16 @@ export default function LandingCompareSection({ rows }: Props) {
                       href={`/reviews/${row.slug}?score=details`}
                     />
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                  <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {formatPriceRange(row.priceMin, row.priceMax)}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                  <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {row.maxCapacity || "—"}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                  <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {row.powerType || "—"}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                  <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {row.country || "—"}
                   </td>
                   <td className="px-3 py-3 align-middle">
@@ -427,7 +427,7 @@ export default function LandingCompareSection({ rows }: Props) {
                   <td className="px-3 py-3 align-middle">
                     <Link
                       href={`/reviews/${row.slug}`}
-                      className="inline-flex items-center rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-800 hover:bg-gray-50"
+                      className="inline-flex items-center rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       Review
                     </Link>

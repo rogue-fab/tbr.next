@@ -1,13 +1,13 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <div className="h-12 bg-gray-200 rounded-lg w-96 mx-auto mb-4 animate-pulse"></div>
           <div className="h-6 bg-gray-200 rounded w-80 mx-auto animate-pulse"></div>
         </div>
         
-        <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 mb-8">
           <div className="h-8 bg-gray-200 rounded w-48 mb-4 animate-pulse"></div>
           <div className="h-4 bg-gray-200 rounded w-full mb-2 animate-pulse"></div>
           <div className="h-4 bg-gray-200 rounded w-3/4 mb-6 animate-pulse"></div>
@@ -23,7 +23,7 @@ export default function Loading() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-8">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
           <div className="h-8 bg-gray-200 rounded w-64 mx-auto mb-8 animate-pulse"></div>
           <div className="h-6 bg-gray-200 rounded w-48 mx-auto mb-4 animate-pulse"></div>
           

@@ -11,7 +11,7 @@ export default function DevScroll() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="mb-4 text-xl font-semibold">Sticky Header Visual Check</h1>
-      <p className="mb-6 text-gray-600">
+      <p className="mb-6 text-gray-600 dark:text-gray-400">
         This page is intentionally long so you can confirm the header remains sticky while scrolling.
       </p>
       <section className="space-y-6">

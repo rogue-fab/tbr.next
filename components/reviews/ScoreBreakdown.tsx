@@ -13,7 +13,7 @@ type Props = {
 export default function ScoreBreakdown({ score }: Props) {
   if (!score) {
     return (
-      <div className="rounded border border-gray-200 bg-white p-3 text-xs text-gray-600">
+      <div className="rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-gray-600 dark:text-gray-400">
         No score data available.
       </div>
     );
@@ -23,7 +23,7 @@ export default function ScoreBreakdown({ score }: Props) {
 
   if (!items.length) {
     return (
-      <div className="rounded border border-gray-200 bg-white p-3 text-xs text-gray-600">
+      <div className="rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-xs text-gray-600 dark:text-gray-400">
         No breakdown items available for this model.
       </div>
     );
@@ -44,10 +44,10 @@ export default function ScoreBreakdown({ score }: Props) {
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       <table className="min-w-full text-xs">
-        <thead className="bg-gray-50">
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+        <thead className="bg-gray-50 dark:bg-gray-900">
+          <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
             <th className="px-3 py-2">Category</th>
             <th className="px-3 py-2">Points</th>
             <th className="px-3 py-2">Why</th>
@@ -56,14 +56,14 @@ export default function ScoreBreakdown({ score }: Props) {
         <tbody className="divide-y divide-gray-100">
           {items.map((it: any, idx: number) => (
             <tr key={`${getLabel(it)}-${idx}`} className="align-top">
-              <td className="px-3 py-2 font-medium text-gray-900">
+              <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
                 {getLabel(it)}
               </td>
-              <td className="px-3 py-2 text-gray-800">
+              <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
                 {typeof it?.points === "number" ? it.points : "—"}
                 {typeof it?.maxPoints === "number" ? ` / ${it.maxPoints}` : ""}
               </td>
-              <td className="px-3 py-2 text-gray-700">
+              <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
                 {getReason(it) || "—"}
               </td>
             </tr>

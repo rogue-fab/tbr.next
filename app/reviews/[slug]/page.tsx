@@ -302,9 +302,9 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
           <div className="space-y-6 order-2 lg:order-1">
             {/* Existing highlights block */}
             {highlightsArray?.length ? (
-              <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <h2 className="text-sm font-semibold text-gray-900">Highlights</h2>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+              <section className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Highlights</h2>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700 dark:text-gray-300">
                   {highlightsArray.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
@@ -313,7 +313,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
             ) : null}
 
             {/* Pros / Cons card */}
-            <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <section className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <h3 className="flex items-center gap-1 text-sm font-semibold text-emerald-700">
@@ -323,7 +323,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                       Pros
                     </h3>
                     {finalPros.length > 0 ? (
-                      <ul className="mt-2 space-y-1 text-sm text-gray-800">
+                      <ul className="mt-2 space-y-1 text-sm text-gray-800 dark:text-gray-200">
                         {finalPros.map((line, idx) => (
                           <li key={idx} className="flex gap-2">
                             <span className="mt-[3px] text-emerald-500">•</span>
@@ -332,7 +332,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                         No pros listed. We explicitly only display pros when they are obvious from direct comparison within the range of models on this site and come from a clear, documented source (manufacturer documentation unless expressly stated otherwise inline with the pro).
                       </p>
                     )}
@@ -345,7 +345,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                       Cons
                     </h3>
                     {finalCons.length > 0 ? (
-                      <ul className="mt-2 space-y-2 text-sm text-gray-800">
+                      <ul className="mt-2 space-y-2 text-sm text-gray-800 dark:text-gray-200">
                         {finalCons.map((line, idx) => {
                           // Sources only apply to admin-entered cons (not auto-generated).
                           const isAutoCon = consArray.length === 0 && idx < enabledAutoCons.length;
@@ -357,7 +357,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                                 <span>{line}</span>
                               </div>
                               {source && (
-                                <div className="mt-0.5 pl-4 text-[0.7rem] text-gray-500">
+                                <div className="mt-0.5 pl-4 text-[0.7rem] text-gray-500 dark:text-gray-400">
                                   Source: {source}
                                 </div>
                               )}
@@ -366,7 +366,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                         })}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                         No cons listed. We explicitly only display cons when they are obvious from direct comparison within the range of models on this site and come from a clear, documented source (manufacturer documentation unless expressly stated otherwise inline with the con).
                       </p>
                     )}
@@ -376,15 +376,15 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
             {/* Key features */}
             {keyFeaturesArray.length ? (
-              <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900">
+              <section className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Key features
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {keyFeaturesArray.map((feat, idx) => (
                     <span
                       key={idx}
-                      className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs text-gray-800"
+                      className="inline-flex items-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-2.5 py-0.5 text-xs text-gray-800 dark:text-gray-200"
                     >
                       {feat}
                     </span>
@@ -395,11 +395,11 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
             {/* Materials compatibility */}
             {materialsLabels.length ? (
-              <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-900">
+              <section className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Materials compatibility
                 </h3>
-                <p className="mt-1 text-[0.7rem] text-gray-500">
+                <p className="mt-1 text-[0.7rem] text-gray-500 dark:text-gray-400">
                   Based on manufacturer documentation and test use; not a substitute
                   for checking your exact material spec.
                 </p>
@@ -407,7 +407,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                   {materialsLabels.map((label) => (
                     <span
                       key={label}
-                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-xs text-gray-800"
+                      className="inline-flex items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-0.5 text-xs text-gray-800 dark:text-gray-200"
                     >
                       {label}
                     </span>
@@ -484,11 +484,11 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                   <div className="mt-2 space-y-1.5">
                     {score.breakdown.map((item, idx) => {
                       const scoreColorClass = (points: number, maxPoints: number): string => {
-                        if (!maxPoints || points == null) return "bg-gray-200 text-gray-800";
+                        if (!maxPoints || points == null) return "bg-gray-200 text-gray-800 dark:text-gray-200";
                         const ratio = points / maxPoints;
 
                         if (ratio >= 0.8) return "bg-emerald-500 text-white";          // strong green
-                        if (ratio >= 0.6) return "bg-amber-400 text-gray-900";         // yellow
+                        if (ratio >= 0.6) return "bg-amber-400 text-gray-900 dark:text-gray-100";         // yellow
                         if (ratio >= 0.4) return "bg-orange-400 text-white";           // orange
                         return "bg-red-500 text-white";                                // red
                       };
@@ -497,11 +497,11 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                         <div key={`${item.criteria}-${idx}`} className="border-b last:border-b-0 pb-1.5 last:pb-0">
                           <div className="flex items-center justify-between gap-2">
                             <div>
-                              <div className="text-xs font-medium text-gray-900">
+                              <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
                                 {item.criteria}
                               </div>
                               {item.reasoning && (
-                                <div className="mt-0.5 text-[0.7rem] text-gray-500">
+                                <div className="mt-0.5 text-[0.7rem] text-gray-500 dark:text-gray-400">
                                   {item.reasoning}
                                 </div>
                               )}
@@ -579,7 +579,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
             </div>
 
             {/* "How scores are calculated" link replacing "Compare models" */}
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-gray-600 dark:text-gray-400">
               <Link
                 href="/scoring"
                 className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
@@ -610,15 +610,15 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
       {debugScore && score?.breakdown?.length ? (
         <section className="mt-8">
-          <details className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">
+          <details className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
+            <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900 dark:text-gray-100">
               Debug scoring (no devtools)
             </summary>
             <div className="mt-3 space-y-3">
-              <div className="text-xs text-gray-500">
-                Add <code className="rounded bg-gray-100 px-1 py-0.5">?debug=1</code> to toggle this panel.
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Add <code className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5">?debug=1</code> to toggle this panel.
               </div>
-              <pre className="max-h-[520px] overflow-auto rounded bg-gray-50 p-3 text-[12px] leading-snug text-gray-900">
+              <pre className="max-h-[520px] overflow-auto rounded bg-gray-50 dark:bg-gray-900 p-3 text-[12px] leading-snug text-gray-900 dark:text-gray-100">
 {JSON.stringify(
   {
     total: score.total,

@@ -96,7 +96,7 @@ export default async function Page() {
   });
 
   return (
-    <main className="bg-white">
+    <main className="bg-white dark:bg-gray-900">
       {/* HERO BLOCK (image + overlay + content) */}
       <section className="relative overflow-hidden">
         {/* Hero Background */}

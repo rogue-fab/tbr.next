@@ -15,15 +15,15 @@ export const metadata: Metadata = {
 
 export default function MandrelPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Mandrel Tube Bending
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
               The ultimate guide to mandrel tube bending technology, its advantages, 
               applications, and how it revolutionizes precision tube fabrication.
             </p>
@@ -35,9 +35,9 @@ export default function MandrelPage() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="space-y-12">
           {/* What is Mandrel Bending */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">What is Mandrel Tube Bending?</h2>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">What is Mandrel Tube Bending?</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               Mandrel tube bending is an advanced tube bending technique that uses a flexible mandrel 
               (support rod) inserted inside the tube during the bending process. This technology 
               prevents the tube from collapsing, wrinkling, or deforming, resulting in precise, 
@@ -70,41 +70,41 @@ export default function MandrelPage() {
           </div>
 
           {/* How It Works */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">How Mandrel Bending Works</h2>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">How Mandrel Bending Works</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               The mandrel bending process involves several coordinated steps that work together 
               to create precise, high-quality bends while maintaining the tube's structural integrity.
             </p>
             
             <div className="space-y-6">
               <div className="border-l-4 border-blue-500 pl-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">1. Tube Preparation</h3>
-                <p className="text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">1. Tube Preparation</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   The tube is cut to length and the mandrel is inserted into the tube. 
                   The mandrel is positioned at the exact point where the bend will occur.
                 </p>
               </div>
               
               <div className="border-l-4 border-blue-500 pl-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">2. Clamping</h3>
-                <p className="text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">2. Clamping</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   The tube is securely clamped between the clamp die and pressure die, 
                   ensuring it doesn&apos;t move during the bending process.
                 </p>
               </div>
               
               <div className="border-l-4 border-blue-500 pl-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">3. Bending Process</h3>
-                <p className="text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">3. Bending Process</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   The bending die rotates around the tube, while the mandrel provides internal 
                   support to prevent collapse and maintain the tube's roundness.
                 </p>
               </div>
               
               <div className="border-l-4 border-blue-500 pl-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">4. Mandrel Withdrawal</h3>
-                <p className="text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">4. Mandrel Withdrawal</h3>
+                <p className="text-gray-600 dark:text-gray-400">
                   After the bend is complete, the mandrel is carefully withdrawn from the tube, 
                   leaving behind a perfectly formed bend.
                 </p>
@@ -113,17 +113,17 @@ export default function MandrelPage() {
           </div>
 
           {/* Applications */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Applications & Industries</h2>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Applications & Industries</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               Mandrel bending is used across various industries where precision, quality, 
               and reliability are critical requirements.
             </p>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Automotive Industry</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Automotive Industry</h3>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <li>• Exhaust systems</li>
                   <li>• Fuel lines</li>
                   <li>• Brake lines</li>
@@ -133,8 +133,8 @@ export default function MandrelPage() {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Aerospace</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Aerospace</h3>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <li>• Hydraulic systems</li>
                   <li>• Fuel delivery systems</li>
                   <li>• Environmental control systems</li>
@@ -143,8 +143,8 @@ export default function MandrelPage() {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Medical Equipment</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Medical Equipment</h3>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <li>• Surgical instruments</li>
                   <li>• Medical gas delivery</li>
                   <li>• Diagnostic equipment</li>
@@ -153,8 +153,8 @@ export default function MandrelPage() {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Industrial Manufacturing</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Industrial Manufacturing</h3>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <li>• Process piping</li>
                   <li>• Heat exchangers</li>
                   <li>• Chemical processing equipment</li>
@@ -165,13 +165,13 @@ export default function MandrelPage() {
           </div>
 
           {/* Advantages vs Disadvantages */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Advantages vs Disadvantages</h2>
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Advantages vs Disadvantages</h2>
             
             <div className="grid md:grid-cols-2 gap-8">
               <div>
                 <h3 className="text-xl font-semibold text-green-700 mb-4">Advantages</h3>
-                <ul className="space-y-3 text-sm text-gray-600">
+                <ul className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
                   <li className="flex items-start">
                     <span className="text-green-500 mr-2">✓</span>
                     <span>Superior bend quality and consistency</span>
@@ -205,7 +205,7 @@ export default function MandrelPage() {
               
               <div>
                 <h3 className="text-xl font-semibold text-red-700 mb-4">Disadvantages</h3>
-                <ul className="space-y-3 text-sm text-gray-600">
+                <ul className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
                   <li className="flex items-start">
                     <span className="text-red-500 mr-2">✗</span>
                     <span>Higher initial equipment cost</span>
@@ -236,16 +236,16 @@ export default function MandrelPage() {
           </div>
 
           {/* Best Practices */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Best Practices for Mandrel Bending</h2>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Best Practices for Mandrel Bending</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               Follow these best practices to achieve optimal results with mandrel tube bending.
             </p>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Setup & Preparation</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Setup & Preparation</h3>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <li>• Clean tubes thoroughly before bending</li>
                   <li>• Use appropriate mandrel size and type</li>
                   <li>• Ensure proper die alignment</li>
@@ -255,8 +255,8 @@ export default function MandrelPage() {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Operation</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Operation</h3>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <li>• Monitor bend progression carefully</li>
                   <li>• Maintain consistent pressure</li>
                   <li>• Check for mandrel wear regularly</li>

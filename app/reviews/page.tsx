@@ -66,16 +66,16 @@ export default async function ReviewsIndexPage() {
   return (
     <main className="container mx-auto px-4 py-6">
       <h1 className="mb-2 text-2xl font-semibold">Tube Bender Reviews</h1>
-      <p className="mb-4 text-sm text-gray-600">
+      <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
         Every model listed here has a full objective score and pricing snapshot.
         Open any review to see the full scoring breakdown, pros and cons, and
         materials compatibility.
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <tr className="bg-gray-50 dark:bg-gray-900 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
               <th className="px-3 py-2 text-left">Model</th>
               <th className="px-3 py-2 text-left">Score</th>
               <th className="px-3 py-2 text-left">Power</th>
@@ -88,24 +88,24 @@ export default async function ReviewsIndexPage() {
               <tr>
                 <td
                   colSpan={5}
-                  className="px-3 py-6 text-center text-sm text-gray-500"
+                  className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   No reviews available yet. Check back soon.
                 </td>
               </tr>
             )}
             {rows.map((row) => (
-              <tr key={row.id} className="bg-white">
+              <tr key={row.id} className="bg-white dark:bg-gray-900">
                 <td className="px-3 py-3 align-middle">
                   <div className="flex flex-col">
                     <Link
                       href={`/reviews/${row.slug}`}
-                      className="text-sm font-semibold text-gray-900 hover:underline"
+                      className="text-sm font-semibold text-gray-900 dark:text-gray-100 hover:underline"
                     >
                       {row.title}
                     </Link>
                     {(row.brand || row.model) && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {[row.brand, row.model].filter(Boolean).join(" ")}
                       </div>
                     )}
@@ -113,26 +113,26 @@ export default async function ReviewsIndexPage() {
                 </td>
                 <td className="px-3 py-3 align-middle">
                   {row.score != null ? (
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {row.score}{" "}
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         / {TOTAL_POINTS}
                       </span>
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-500">Not scored</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Not scored</span>
                   )}
                 </td>
-                <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                   {row.powerType || "—"}
                 </td>
-                <td className="px-3 py-3 align-middle text-sm text-gray-800">
+                <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                   {displayOriginLabel(row.country)}
                 </td>
                 <td className="px-3 py-3 align-middle">
                   <Link
                     href={`/reviews/${row.slug}`}
-                    className="inline-flex items-center rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-800 hover:bg-gray-50"
+                    className="inline-flex items-center rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
                     View review
                   </Link>
@@ -143,7 +143,7 @@ export default async function ReviewsIndexPage() {
         </table>
       </div>
 
-      <div className="mt-6 text-sm text-gray-500">
+      <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
         Looking for side-by-side comparison instead?{" "}
         <Link href="/compare" className="underline">
           Go to the comparison table
