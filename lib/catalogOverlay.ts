@@ -20,17 +20,12 @@ function stripBlockedOverlayKeys(fields: any): any {
   return out;
 }
 
-// IMPORTANT:
-// Apply stripBlockedOverlayKeys(...) at every place overlay fields merge into base products.
-
 import {
   allTubeBenders,
   type Product,
   type ProductCitation,
   type ProductCitationSourceType,
 } from "./catalog";
-import { mergeWithOverlay } from "./adminStore";
-import { sql } from "./db";
 import { getLatestPublishedVersionsForProducts } from "./productVersionsRepo";
 import { getProductScore } from "./scoring";
 
@@ -41,129 +36,11 @@ function toNum(v: unknown): number | null {
 }
 
 /**
- * Neon row shape for bender_overlays.
- * Keep in sync with the CREATE TABLE definition.
- */
-type BenderOverlayRow = {
-  product_id: string;
-  usa_manufacturing_tier: number | null;
-  origin_transparency_tier: number | null;
-  single_source_system_tier: number | null;
-  warranty_tier: number | null;
-  portability: string | null;
-  wall_thickness_capacity: string | null;
-  materials: string | null;
-  die_shapes: string | null;
-  mandrel: string | null;
-  has_power_upgrade_path: boolean | null;
-  length_stop: boolean | null;
-  rotation_indexing: boolean | null;
-  angle_measurement: boolean | null;
-  auto_stop: boolean | null;
-  thick_wall_upgrade: boolean | null;
-  thin_wall_upgrade: boolean | null;
-  wiper_die_support: boolean | null;
-  s_bend_capability: boolean | null;
-};
-
-/**
- * Fetch all Neon-backed overlays and map them to the camelCase properties
- * the rest of the app / scoring engine expects to see on Product objects.
- *
- * Result is keyed by product_id (slug).
- */
-async function fetchNeonOverlays(): Promise<
-  Record<string, Partial<Product>>
-> {
-  let rows: BenderOverlayRow[] = [];
-  try {
-    rows = (await sql`
-      SELECT
-        product_id,
-        usa_manufacturing_tier,
-        origin_transparency_tier,
-        single_source_system_tier,
-        warranty_tier,
-        portability,
-        wall_thickness_capacity,
-        materials,
-        die_shapes,
-        mandrel,
-        has_power_upgrade_path,
-        length_stop,
-        rotation_indexing,
-        angle_measurement,
-        auto_stop,
-        thick_wall_upgrade,
-        thin_wall_upgrade,
-        wiper_die_support,
-        s_bend_capability
-      FROM bender_overlays
-    `) as unknown as BenderOverlayRow[];
-  } catch (err) {
-    if (process.env.NODE_ENV !== "production") {
-      // In local dev, make it obvious if the Neon query is failing.
-      // In production we fail closed and just fall back to JSON overlay.
-      console.warn(
-        "[catalogOverlay] Failed to load Neon overlays:",
-        (err as Error).message,
-      );
-    }
-    return {};
-  }
-
-  const map: Record<string, Partial<Product>> = {};
-
-  for (const row of rows) {
-    const id = row.product_id;
-    if (!id) continue;
-
-    // materials/die_shapes are stored as text; we keep them as strings here.
-    // getProductScore() already knows how to normalise them (it splits strings
-    // into arrays).
-    map[id] = {
-      // Disclosure-based tiers
-      usaManufacturingTier: row.usa_manufacturing_tier ?? null,
-      originTransparencyTier: row.origin_transparency_tier ?? null,
-      singleSourceSystemTier: row.single_source_system_tier ?? null,
-      warrantyTier: row.warranty_tier ?? null,
-
-      // Portability and capacity/text fields
-      portability: row.portability ?? null,
-      wallThicknessCapacity: row.wall_thickness_capacity ?? null,
-      materials: row.materials ?? null,
-      dieShapes: row.die_shapes ?? null,
-      mandrel: row.mandrel ?? null,
-
-      // Upgrade path & capability flags
-      hasPowerUpgradePath: row.has_power_upgrade_path ?? false,
-      lengthStop: row.length_stop ?? false,
-      rotationIndexing: row.rotation_indexing ?? false,
-      angleMeasurement: row.angle_measurement ?? false,
-      autoStop: row.auto_stop ?? false,
-      thickWallUpgrade: row.thick_wall_upgrade ?? false,
-      thinWallUpgrade: row.thin_wall_upgrade ?? false,
-      wiperDieSupport: row.wiper_die_support ?? false,
-      sBendCapability: row.s_bend_capability ?? null,
-    } as Partial<Product>;
-  }
-
-  return map;
-}
-
-/**
  * Parse a line-based citations field (as entered in admin) into structured
  * ProductCitation objects.
  *
  * Expected format per line:
  *   category | sourceType | urlOrRef | title | accessed (YYYY-MM-DD) | note
- *
- * - category: scoring category key (e.g. "valueForMoney", "bendAngleCapability").
- * - sourceType: "web-page" | "pdf" | "manual" | "email" | "other" (case-insensitive).
- * - urlOrRef: URL or internal reference.
- * - title: short human label.
- * - accessed: optional date string (YYYY-MM-DD preferred).
- * - note: freeform explanation (page/section / what was used).
  */
 function parseCitationLines(raw: unknown): ProductCitation[] {
   if (typeof raw !== "string") return [];
@@ -231,26 +108,19 @@ function parseCitationLines(raw: unknown): ProductCitation[] {
 }
 
 /**
- * Returns all tube benders with:
+ * Returns all tube benders as the SINGLE SOURCE OF TRUTH:
  *
- *   base catalog
- *   → JSON overlay (data/admin/products.overlay.json)
- *   → Neon overlay (bender_overlays table)
+ *   base catalog (identity/display)  →  published DB version (all spec data; wins)
  *
- * Neon values win over JSON when both define the same field.
+ * Identity keys (id/slug/name/brand/model/image) are stripped from the overlay so
+ * spec data can never rename a product. The legacy JSON overlay and bender_overlays
+ * table have been retired — product_versions (published) is the only spec source.
  *
- * This is intended for server-side reads only (pages, layouts, API routes).
+ * Server-side reads only (pages, layouts, API routes).
  */
 export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
-  // 1) Base catalog + JSON overlay (legacy) – synchronous.
-  const baseWithJsonOverlay = mergeWithOverlay(allTubeBenders);
-
-  // 2) Neon overlays (async).
-  const neonMap = await fetchNeonOverlays();
-
-  // 3) Published version overlays (async).
-  // These must be the final authority for public reads.
-  const ids = baseWithJsonOverlay
+  const base = allTubeBenders as any[];
+  const ids = base
     .map((p: any) => (p as any).id as string | undefined)
     .filter(Boolean) as string[];
 
@@ -262,20 +132,13 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
     publishedMap[pid] = (row as any).fields_json ?? {};
   }
 
-  const mergedProducts = baseWithJsonOverlay.map((raw) => {
+  const mergedProducts = base.map((raw) => {
     const id = (raw as any).id as string | undefined;
-    const neonOverlay = id ? neonMap[id] ?? null : null;
-
     const publishedOverlay = id ? (publishedMap[id] ?? null) : null;
 
-    // Order matters:
-    //   base product → JSON overlay → legacy Neon overlay → published version overlay
-    // Published version must win so admin Publish actually affects public pages + scoring.
-    // Ensure overlays cannot override canonical identity keys.
-    // (Fixes legacy "double name" artifacts like "A ADMIN".)
+    // base product (identity/display) → published version (all spec data; wins).
     const merged = {
       ...(raw as any),
-      ...(neonOverlay ? stripBlockedOverlayKeys(neonOverlay) : {}),
       ...(publishedOverlay ? stripBlockedOverlayKeys(publishedOverlay) : {}),
     };
 
@@ -333,8 +196,8 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
       citationsRaw: overlayFields.citationsRaw ?? b.citationsRaw ?? null,
       citations: parsedCitations ?? b.citations ?? null,
       // Persist auto pros/cons enabled state from overlay
-      autoProsCons: Array.isArray(overlayFields.autoProsCons) 
-        ? overlayFields.autoProsCons 
+      autoProsCons: Array.isArray(overlayFields.autoProsCons)
+        ? overlayFields.autoProsCons
         : undefined,
     } as Product;
   });
@@ -377,9 +240,7 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
 
 /**
  * Convenience helper to retrieve a single tube bender by id/slug with the
- * JSON + Neon overlay applied.
- *
- * NOTE: now async because it depends on Neon.
+ * published DB overlay applied.
  */
 export async function findTubeBenderWithOverlay(
   predicate: (bender: Product) => boolean,

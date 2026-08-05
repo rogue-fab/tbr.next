@@ -1,7 +1,7 @@
 // lib/db.ts
 //
 // Minimal Neon-compatible SQL helper using `postgres` (porsager).
-// Exports `sql` used by repo files like benderOverlayRepo.ts.
+// Exports `sql` used by repo files like productVersionsRepo.ts.
 
 import postgres, { type Sql } from "postgres";
 
