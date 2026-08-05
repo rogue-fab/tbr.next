@@ -4,7 +4,6 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import * as catalogNS from "../../../../lib/catalog";
-import * as bendersNS from "../../../../lib/tube-benders";
 import { isAuthorized, unauthorized } from "../../../../lib/adminAuth";
 
 export const runtime = "nodejs";
@@ -63,6 +62,5 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     catalog: describe(catalogNS as AnyRec),
-    benders: describe(bendersNS as AnyRec),
   });
 }

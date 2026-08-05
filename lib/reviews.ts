@@ -5,7 +5,6 @@
 export async function getKnownReviewSlugs(): Promise<string[]> {
   const loaders: Array<() => Promise<any>> = [
     () => import("./catalog"),
-    () => import("./tube-benders"),
   ];
 
   const seen = new Set<string>();

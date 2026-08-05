@@ -51,7 +51,6 @@ function scanModule(mod: AnyMod): ProductId[] {
 export async function listProductIds(): Promise<ProductId[]> {
   const loaders: Array<() => Promise<AnyMod>> = [
     () => import("./catalog"),
-    () => import("./tube-benders"),
     () => import("./compare"),
     () => import("./reviews"),
   ];
