@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type MessageType = "Accuracy" | "Fairness" | "Manufacturer" | "General";
+type MessageType = "Accuracy" | "Fairness" | "Manufacturer" | "General" | "Photo Submission";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -14,6 +14,7 @@ export default function ContactForm() {
   const [messageType, setMessageType] = useState<MessageType>("General");
   const [securityAnswer, setSecurityAnswer] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -41,6 +42,24 @@ export default function ContactForm() {
       return;
     }
 
+    if (messageType === "Photo Submission" && !photo) {
+      setStatus("error");
+      setErrorMessage("Please attach a photo, or choose a different message type.");
+      return;
+    }
+    if (photo) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(photo.type)) {
+        setStatus("error");
+        setErrorMessage("Photo must be a JPEG, PNG, or WebP image.");
+        return;
+      }
+      if (photo.size > 6 * 1024 * 1024) {
+        setStatus("error");
+        setErrorMessage("Photo must be under 6 MB.");
+        return;
+      }
+    }
+
     // Honeypot check - if filled, treat as spam but return success
     if (honeypot.trim()) {
       setStatus("success");
@@ -51,25 +70,38 @@ export default function ContactForm() {
       setMessageType("General");
       setSecurityAnswer("");
       setHoneypot("");
+      setPhoto(null);
       return;
     }
 
     try {
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          subject,
-          message,
-          messageType,
-          securityAnswer,
-          website: honeypot,
-        }),
-      });
+      let response: Response;
+      if (photo) {
+        const fd = new FormData();
+        fd.append("name", name);
+        fd.append("email", email);
+        fd.append("subject", subject);
+        fd.append("message", message);
+        fd.append("messageType", messageType);
+        fd.append("securityAnswer", securityAnswer);
+        fd.append("website", honeypot);
+        fd.append("photo", photo);
+        response = await fetch("/api/contact", { method: "POST", body: fd });
+      } else {
+        response = await fetch("/api/contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            subject,
+            message,
+            messageType,
+            securityAnswer,
+            website: honeypot,
+          }),
+        });
+      }
 
       if (response.ok) {
         setStatus("success");
@@ -80,6 +112,7 @@ export default function ContactForm() {
         setMessageType("General");
         setSecurityAnswer("");
         setHoneypot("");
+        setPhoto(null);
       } else {
         const data = await response.json();
         setStatus("error");
@@ -164,8 +197,8 @@ export default function ContactForm() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Message Type <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {(["Accuracy", "Fairness", "Manufacturer", "General"] as MessageType[]).map(
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {(["Accuracy", "Fairness", "Manufacturer", "General", "Photo Submission"] as MessageType[]).map(
                 (type) => (
                   <button
                     key={type}
@@ -215,6 +248,26 @@ export default function ContactForm() {
             />
           </div>
 
+          {/* Photo upload — only for photo submissions */}
+          {messageType === "Photo Submission" && (
+            <div>
+              <label htmlFor="photo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Product photo <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                id="photo"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+                className="w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-gray-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-gray-800"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                JPEG, PNG, or WebP, up to 6&nbsp;MB. Only upload a photo you took or own — by
+                submitting, you confirm you own the rights and grant us permission to use it.
+              </p>
+            </div>
+          )}
+
           {/* Security Verification */}
           <div>
             <label htmlFor="security" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -241,10 +294,18 @@ export default function ContactForm() {
             </button>
           </div>
 
-          {/* Privacy Statement */}
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            <strong>Privacy:</strong> We only use this info to reply to your message. We don&apos;t sell it, share it, or add you to any mailing list, and we don&apos;t store your message in our database.
-          </p>
+          {/* Email confirmation + Privacy */}
+          <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 space-y-1">
+            <p className="text-xs text-gray-700 dark:text-gray-300">
+              <strong>One quick step:</strong> after you hit send, we&apos;ll email you a confirmation
+              link. You <strong>must</strong> open your inbox and click that link before your message
+              (and any photo) reaches us — this is purely to stop spam.
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              <strong>Privacy:</strong> We only use your info to reply to you. We do <strong>not</strong>{" "}
+              sell or share it &mdash; <strong>ever</strong> &mdash; and we don&apos;t add you to any mailing list.
+            </p>
+          </div>
 
           {/* Honeypot */}
           <div className="hidden">

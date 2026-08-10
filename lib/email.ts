@@ -121,7 +121,8 @@ ${escapeHtml(message)}
 }
 
 export async function sendContactForwardEmail(
-  payload: ContactTokenPayload
+  payload: ContactTokenPayload,
+  attachment?: { filename: string; content: Buffer; contentType: string },
 ) {
   assertMailConfigured();
 
@@ -162,9 +163,14 @@ ${escapeHtml(message)}
     from: CONTACT_FROM_EMAIL,
     to: CONTACT_TO_EMAIL,
     replyTo: email,
-    subject: `[TubeBenderReviews] ${subject}`,
-    text,
-    html,
+    subject: `[TubeBenderReviews] ${attachment ? "Photo — " : ""}${subject}`,
+    text: attachment ? `${text}\n\n[Photo attached: ${attachment.filename}]` : text,
+    html: attachment
+      ? `${html}\n<p><strong>Photo submission attached:</strong> ${escapeHtml(attachment.filename)}</p>`
+      : html,
+    attachments: attachment
+      ? [{ filename: attachment.filename, content: attachment.content, contentType: attachment.contentType }]
+      : undefined,
   });
 }
 
@@ -173,6 +179,9 @@ ${escapeHtml(message)}
  * Some routes import `sendContactToAdmin` (older naming).
  * The canonical implementation is `sendContactForwardEmail`.
  */
-export async function sendContactToAdmin(payload: ContactTokenPayload) {
-  return sendContactForwardEmail(payload);
+export async function sendContactToAdmin(
+  payload: ContactTokenPayload,
+  attachment?: { filename: string; content: Buffer; contentType: string },
+) {
+  return sendContactForwardEmail(payload, attachment);
 }

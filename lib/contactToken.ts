@@ -8,6 +8,8 @@ export type ContactTokenPayload = {
   messageType: string;
   message: string;
   createdAt: number;
+  /** Present when the submission includes a product photo (see lib/imageSubmissions). */
+  submissionId?: string;
 };
 
 // Secret for signing tokens – set this in Vercel:

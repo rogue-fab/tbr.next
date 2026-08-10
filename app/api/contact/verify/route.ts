@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyContactToken } from "../../../../lib/contactToken";
 import { sendContactToAdmin } from "../../../../lib/email";
+import { fetchAndDeletePendingImage } from "../../../../lib/imageSubmissions";
 
 export const dynamic = "force-dynamic";
 
@@ -88,9 +89,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Send email to admin
+    // Send email to admin (with the photo attached, if one was submitted).
     try {
-      await sendContactToAdmin(payload);
+      let attachment:
+        | { filename: string; content: Buffer; contentType: string }
+        | undefined;
+      if (payload.submissionId) {
+        try {
+          const img = await fetchAndDeletePendingImage(payload.submissionId);
+          if (img) {
+            attachment = {
+              filename: img.imageName || "photo",
+              content: img.imageBytes,
+              contentType: img.imageType || "application/octet-stream",
+            };
+          }
+        } catch (imgErr) {
+          console.error("[contact-verify] Failed to load submitted photo:", imgErr);
+        }
+      }
+      await sendContactToAdmin(payload, attachment);
     } catch (emailError) {
       console.error("[contact-verify] Failed to send email to admin:", emailError);
       return new NextResponse(

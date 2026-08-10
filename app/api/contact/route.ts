@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createContactToken } from "../../../lib/contactToken";
 import { sendContactVerificationEmail } from "../../../lib/email";
+import { insertPendingImage } from "../../../lib/imageSubmissions";
+
+export const runtime = "nodejs";
+
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // 6 MB
 
 type ContactPayload = {
   name?: string;
@@ -49,9 +55,32 @@ function checkRateLimit(ip: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: ContactPayload = await req.json();
+    // Accept JSON (text-only) or multipart/form-data (with an optional photo).
+    let name: string | undefined,
+      email: string | undefined,
+      subject: string | undefined,
+      message: string | undefined,
+      messageType: string | undefined,
+      securityAnswer: string | undefined,
+      website: string | undefined;
+    let file: File | null = null;
 
-    const { name, email, subject, message, messageType, securityAnswer, website } = body;
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+      name = form.get("name")?.toString();
+      email = form.get("email")?.toString();
+      subject = form.get("subject")?.toString();
+      message = form.get("message")?.toString();
+      messageType = form.get("messageType")?.toString();
+      securityAnswer = form.get("securityAnswer")?.toString();
+      website = form.get("website")?.toString();
+      const f = form.get("photo");
+      if (f && typeof f === "object" && "arrayBuffer" in f) file = f as File;
+    } else {
+      const body: ContactPayload = await req.json();
+      ({ name, email, subject, message, messageType, securityAnswer, website } = body);
+    }
 
     // Basic validation
     if (!name || !email || !subject || !message) {
@@ -98,6 +127,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Optional photo: validate + store transiently (deleted after email confirmation).
+    let submissionId: string | undefined;
+    if (file) {
+      const type = (file.type || "").toLowerCase();
+      if (!ALLOWED_IMAGE_TYPES.has(type)) {
+        return NextResponse.json(
+          { ok: false, error: "Photo must be a JPEG, PNG, or WebP image." },
+          { status: 400 },
+        );
+      }
+      if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+        return NextResponse.json(
+          { ok: false, error: "Photo must be under 6 MB." },
+          { status: 400 },
+        );
+      }
+      try {
+        const bytes = Buffer.from(await file.arrayBuffer());
+        submissionId = await insertPendingImage({
+          imageBytes: bytes,
+          imageType: type,
+          imageName: (file.name || "photo").slice(0, 120),
+        });
+      } catch (err) {
+        console.error("[contact-form] photo store failed:", err);
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "Photo uploads are temporarily unavailable — you can still send a message without a photo.",
+          },
+          { status: 503 },
+        );
+      }
+    }
+
     // Build payload
     const payload = {
       name: name.trim(),
@@ -106,6 +171,7 @@ export async function POST(req: NextRequest) {
       messageType: messageType || "General",
       message: message.trim(),
       createdAt: Date.now(),
+      ...(submissionId ? { submissionId } : {}),
     };
 
     // Create verification token
@@ -122,7 +188,9 @@ export async function POST(req: NextRequest) {
       name: payload.name,
       subject: payload.subject,
       messageType: payload.messageType,
-      message: payload.message,
+      message: submissionId
+        ? `${payload.message}\n\n[A product photo is attached and will be sent to us once you confirm.]`
+        : payload.message,
       verifyUrl: verifyUrl.toString(),
     });
 
