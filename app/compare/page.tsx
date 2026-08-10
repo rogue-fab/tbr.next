@@ -5,6 +5,7 @@ import ShareLink from "../../components/ShareLink";
 import { redirect } from "next/navigation";
 import { slugOf, parseIds, titleOf, slugForProduct } from "../../lib/ids";
 import { getProductScore, TOTAL_POINTS } from "../../lib/scoring";
+import { computeSystemPrice } from "../../lib/systemPrice";
 // NOTE: Only accepts canonical product identifiers (id/slug/name/brand+model)
 
 export const dynamic = "force-dynamic";
@@ -144,47 +145,7 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
               {rows.map((p) => {
                 const { total: score } = getProductScore(p as any);
 
-                const parseMoney = (raw: unknown): number | null => {
-                  if (raw === null || raw === undefined || raw === "") return null;
-                  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-                  // Normalize unicode dashes to ASCII hyphen so a range string
-                  // like "$1,800 – $2,500" parses to its first value, not "18002500".
-                  const parsed = parseFloat(
-                    String(raw).replace(/[‒-―−]/g, "-").replace(/[^0-9.+-]/g, ""),
-                  );
-                  return Number.isFinite(parsed) ? parsed : null;
-                };
-
-                const frameMin = parseMoney((p as any).framePriceMin);
-                const dieMin = parseMoney((p as any).diePriceMin);
-                const hydraulicMin = parseMoney((p as any).hydraulicPriceMin);
-                const standMin = parseMoney((p as any).standPriceMin);
-
-                const frameMax = parseMoney((p as any).framePriceMax);
-                const dieMax = parseMoney((p as any).diePriceMax);
-                const hydraulicMax = parseMoney((p as any).hydraulicPriceMax);
-                const standMax = parseMoney((p as any).standPriceMax);
-
-                const hasMinComponents =
-                  frameMin !== null ||
-                  dieMin !== null ||
-                  hydraulicMin !== null ||
-                  standMin !== null;
-                const hasMaxComponents =
-                  frameMax !== null ||
-                  dieMax !== null ||
-                  hydraulicMax !== null ||
-                  standMax !== null;
-
-                const minSystemTotal =
-                  hasMinComponents
-                    ? (frameMin ?? 0) + (dieMin ?? 0) + (hydraulicMin ?? 0) + (standMin ?? 0)
-                    : parseMoney((p as any).price);
-
-                const maxSystemTotal =
-                  hasMaxComponents
-                    ? (frameMax ?? 0) + (dieMax ?? 0) + (hydraulicMax ?? 0) + (standMax ?? 0)
-                    : null;
+                const { min: minSystemTotal, max: maxSystemTotal } = computeSystemPrice(p as any);
 
                 let priceLabel = "—";
                 if (minSystemTotal && maxSystemTotal && maxSystemTotal > 0 && maxSystemTotal !== minSystemTotal) {

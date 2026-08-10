@@ -1,6 +1,7 @@
 /**
  * Mechanically generated Pros/Cons (facts + dataset rank).
  */
+import { computeSystemPrice } from "./systemPrice";
 
 /**
  * Auto-generated pro/con item.
@@ -69,36 +70,8 @@ function moneyOrNull(raw: unknown): number | null {
 }
 
 function computeEntryPrice(p: AnyProduct): number | null {
-  // Mirror scoring.ts intent: starter system = frame + die + hydraulic + stand (min preferred).
-  const frameMin = moneyOrNull(p.framePriceMin);
-  const dieMin = moneyOrNull(p.diePriceMin);
-  const hydraulicMin = moneyOrNull(p.hydraulicPriceMin);
-  const standMin = moneyOrNull(p.standPriceMin);
-
-  const frameMax = moneyOrNull(p.framePriceMax);
-  const dieMax = moneyOrNull(p.diePriceMax);
-  const hydraulicMax = moneyOrNull(p.hydraulicPriceMax);
-  const standMax = moneyOrNull(p.standPriceMax);
-
-  const hasMin =
-    frameMin !== null || dieMin !== null || hydraulicMin !== null || standMin !== null;
-  const hasMax =
-    frameMax !== null || dieMax !== null || hydraulicMax !== null || standMax !== null;
-
-  const minTotal = hasMin
-    ? (frameMin ?? 0) + (dieMin ?? 0) + (hydraulicMin ?? 0) + (standMin ?? 0)
-    : null;
-
-  const maxTotal = hasMax
-    ? (frameMax ?? 0) + (dieMax ?? 0) + (hydraulicMax ?? 0) + (standMax ?? 0)
-    : null;
-
-  // Prefer conservative minimum system. If missing, fall back to maximum system, then catalog price.
-  if (minTotal !== null && minTotal > 0) return minTotal;
-  if (maxTotal !== null && maxTotal > 0) return maxTotal;
-  const price = moneyOrNull(p.price);
-  if (price !== null && price > 0) return price;
-  return null;
+  // Single source of truth (see lib/systemPrice.ts).
+  return computeSystemPrice(p).entry ?? null;
 }
 
 function computeMaxOdIn(p: AnyProduct): number | null {

@@ -10,6 +10,7 @@ import {
 } from "./scoringEngine";
 
 import autoscaleSnapshot from "./autoscale/snapshot.json";
+import { computeSystemPrice } from "./systemPrice";
 
 // Value autoscale snapshot (manual refresh by design).
 // Keep this as a committed artifact so scoring is reproducible and FTC-defensible.
@@ -362,35 +363,10 @@ export function getProductScore(
   // Normalize before scoring so edits actually affect the score.
   const p: any = normalizeScoreInput(product);
 
-  // Derive a system "entry price" from component-level min/max pricing where available.
-  const parsePrice = (v: unknown): number =>
-    typeof v === "number"
-      ? v
-      : parseFloat(String(v ?? "").replace(/[^0-9.+-]/g, "")) || 0;
-
-  const minTotal =
-    parsePrice(p.framePriceMin) +
-    parsePrice(p.diePriceMin) +
-    parsePrice(p.hydraulicPriceMin) +
-    parsePrice(p.standPriceMin);
-
-  const maxTotal =
-    parsePrice(p.framePriceMax) +
-    parsePrice(p.diePriceMax) +
-    parsePrice(p.hydraulicPriceMax) +
-    parsePrice(p.standPriceMax);
-
   // Entry-level system price used for Value for Money.
-  // Prefer the conservative minimum system total; if that is missing, fall back
-  // to the max system total, then any existing catalog price/priceRange.
-  let entryPrice: number | undefined;
-  if (minTotal > 0) {
-    entryPrice = minTotal;
-  } else if (maxTotal > 0) {
-    entryPrice = maxTotal;
-  } else if (parsePrice(p.price) > 0) {
-    entryPrice = parsePrice(p.price);
-  }
+  // Single source of truth (see lib/systemPrice.ts): min system total, else max
+  // system total, else the catalog price fallback.
+  const { entry: entryPrice } = computeSystemPrice(p);
 
   // --- Adapter into the legacy engine ---
   const scoringInput: ScoringInput = {

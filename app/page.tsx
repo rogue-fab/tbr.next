@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Tag, ShieldCheck, TrendingUp } from "lucide-react";
 import { getAllTubeBendersWithOverlay } from "../lib/catalogOverlay";
 import { getProductScore } from "../lib/scoring";
+import { computeSystemPrice } from "../lib/systemPrice";
 import { titleOf, slugForProduct } from "../lib/ids";
 import LandingCompareSection, { type LandingCompareRow } from "../components/LandingCompareSection";
 
@@ -18,51 +19,10 @@ export const metadata = {
 export default async function Page() {
   // Prepare data for landing compare section
   const products = await getAllTubeBendersWithOverlay();
-  const parseMoney = (raw: unknown): number | null => {
-    if (raw === null || raw === undefined || raw === "") return null;
-    if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-    // Normalize unicode dashes (en/em/minus) to ASCII hyphen first, so a range
-    // string like "$1,800 – $2,500" parses to its first value (1800) instead of
-    // being stripped to "18002500" (which rendered as ~$18M).
-    const parsed = parseFloat(
-      String(raw).replace(/[‒-―−]/g, "-").replace(/[^0-9.+-]/g, ""),
-    );
-    return Number.isFinite(parsed) ? parsed : null;
-  };
 
   const compareRows: LandingCompareRow[] = products.map((p) => {
     const { total: score } = getProductScore(p as any);
-
-    const frameMin = parseMoney((p as any).framePriceMin);
-    const dieMin = parseMoney((p as any).diePriceMin);
-    const hydraulicMin = parseMoney((p as any).hydraulicPriceMin);
-    const standMin = parseMoney((p as any).standPriceMin);
-
-    const frameMax = parseMoney((p as any).framePriceMax);
-    const dieMax = parseMoney((p as any).diePriceMax);
-    const hydraulicMax = parseMoney((p as any).hydraulicPriceMax);
-    const standMax = parseMoney((p as any).standPriceMax);
-
-    const hasMinComponents =
-      frameMin !== null ||
-      dieMin !== null ||
-      hydraulicMin !== null ||
-      standMin !== null;
-    const hasMaxComponents =
-      frameMax !== null ||
-      dieMax !== null ||
-      hydraulicMax !== null ||
-      standMax !== null;
-
-    const priceMin =
-      hasMinComponents
-        ? (frameMin ?? 0) + (dieMin ?? 0) + (hydraulicMin ?? 0) + (standMin ?? 0)
-        : parseMoney((p as any).price);
-
-    const priceMax =
-      hasMaxComponents
-        ? (frameMax ?? 0) + (dieMax ?? 0) + (hydraulicMax ?? 0) + (standMax ?? 0)
-        : null;
+    const { min: priceMin, max: priceMax } = computeSystemPrice(p as any);
 
     // Normalize S-bend capability: accept both boolean and "Yes"/"No" from admin
     let sBend: boolean | null = null;
