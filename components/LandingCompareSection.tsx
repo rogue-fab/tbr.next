@@ -283,7 +283,7 @@ export default function LandingCompareSection({ rows }: Props) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="hidden sm:inline-block text-[0.7rem] uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <span className="hidden sm:inline-block text-[0.7rem] uppercase tracking-wide text-gray-400 dark:text-gray-300">
             Filters
           </span>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -340,7 +340,7 @@ export default function LandingCompareSection({ rows }: Props) {
       <div className="overflow-x-auto">
         <table className="min-w-[820px] w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 dark:bg-gray-900 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <tr className="bg-gray-50 dark:bg-gray-800 text-xs uppercase tracking-wide text-gray-600 dark:text-gray-200">
               <th className="px-3 py-2 text-left">Model</th>
               <th className="px-3 py-2 text-left">Rating</th>
               <th className="px-3 py-2 text-left">Price (complete setup)</th>
