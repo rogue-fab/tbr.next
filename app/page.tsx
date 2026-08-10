@@ -114,7 +114,7 @@ export default async function Page() {
           <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 text-xs sm:text-sm text-white/80">
             <div className="inline-flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-orange-400" />
-              <span>Expert Tested</span>
+              <span>Expert-Analyzed</span>
             </div>
             <div className="inline-flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-orange-400" />
