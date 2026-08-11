@@ -4,6 +4,7 @@ import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
 import { selectPublicModels } from "../../lib/completeness";
 import { getProductScore, TOTAL_POINTS } from "../../lib/scoring";
 import { slugForProduct, titleOf } from "../../lib/ids";
+import MadeInBadge from "../../components/MadeInBadge";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,29 +14,6 @@ export const metadata = {
   description:
     "Browse all tube bender reviews, see scores, and open full breakdowns.",
 };
-
-// Map internal FTC origin buckets to consumer-facing labels.
-// Same mapping as the landing compare table, but kept local here
-// to avoid coupling UI components.
-function displayOriginLabel(country?: string): string {
-  const raw = (country ?? "").trim();
-  if (!raw) return "Origin not specified";
-
-  const lower = raw.toLowerCase();
-
-  if (lower.includes("ftc-unqualified") && lower.includes("made in usa")) {
-    return "Made in USA (full-origin claim)";
-  }
-
-  if (
-    lower.includes("assembled in usa") ||
-    lower.includes("qualified usa claim")
-  ) {
-    return "USA-assembled / Mixed origin";
-  }
-
-  return "Imported / International origin";
-}
 
 export default async function ReviewsIndexPage() {
   const allProducts = await getAllTubeBendersWithOverlay();
@@ -130,8 +108,8 @@ export default async function ReviewsIndexPage() {
                 <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                   {row.powerType || "—"}
                 </td>
-                <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
-                  {displayOriginLabel(row.country)}
+                <td className="px-3 py-3 align-middle">
+                  <MadeInBadge country={row.country} />
                 </td>
                 <td className="px-3 py-3 align-middle">
                   <Link

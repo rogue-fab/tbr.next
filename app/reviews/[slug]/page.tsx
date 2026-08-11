@@ -529,6 +529,15 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                   {specs.map(([k, v]) => {
                     let valueStr = String(v);
 
+                    // Never surface the weak "Assembled in USA" phrasing; present the
+                    // qualified USA claim as "Made in USA (qualified claim)".
+                    if (
+                      k === "country" &&
+                      valueStr.toLowerCase().includes("assembled in usa")
+                    ) {
+                      valueStr = "Made in USA (qualified claim)";
+                    }
+
                     // Expand "FTC-unqualified" with an inline explanation so users
                     // understand what "unqualified" means without needing a separate note.
                     if (

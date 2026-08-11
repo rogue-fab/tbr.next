@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { TOTAL_POINTS } from "../lib/scoring";
 import type { MandrelTier } from "../lib/validators";
+import MadeInBadge from "./MadeInBadge";
 
 const FALLBACK_IMG = "/images/products/placeholder.png";
 
@@ -428,8 +429,8 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
                   <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {row.powerType || "—"}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
-                    {row.country || "—"}
+                  <td className="px-3 py-3 align-middle">
+                    <MadeInBadge country={row.country} />
                   </td>
                   <td className="px-3 py-3 align-middle">
                     <MandrelPill value={row.mandrel} />
