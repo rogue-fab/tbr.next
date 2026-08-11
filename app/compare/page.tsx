@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
+import { selectPublicModels } from "../../lib/completeness";
 import ShareLink from "../../components/ShareLink";
 import { redirect } from "next/navigation";
 import { slugOf, parseIds, titleOf, slugForProduct } from "../../lib/ids";
@@ -71,8 +72,10 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
   let rows: Product[] = [];
 
   if (tokens.length === 0) {
-    // No explicit ids: default to showing all products (overlay-aware).
-    rows = products;
+    // No explicit ids: default to the public set (finished models once enough
+    // exist; most-complete fallback before then). Explicit ?ids= comparisons
+    // below still resolve ANY requested model, active or not.
+    rows = selectPublicModels(products).visible;
   } else {
     // Build a lookup map from the overlay-aware product list.
     const byId = new Map(products.map((p) => [p.id, p])); // fast direct ID match

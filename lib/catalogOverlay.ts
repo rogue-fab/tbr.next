@@ -28,6 +28,7 @@ import {
 } from "./catalog";
 import { getLatestPublishedVersionsForProducts } from "./productVersionsRepo";
 import { getProductScore } from "./scoring";
+import { computeCompleteness, isModelActive } from "./completeness";
 
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined) return null;
@@ -230,9 +231,12 @@ export async function getAllTubeBendersWithOverlay(): Promise<Product[]> {
   };
 
   // Attach computed score using dataset context so review totals actually autoscale.
+  // Also attach completeness/active status (single source of truth for the public
+  // "only show finished models" gate and the admin completeness meter).
   const withScores = mergedProducts.map((p) => {
     const score = getProductScore(p, ctx);
-    return { ...p, score };
+    const completeness = computeCompleteness(p);
+    return { ...p, score, completeness, active: isModelActive(p) };
   });
 
   return withScores;

@@ -3,7 +3,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { generateAutoProsCons, type AutoProCon } from '../../../lib/proCons';
+import {
+  REQUIRED_SCORING_FIELDS,
+  computeCompleteness,
+  isModelActive,
+  isRequiredFieldComplete,
+  isFieldNotPublished,
+  ACTIVE_THRESHOLD,
+} from '../../../lib/completeness';
 // Admin grid reads from /api/admin/products; writes hit /api/admin/products/[id]
+
+// Fast lookup: field key -> required-field descriptor (kind/label) for the
+// per-row "not published by manufacturer" controls + completeness meter.
+const REQUIRED_BY_KEY = new Map(
+  REQUIRED_SCORING_FIELDS.map((f) => [f.key, f] as const),
+);
 
 type Product = {
   id: string;
@@ -365,6 +379,29 @@ export default function ProductsTab() {
   const updateProductLocalField = (id: string, field: string, value: string) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
+    );
+    setIsDirty(true);
+  };
+
+  // Mark/unmark a required scoring field as "not published by manufacturer".
+  // Marking it clears the value so the scoring engine treats it as a documented 0
+  // (no guessing), while completeness still counts the field as accounted for.
+  const toggleNotPublished = (id: string, key: string, next: boolean) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const prevMap =
+          p.notPublished && typeof p.notPublished === 'object' && !Array.isArray(p.notPublished)
+            ? (p.notPublished as Record<string, boolean>)
+            : {};
+        const nextMap: Record<string, boolean> = { ...prevMap };
+        if (next) nextMap[key] = true;
+        else delete nextMap[key];
+        const updated: Product = { ...p, notPublished: nextMap };
+        // Clear the underlying value when marking not-published.
+        if (next) (updated as any)[key] = '';
+        return updated;
+      }),
     );
     setIsDirty(true);
   };
@@ -915,9 +952,9 @@ export default function ProductsTab() {
     },
     {
       key: "yearsInBusiness",
-      label: "Years in business (display / reference)",
+      label: "* Years in business (Track Record score, 0–3 pts)",
       description:
-        "Approximate years the manufacturer has been operating under this brand or product line. This is for transparency and review copy. The current scoring engine still uses conservative brand-based tiers for the 'Years in Business' category and does not read this field yet.",
+        "Approximate years the manufacturer has been operating under this brand or product line. This drives the Track Record category: ≥25 yrs = 3 pts, ≥10 = 2, >0 = 1. If the manufacturer doesn't publish a founding date, tick “Not published by mfr” (scores 0, model still counts as complete).",
     },
   ];
 
@@ -1024,6 +1061,19 @@ export default function ProductsTab() {
     // Store as a proper array (not CSV) so we can evolve safely.
     updateProduct(selectedProduct.id, "autoProsCons", next as any);
   };
+  // --------------------------------------------------------------------------
+
+  // --- Completeness / activation status -------------------------------------
+  // A model goes ACTIVE (and shows on the public site) only when every scoring
+  // field is filled or marked "not published by manufacturer".
+  const completeness = computeCompleteness(selectedProduct);
+  const selectedActive = completeness.complete;
+  const activeCount = products.filter((p) => isModelActive(p)).length;
+  const thresholdMet = activeCount >= ACTIVE_THRESHOLD;
+  const adminWantsBannerOn =
+    typeof process !== "undefined" &&
+    process.env.NEXT_PUBLIC_SHOW_TEMP_BANNER === "1";
+  const bannerVisible = adminWantsBannerOn || !thresholdMet;
   // --------------------------------------------------------------------------
 
             return (
@@ -1156,6 +1206,89 @@ export default function ProductsTab() {
         </div>
       </div>
 
+      {/* Completeness + activation status */}
+      <section className="px-6 pt-5">
+        <div
+          className={`rounded-lg border p-4 ${
+            selectedActive
+              ? "border-emerald-300 bg-emerald-50"
+              : "border-amber-300 bg-amber-50"
+          }`}
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    selectedActive
+                      ? "bg-emerald-600 text-white"
+                      : "bg-amber-500 text-white"
+                  }`}
+                >
+                  {selectedActive ? "ACTIVE — shows on site" : "INCOMPLETE — hidden from site"}
+                </span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {completeness.filled}/{completeness.total} scoring fields complete
+                </span>
+              </div>
+
+              {completeness.missing.length > 0 ? (
+                <div className="mt-2 text-xs text-amber-900">
+                  <div className="font-semibold">
+                    Still needed ({completeness.missing.length}) — enter a value or tick
+                    “Not published by mfr”:
+                  </div>
+                  <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 pl-1">
+                    {completeness.missing.map((m) => (
+                      <li key={m.key} className="list-disc list-inside">
+                        {m.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="mt-2 text-xs text-emerald-800">
+                  Every scoring field is accounted for. This model is live on the public site.
+                </div>
+              )}
+            </div>
+
+            {/* Site-wide status: active count + temp banner state */}
+            <div className="shrink-0 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 md:max-w-xs">
+              <div>
+                <span className="font-semibold">{activeCount}</span> of {products.length} models
+                active
+                {" "}
+                <span className="text-gray-400">
+                  (need {ACTIVE_THRESHOLD} to retire the banner)
+                </span>
+              </div>
+              <div className="mt-1">
+                {adminWantsBannerOn ? (
+                  <span>
+                    Temp banner: <span className="font-semibold text-red-600">ON</span> (config).
+                    Set <code className="font-mono">NEXT_PUBLIC_SHOW_TEMP_BANNER≠1</code> to turn it
+                    off — it hides once {ACTIVE_THRESHOLD} models are active.
+                  </span>
+                ) : bannerVisible ? (
+                  <span>
+                    Temp banner: <span className="font-semibold text-amber-600">OFF by config,
+                    still showing</span> — only {activeCount}/{ACTIVE_THRESHOLD} models complete. It
+                    auto-hides at {ACTIVE_THRESHOLD}.
+                  </span>
+                ) : (
+                  <span>
+                    Temp banner: <span className="font-semibold text-emerald-700">OFF (hidden)</span>.
+                    {" "}
+                    {activeCount} models are live.
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Per-field grid with row-level citation copy/paste */}
       <section className="mt-8">
         <div className="flex items-center justify-between gap-3 px-6">
@@ -1238,29 +1371,70 @@ export default function ProductsTab() {
                 </div>
 
                       <div className="border-r border-gray-200 pr-2">
-                        {row.key === "powerType" ? (
-                          <PowerTypeMultiSelect
-                            value={value}
-                            onChange={(val) =>
-                              updateProduct(selectedProduct.id, "powerType", val)
-                            }
-                          />
-                        ) : row.key === "dieShapes" ? (
-                          <DieShapesMultiSelect
-                            value={value}
-                            onChange={(val) =>
-                              updateProduct(selectedProduct.id, "dieShapes", val)
-                            }
-                          />
-                        ) : (
-                        <EditableField
-                            value={value}
-                            onSave={(val) =>
-                              updateProduct(selectedProduct.id, row.key, val)
-                            }
-                            options={row.options}
-                          />
-                        )}
+                        {(() => {
+                          const reqField = REQUIRED_BY_KEY.get(row.key);
+                          const notPublished = reqField
+                            ? isFieldNotPublished(selectedProduct, row.key)
+                            : false;
+                          const fieldComplete = reqField
+                            ? isRequiredFieldComplete(selectedProduct, reqField)
+                            : true;
+
+                          return (
+                            <>
+                              {row.key === "powerType" ? (
+                                <PowerTypeMultiSelect
+                                  value={value}
+                                  onChange={(val) =>
+                                    updateProduct(selectedProduct.id, "powerType", val)
+                                  }
+                                />
+                              ) : row.key === "dieShapes" ? (
+                                <DieShapesMultiSelect
+                                  value={value}
+                                  onChange={(val) =>
+                                    updateProduct(selectedProduct.id, "dieShapes", val)
+                                  }
+                                />
+                              ) : notPublished ? (
+                                <div className="px-2 py-1 text-[0.72rem] italic text-gray-500">
+                                  Not published by manufacturer
+                                </div>
+                              ) : (
+                                <EditableField
+                                  value={value}
+                                  onSave={(val) =>
+                                    updateProduct(selectedProduct.id, row.key, val)
+                                  }
+                                  options={row.options}
+                                />
+                              )}
+
+                              {reqField && (
+                                <label className="mt-1 flex items-center gap-1 text-[0.65rem] text-gray-600">
+                                  <input
+                                    type="checkbox"
+                                    className="h-3 w-3"
+                                    checked={notPublished}
+                                    onChange={(e) =>
+                                      toggleNotPublished(
+                                        selectedProduct.id,
+                                        row.key,
+                                        e.target.checked,
+                                      )
+                                    }
+                                  />
+                                  <span>Not published by mfr</span>
+                                </label>
+                              )}
+                              {reqField && !fieldComplete && (
+                                <div className="mt-0.5 text-[0.6rem] font-semibold text-amber-600">
+                                  Required — empty
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                   </div>
 
                       <div className="border-r border-gray-200 pr-2">

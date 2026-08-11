@@ -4,6 +4,7 @@ import { Tag, ShieldCheck, TrendingUp } from "lucide-react";
 import { getAllTubeBendersWithOverlay } from "../lib/catalogOverlay";
 import { getProductScore } from "../lib/scoring";
 import { computeSystemPrice } from "../lib/systemPrice";
+import { selectPublicModels } from "../lib/completeness";
 import { titleOf, slugForProduct } from "../lib/ids";
 import LandingCompareSection, { type LandingCompareRow } from "../components/LandingCompareSection";
 
@@ -17,8 +18,11 @@ export const metadata = {
 };
 
 export default async function Page() {
-  // Prepare data for landing compare section
-  const products = await getAllTubeBendersWithOverlay();
+  // Prepare data for landing compare section.
+  // Only show finished (active) models once enough exist; before that, show the
+  // most-complete few so the table is never empty. See lib/completeness.ts.
+  const allProducts = await getAllTubeBendersWithOverlay();
+  const { visible: products, thresholdMet } = selectPublicModels(allProducts);
 
   const compareRows: LandingCompareRow[] = products.map((p) => {
     const { total: score } = getProductScore(p as any);
@@ -160,7 +164,17 @@ export default async function Page() {
 
       {/* Landing Compare Section */}
       <section className="mx-auto max-w-6xl px-6 pb-12">
-        <LandingCompareSection rows={compareRows} />
+        {/*
+          Header count = models on the board. Once ACTIVE_THRESHOLD models are
+          complete we show active-only, so this equals the active count in the
+          steady state; during fill-in it reflects the most-complete fallback set
+          (with the amber "still verifying" note + red banner up).
+        */}
+        <LandingCompareSection
+          rows={compareRows}
+          modelsCompared={compareRows.length}
+          previewMode={!thresholdMet}
+        />
       </section>
     </main>
   );

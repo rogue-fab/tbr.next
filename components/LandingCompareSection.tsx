@@ -27,6 +27,10 @@ export type LandingCompareRow = {
 
 type Props = {
   rows: LandingCompareRow[];
+  /** Count of fully-complete (active) models — drives the "X models compared" header. */
+  modelsCompared?: number;
+  /** True while we're still below the active-model threshold (temp/preview mode). */
+  previewMode?: boolean;
 };
 
 /** Simple USD formatting for price ranges. */
@@ -235,7 +239,9 @@ function Pill({ children, active }: { children: React.ReactNode; active: boolean
   );
 }
 
-export default function LandingCompareSection({ rows }: Props) {
+export default function LandingCompareSection({ rows, modelsCompared, previewMode }: Props) {
+  const comparedCount =
+    typeof modelsCompared === "number" ? modelsCompared : rows.length;
   const [minScore, setMinScore] = useState<number>(0);
   const [power, setPower] = useState<"any" | "manual" | "hydraulic">("any");
   const [origin, setOrigin] = useState<"any" | "usaOnly">("any");
@@ -277,10 +283,17 @@ export default function LandingCompareSection({ rows }: Props) {
     <section className="mt-12 rounded-xl border bg-white/80 p-4 shadow-sm backdrop-blur">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Tube Bender Comparison</h2>
+          <h2 className="text-lg font-semibold">
+            {comparedCount} {comparedCount === 1 ? "model" : "models"} compared
+          </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Products ranked by our 100-point scoring system — highest rated first.
           </p>
+          {previewMode && (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+              Showing the most complete models while we finish verifying the rest.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="hidden sm:inline-block text-[0.7rem] uppercase tracking-wide text-gray-400 dark:text-gray-300">

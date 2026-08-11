@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getAllTubeBendersWithOverlay } from "../../lib/catalogOverlay";
+import { selectPublicModels } from "../../lib/completeness";
 import { getProductScore, TOTAL_POINTS } from "../../lib/scoring";
 import { slugForProduct, titleOf } from "../../lib/ids";
 
@@ -37,7 +38,10 @@ function displayOriginLabel(country?: string): string {
 }
 
 export default async function ReviewsIndexPage() {
-  const products = await getAllTubeBendersWithOverlay();
+  const allProducts = await getAllTubeBendersWithOverlay();
+  // Only list finished (active) models once enough exist; most-complete
+  // fallback before then. See lib/completeness.ts.
+  const products = selectPublicModels(allProducts).visible;
 
   const rows = products
     .map((p) => {
