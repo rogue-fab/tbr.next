@@ -98,7 +98,7 @@ export default async function Page() {
             </div>
             <div className="rounded-lg bg-black/55 border-2 border-white/40 px-4 py-3 shadow-md">
               <div className="font-semibold text-white">
-                12+ Brands Reviewed
+                {compareRows.length} {compareRows.length === 1 ? "Model" : "Models"} Reviewed
               </div>
               <div className="mt-1 text-white/70">
                 Popular fabrication benders compared on a common scoring framework.
