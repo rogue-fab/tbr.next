@@ -1133,9 +1133,21 @@ export default function ProductsTab() {
               const label =
                 brandModel.length > 0 ? brandModel : safeSlug;
 
+              // Completeness at-a-glance: fraction + colored status dot so you
+              // can see which models are live (green) vs still being filled
+              // (amber/red) without opening each one. Chrome honors the option
+              // text color; the dot is the cross-browser fallback.
+              const c = computeCompleteness(p);
+              const dot = c.complete ? "🟢" : c.ratio >= 0.5 ? "🟡" : "🔴";
+              const optColor = c.complete
+                ? "#15803d"
+                : c.ratio >= 0.5
+                ? "#b45309"
+                : "#b91c1c";
+
               return (
-                <option key={p.id} value={p.id}>
-                  {label}
+                <option key={p.id} value={p.id} style={{ color: optColor }}>
+                  {`${label}  —  ${c.filled}/${c.total} ${dot}`}
                 </option>
               );
             })}
