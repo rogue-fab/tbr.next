@@ -1091,9 +1091,11 @@ export default function ProductsTab() {
         <DebugPanel />
       </div>
 
-      {/* Header + product selector */}
-      <div className="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
-        <div>
+      {/* Header + product selector. Left-aligned with a fixed gap so the two
+          groups stay together on ultra-wide (4k) screens instead of being flung
+          to opposite edges by justify-between. */}
+      <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-4 md:flex-row md:items-start md:gap-10">
+        <div className="max-w-2xl">
           <h2 className="text-lg font-semibold text-gray-900">Products</h2>
           <p className="text-sm text-gray-500">
             Edit one model at a time. Fields marked{" "}
@@ -1112,7 +1114,7 @@ export default function ProductsTab() {
             letters, numbers, and dashes.
           </p>
         </div>
-        <div className="flex flex-col gap-2 text-sm md:items-end">
+        <div className="flex flex-col gap-2 text-sm md:items-start">
           <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
             Select model
           </label>
