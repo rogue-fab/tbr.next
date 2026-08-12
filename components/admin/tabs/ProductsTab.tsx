@@ -1070,10 +1070,6 @@ export default function ProductsTab() {
   const selectedActive = completeness.complete;
   const activeCount = products.filter((p) => isModelActive(p)).length;
   const thresholdMet = activeCount >= ACTIVE_THRESHOLD;
-  const adminWantsBannerOn =
-    typeof process !== "undefined" &&
-    process.env.NEXT_PUBLIC_SHOW_TEMP_BANNER === "1";
-  const bannerVisible = adminWantsBannerOn || !thresholdMet;
   // --------------------------------------------------------------------------
 
             return (
@@ -1275,24 +1271,16 @@ export default function ProductsTab() {
                   (need {ACTIVE_THRESHOLD} to retire the banner)
                 </span>
               </div>
-              <div className="mt-1">
-                {adminWantsBannerOn ? (
+              <div className="mt-1 text-gray-500">
+                {thresholdMet ? (
                   <span>
-                    Temp banner: <span className="font-semibold text-red-600">ON</span> (config).
-                    Set <code className="font-mono">NEXT_PUBLIC_SHOW_TEMP_BANNER≠1</code> to turn it
-                    off — it hides once {ACTIVE_THRESHOLD} models are active.
-                  </span>
-                ) : bannerVisible ? (
-                  <span>
-                    Temp banner: <span className="font-semibold text-amber-600">OFF by config,
-                    still showing</span> — only {activeCount}/{ACTIVE_THRESHOLD} models complete. It
-                    auto-hides at {ACTIVE_THRESHOLD}.
+                    Threshold reached — you can turn the temp banner off in the{" "}
+                    <span className="font-semibold">Banner</span> tab.
                   </span>
                 ) : (
                   <span>
-                    Temp banner: <span className="font-semibold text-emerald-700">OFF (hidden)</span>.
-                    {" "}
-                    {activeCount} models are live.
+                    Temp banner stays up until {ACTIVE_THRESHOLD} models are active. Control it in
+                    the <span className="font-semibold">Banner</span> tab.
                   </span>
                 )}
               </div>

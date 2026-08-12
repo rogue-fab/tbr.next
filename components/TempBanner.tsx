@@ -1,36 +1,43 @@
 // components/TempBanner.tsx
 //
-// Site-wide "TEMP DATA" banner with data-driven auto-retirement.
+// Site-wide "TEMP DATA" banner. Now controlled from the admin Banner tab
+// (runtime setting in app_settings) instead of a build-time env var.
 //
-// Visibility rule:
-//   show = adminWantsOn OR (activeModelCount < ACTIVE_THRESHOLD)
+// Visibility rule (unchanged operation):
+//   show = adminEnabled OR (activeModelCount < ACTIVE_THRESHOLD)
 //
-// - NEXT_PUBLIC_SHOW_TEMP_BANNER === "1" means the admin wants the banner ON;
-//   it always shows in that case.
-// - When the admin turns it OFF (flag not "1"), the banner still stays up until
-//   at least ACTIVE_THRESHOLD models are fully complete, then auto-hides.
+// - adminEnabled is the toggle in the Banner tab.
+// - Even when the owner turns it OFF, the banner stays up until at least
+//   ACTIVE_THRESHOLD models are complete, then auto-hides.
 //
-// This is an async server component so it can read the live active-model count.
-// It fails safe: if the count can't be determined, the banner shows.
+// Async server component so it can read the live setting + active-model count.
+// Fails safe: if anything can't be determined, the banner shows.
 
 import { getAllTubeBendersWithOverlay } from "../lib/catalogOverlay";
 import { selectPublicModels } from "../lib/completeness";
+import { getTempBannerSetting, DEFAULT_TEMP_BANNER_MESSAGE } from "../lib/appSettings";
 
 export default async function TempBanner() {
-  const adminWantsOn =
-    typeof process !== "undefined" &&
-    process.env.NEXT_PUBLIC_SHOW_TEMP_BANNER === "1";
+  let enabled = true;
+  let message = DEFAULT_TEMP_BANNER_MESSAGE;
+  try {
+    const setting = await getTempBannerSetting();
+    enabled = setting.enabled;
+    message = setting.message;
+  } catch {
+    // Fail safe: keep the banner up if the setting can't be read.
+    enabled = true;
+  }
 
   let thresholdMet = false;
   try {
     const products = await getAllTubeBendersWithOverlay();
     thresholdMet = selectPublicModels(products).thresholdMet;
   } catch {
-    // Fail safe: if we can't determine completeness, keep the banner up.
     thresholdMet = false;
   }
 
-  const show = adminWantsOn || !thresholdMet;
+  const show = enabled || !thresholdMet;
   if (!show) return null;
 
   return (
@@ -38,7 +45,7 @@ export default async function TempBanner() {
       role="alert"
       className="w-full bg-red-600 text-white text-center text-sm sm:text-base font-semibold py-2 px-3"
     >
-      TEMP DATA — COME BACK LATER. This site is in placeholder mode; specs/compare may be inaccurate.
+      {message}
     </div>
   );
 }
