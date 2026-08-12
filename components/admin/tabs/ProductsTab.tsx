@@ -1077,7 +1077,7 @@ export default function ProductsTab() {
   // --------------------------------------------------------------------------
 
             return (
-    <div className="w-full rounded-lg bg-white shadow max-w-[1400px] mx-auto">
+    <div className="w-full rounded-lg bg-white shadow">
       {/* Debug panel for explicit API/auth failures */}
       <div className="px-6 pt-4">
         <DebugPanel />
@@ -1323,7 +1323,7 @@ export default function ProductsTab() {
         {/* Full-width, scrollable specs grid */}
         <div className="mt-4 -mx-6 px-6">
           {/* One scroll container for both X and Y so scrollbars stay pinned */}
-          <div className="max-h-[640px] overflow-auto">
+          <div className="max-h-[80vh] overflow-auto">
             <div className="min-w-[1800px] rounded-lg border border-gray-300 bg-white">
               {/* Sticky header inside scrollport */}
               <div className="sticky top-0 z-10 border-b border-gray-400 bg-gray-50">
