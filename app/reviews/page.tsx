@@ -34,7 +34,8 @@ export default async function ReviewsIndexPage() {
         brand: (p as any).brand as string | undefined,
         model: (p as any).model as string | undefined,
         powerType: (p as any).powerType as string | undefined,
-        country: (p as any).country as string | undefined,
+        // Origin badge derives from the USA-claim tier (single source of truth).
+        country: ((p as any).usaClaim ?? (p as any).country) as string | undefined,
         score,
       };
     })

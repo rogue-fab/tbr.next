@@ -901,41 +901,62 @@ export function calculateTubeBenderScore(
   });
   totalScore += sBendScore;
 
-  // 11. USA Manufacturing (Disclosure-Based) (5 points)
+  // 11. USA Manufacturing Claim (2 points)
   //
-  // Tier meaning is defined on the /scoring page; this function only converts
-  // the admin-entered tier (0–5) into points and documents that it's
-  // disclosure-based, not a legal opinion on FTC compliance.
-  const usaManufacturingDisclosure = parseTier(
-    (bender as any).usaManufacturingTier,
-    5,
-  );
+  // Scores ONLY the strength of the manufacturer's own origin CLAIM (the words
+  // they use), not the actual origin. The real origin points come from Origin
+  // Disclosure (#12).
+  //   2 = flat, FTC-unqualified "Made in USA" claim
+  //   1 = qualified / loose USA claim ("assembled in USA", "American made", or
+  //       "Made in USA" alongside disclosed imported content)
+  //   0 = no USA claim (imported, foreign, or silent)
+  const usaClaim = parseTier((bender as any).usaClaim, 2);
   scoreBreakdown.push({
-    criteria: "USA Manufacturing (Disclosure-Based)",
-    points: usaManufacturingDisclosure,
-    maxPoints: 5,
+    criteria: "USA Manufacturing Claim",
+    points: usaClaim,
+    maxPoints: 2,
     reasoning:
-      usaManufacturingDisclosure > 0
-        ? `Disclosure-based tier ${usaManufacturingDisclosure}/5 based solely on the manufacturer's own claims about where frames, dies, hydraulics, and assembly occur. We do not audit factories or offer legal opinions on FTC compliance; this scores the stated claim only.`
-        : "No disclosed USA manufacturing claims (or only vague/marketing language) in published/entered data; this category scores 0 rather than guessing.",
+      usaClaim >= 2
+        ? "Manufacturer makes a flat, FTC-unqualified \"Made in USA\" claim (no qualifiers). We score the published claim only — not a legal opinion or factory audit."
+        : usaClaim === 1
+        ? "Manufacturer makes a qualified/loose USA claim (e.g. \"assembled in USA\", \"American made\", or \"Made in USA\" alongside disclosed imported content)."
+        : "No published USA-origin claim (imported, foreign, or silent); this category scores 0.",
   });
-  totalScore += usaManufacturingDisclosure;
+  totalScore += usaClaim;
 
-  // 12. Origin Transparency (5 points)
-  const originTransparencyTier = parseTier(
-    (bender as any).originTransparencyTier,
-    5,
-  );
+  // 12. Origin Disclosure (8 points) — the "real" USA/origin points.
+  //
+  // Country-NEUTRAL: rewards documenting where major components come from (USA
+  // OR imported both count). For each component the manufacturer publishes a
+  // specific origin ("documented") OR the machine simply doesn't have that part
+  // ("n/a"), the component earns its weight. Undocumented / blank => 0.
+  const DISCLOSURE_COMPONENTS: { key: string; label: string; weight: number }[] = [
+    { key: "discloseFrame", label: "frame", weight: 2 },
+    { key: "discloseDies", label: "dies/tooling", weight: 2 },
+    { key: "discloseHydraulics", label: "hydraulic/power unit", weight: 2 },
+    { key: "discloseMotor", label: "pump/motor", weight: 1 },
+    { key: "discloseControls", label: "controls/electronics", weight: 1 },
+  ];
+  let disclosureScore = 0;
+  const disclosedParts: string[] = [];
+  for (const comp of DISCLOSURE_COMPONENTS) {
+    const st = String((bender as any)[comp.key] ?? "").trim().toLowerCase();
+    const earns = st.startsWith("documented") || st.startsWith("n/a") || st === "na";
+    if (earns) {
+      disclosureScore += comp.weight;
+      disclosedParts.push(st.startsWith("n") ? `${comp.label} (n/a)` : comp.label);
+    }
+  }
   scoreBreakdown.push({
-    criteria: "Origin Transparency",
-    points: originTransparencyTier,
-    maxPoints: 5,
+    criteria: "Origin Disclosure",
+    points: disclosureScore,
+    maxPoints: 8,
     reasoning:
-      originTransparencyTier > 0
-        ? `Transparency tier ${originTransparencyTier}/5 based on how clearly the manufacturer documents the origin of major components. This scores documentation quality only; it does not reward or penalize any specific country of origin.`
-        : "No meaningful origin disclosure in published/entered data (or only vague/marketing language); this category scores 0 rather than guessing.",
+      disclosureScore > 0
+        ? `Component origin documented for: ${disclosedParts.join(", ")}. Scores disclosure quality only (USA or imported both count); undocumented components score 0.`
+        : "No component-level origin documentation published; this category scores 0. We reward disclosing where major parts come from, not any particular country.",
   });
-  totalScore += originTransparencyTier;
+  totalScore += disclosureScore;
 
   // 13. Single-Source System (2 points, binary)
   //

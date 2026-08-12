@@ -32,8 +32,8 @@ const ENGINE_CRITERIA_TO_KEY: Record<string, string> = {
   "Upgrade Path & Modularity": "upgradePathModularity",
   "Mandrel Compatibility": "mandrelCompatibility",
   "S-Bend Capability": "sBendCapability",
-  "USA Manufacturing (Disclosure-Based)": "usaManufacturingDisclosure",
-  "Origin Transparency": "originTransparency",
+  "USA Manufacturing Claim": "usaManufacturingClaim",
+  "Origin Disclosure": "originDisclosure",
   "Single-Source System": "singleSourceSystem",
   "Warranty (Published Terms Only)": "warrantySupport",
 };
@@ -281,21 +281,21 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
   },
   {
     index: 11,
-    key: "usaManufacturingDisclosure",
-    name: "USA Manufacturing (Disclosure-Based)",
-    maxPoints: 5,
+    key: "usaManufacturingClaim",
+    name: "USA Manufacturing Claim",
+    maxPoints: 2,
     method: "tier",
     tagline:
-      "Points based strictly on what the manufacturer publicly claims about where frames, dies, and hydraulics are made or assembled. We do not independently verify or guess where parts are actually made.",
+      "Scores only the strength of the maker's own \"Made in USA\" claim — a loose claim earns a little, a flat FTC-unqualified claim earns a little more. The real origin points come from Origin Disclosure.",
   },
   {
     index: 12,
-    key: "originTransparency",
-    name: "Origin Transparency",
-    maxPoints: 5,
+    key: "originDisclosure",
+    name: "Origin Disclosure",
+    maxPoints: 8,
     method: "tier",
     tagline:
-      "How clearly the manufacturer explains where major components come from. This scores the quality of disclosure, not the origin itself.",
+      "The real origin points: one for each major component (frame, dies, hydraulics, motor, controls) whose specific origin the maker documents. Rewards disclosing where parts come from — USA or imported both count — not any particular country.",
   },
   {
     index: 13,
@@ -389,8 +389,14 @@ export function getProductScore(
       p.yearsInBusiness != null && String(p.yearsInBusiness).trim() !== ""
         ? Number(toNumberOrNull(p.yearsInBusiness))
         : undefined,
-    usaManufacturingTier: p.usaManufacturingTier ?? p.usaManufacturingDisclosure ?? 0,
-    originTransparencyTier: p.originTransparencyTier ?? 0,
+    // USA Manufacturing Claim (#11): strength of the maker's own claim (0-2).
+    usaClaim: p.usaClaim ?? 0,
+    // Origin Disclosure (#12): per-component documentation state.
+    discloseFrame: p.discloseFrame ?? undefined,
+    discloseDies: p.discloseDies ?? undefined,
+    discloseHydraulics: p.discloseHydraulics ?? undefined,
+    discloseMotor: p.discloseMotor ?? undefined,
+    discloseControls: p.discloseControls ?? undefined,
     singleSourceSystemTier: p.singleSourceSystemTier ?? 0,
     warrantyTier: p.warrantyTier ?? 0,
     portability: p.portability ?? undefined,

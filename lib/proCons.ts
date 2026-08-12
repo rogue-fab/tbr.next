@@ -235,7 +235,7 @@ export function generateAutoProsCons(product: AnyProduct, allProducts: AnyProduc
   } else {
     pros.push({
       id: "pro:materials_list_count",
-      text: `Publishes a materials list covering ${materialCount} of 7 canonical material categories used on this site.`,
+      text: `Publishes a materials list covering ${materialCount} of the 7 common shop materials (steel, stainless, chromoly, aluminum, titanium, copper, brass).`,
     });
   }
 

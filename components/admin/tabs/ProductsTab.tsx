@@ -643,42 +643,54 @@ export default function ProductsTab() {
       description: "Largest round tube OD this machine can bend.",
     },
     {
-      key: "country",
-      label: '* Country / Made In (FTC claim bucket)',
+      key: "usaClaim",
+      label: "* USA manufacturing CLAIM (0–2 pts)",
       description:
-        'Origin / claim category. Only machines meeting FTC-unqualified "Made in USA" criteria receive USA Manufacturing points.',
+        "Classify only the WORDS the manufacturer uses about origin — not what's actually true. This is the only place the USA claim earns points; the real origin points come from the disclosure rows below. Also drives the public \"Made in USA\" badge.",
       options: [
-        'FTC-unqualified "Made in USA"',
-        "Assembled in USA / qualified USA claim",
-        "Non-USA or no USA claim",
+        '2 – Flat "Made in USA" (FTC-unqualified: no fine print, no imported parts disclosed)',
+        '1 – Qualified/loose claim ("Assembled in USA", "American made", or "Made in USA" with imported parts disclosed)',
+        "0 – No USA claim (imported, foreign, or silent)",
       ],
     },
+    // --- Origin Disclosure (#12): 1 row per major component, 8 pts total ---
+    // "Documented" = maker publishes a SPECIFIC origin for that part (USA or
+    // imported — either counts; we reward disclosure, not country). "N/A" = the
+    // machine doesn't have that part (e.g. a manual bender has no hydraulics).
     {
-      key: "usaManufacturingTier",
-      label: "* USA manufacturing disclosure tier (0–5 pts)",
+      key: "discloseFrame",
+      label: "* Frame origin disclosed? (2 pts)",
       description:
-        "Disclosure-based only. This tier reflects how the manufacturer themselves describe where frame, dies, and hydraulics are made. We do not infer or guess origin and we do not verify supply chains – we simply score what they publicly claim.",
-      options: [
-        "5 – Frame + dies + hydraulics manufactured/assembled in USA (per manufacturer disclosure)",
-        "4 – Frame + dies USA; hydraulics partially USA (per disclosure)",
-        "3 – Frame USA; dies origin unclear; hydraulics clearly imported",
-        "2 – Mostly USA fabrication with key imported components (per disclosure)",
-        "1 – Minor USA contribution (assembly, hardware, or similar) per disclosure",
-        "0 – No disclosed USA manufacturing / clearly imported",
-      ],
+        "Does the maker publish a specific origin for the FRAME (where it's cut/welded)? USA or imported both earn the point — this rewards telling the truth, not being American.",
+      options: ["Documented", "Not documented", "N/A (no such part)"],
     },
     {
-      key: "originTransparencyTier",
-      label: "* Origin / transparency tier (0–5 pts)",
+      key: "discloseDies",
+      label: "* Dies / tooling origin disclosed? (2 pts)",
       description:
-        "How clearly the manufacturer documents the origin of major components. This is a transparency score only – it does NOT claim where anything is actually made.",
-      options: [
-        "5 – Full documentation of frame, dies, hydraulics, and major components",
-        "4 – Clear origin info for all major components, with only minor gaps",
-        "3 – Partial disclosure (some components documented, others omitted)",
-        "2 – Minimal disclosure (scattered or vague origin language)",
-        "0 – No meaningful origin disclosure or conflicting/unclear claims",
-      ],
+        "Does the maker publish a specific origin for the bend DIES / tooling? Disclosure counts whether the dies are USA or imported.",
+      options: ["Documented", "Not documented", "N/A (no such part)"],
+    },
+    {
+      key: "discloseHydraulics",
+      label: "* Hydraulic / power unit origin disclosed? (2 pts)",
+      description:
+        "Does the maker publish a specific origin for the hydraulic ram / power unit? Mark N/A for a purely manual machine with no power unit.",
+      options: ["Documented", "Not documented", "N/A (no such part)"],
+    },
+    {
+      key: "discloseMotor",
+      label: "* Pump / motor origin disclosed? (1 pt)",
+      description:
+        "Does the maker publish a specific origin for the pump motor / electric motor? Mark N/A if there's no motor.",
+      options: ["Documented", "Not documented", "N/A (no such part)"],
+    },
+    {
+      key: "discloseControls",
+      label: "* Controls / electronics origin disclosed? (1 pt)",
+      description:
+        "Does the maker publish a specific origin for the controls / electronics? Mark N/A if the machine has no electronics.",
+      options: ["Documented", "Not documented", "N/A (no such part)"],
     },
     {
       key: "powerType",

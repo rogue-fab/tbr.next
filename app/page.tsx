@@ -52,7 +52,8 @@ export default async function Page() {
         (p as any).maxCapacity ??
         ((p as any).max_od != null ? String((p as any).max_od) : null),
       powerType: (p as any).powerType ?? null,
-      country: (p as any).country ?? null,
+      // Origin badge now derives from the USA-claim tier (single source of truth).
+      country: (p as any).usaClaim ?? (p as any).country ?? null,
       mandrel: (p as any).mandrel ?? null,
       sBend,
       image: (p as any).image ?? null,

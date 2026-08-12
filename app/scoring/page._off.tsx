@@ -10,8 +10,8 @@ const CATS_WITH_EXACT_RULES = new Set<string>([
   "easeOfUseSetup",
   "maxDiameterRadius",
   "bendAngleCapability",
-  "usaManufacturingDisclosure",
-  "originTransparency",
+  "usaManufacturingClaim",
+  "originDisclosure",
   "singleSourceSystem",
 ]);
 export const dynamic = "force-dynamic";
@@ -166,46 +166,44 @@ function ExactRules({ catKey }: { catKey: string }) {
         </>
       );
 
-    case "usaManufacturingDisclosure":
+    case "usaManufacturingClaim":
       return (
         <>
           <p className="text-xs text-gray-600">
             <span className="font-semibold text-gray-900">What we score:</span>{" "}
-            a disclosure-based tier (0–5) based solely on the manufacturer's own published claims. This is{" "}
-            <span className="font-semibold">not</span> a legal opinion and not an FTC compliance ruling.
+            only the strength of the manufacturer&apos;s own &ldquo;Made in USA&rdquo; claim — the
+            words they publish. Not a legal opinion, not a factory audit. The real origin points
+            come from Origin Disclosure below.
           </p>
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900">Tier meaning (points = tier number)</div>
+            <div className="font-semibold text-gray-900">Points</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li><span className="font-semibold">5</span> → FTC-unqualified "Made in USA" claim (explicitly stated by manufacturer).</li>
-              <li><span className="font-semibold">4</span> → Strong USA build claim (frame + dies clearly USA; hydraulics mostly/partially USA per disclosure).</li>
-              <li><span className="font-semibold">3</span> → "Made/Assembled in USA" claim with substantial USA content described (e.g., majority USA parts/materials stated or clearly implied in published copy).</li>
-              <li><span className="font-semibold">1</span> → USA assembly claimed but imported parts/content not described well enough to justify a higher tier.</li>
-              <li><span className="font-semibold">0</span> → Imported, no meaningful USA claim, or only vague USA-flavored language.</li>
+              <li><span className="font-semibold">2</span> → Flat &ldquo;Made in USA&rdquo; (no fine print, no imported parts disclosed).</li>
+              <li><span className="font-semibold">1</span> → Qualified/loose claim (&ldquo;Assembled in USA,&rdquo; &ldquo;American made,&rdquo; or &ldquo;Made in USA&rdquo; with imported parts disclosed).</li>
+              <li><span className="font-semibold">0</span> → No USA claim (imported, foreign, or silent).</li>
             </ul>
-            <div className="mt-2 text-gray-600">
-              Missing/unclear disclosure → score conservatively at the lower tier. We do not guess.
-            </div>
           </div>
         </>
       );
 
-    case "originTransparency":
+    case "originDisclosure":
       return (
         <>
           <p className="text-xs text-gray-600">
             <span className="font-semibold text-gray-900">What we score:</span>{" "}
-            how clearly the manufacturer documents the origin of major components. This scores documentation quality only; it does not reward or penalize any country.
+            how much of the machine&apos;s origin the maker actually documents. Country-neutral —
+            disclosing that a part is <em>imported</em> earns the point just the same as disclosing
+            it&apos;s USA. Hiding it earns nothing.
           </p>
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900">Tier meaning (points = tier number)</div>
+            <div className="font-semibold text-gray-900">One point per documented component (8 max)</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li><span className="font-semibold">5</span> → Clear documentation of frame, dies, hydraulics, and other major components (with minimal gaps).</li>
-              <li><span className="font-semibold">4</span> → Clear origin info for most major components, with only minor gaps.</li>
-              <li><span className="font-semibold">3</span> → Partial disclosure (some key components documented, others omitted).</li>
-              <li><span className="font-semibold">2</span> → Minimal disclosure (scattered or vague origin language).</li>
-              <li><span className="font-semibold">0</span> → No meaningful origin disclosure or conflicting/unclear claims.</li>
+              <li><span className="font-semibold">Frame +2</span> · <span className="font-semibold">Dies/tooling +2</span> · <span className="font-semibold">Hydraulic/power unit +2</span></li>
+              <li><span className="font-semibold">Pump/motor +1</span> · <span className="font-semibold">Controls/electronics +1</span></li>
             </ul>
+            <div className="mt-2 text-gray-600">
+              A part the machine doesn&apos;t have (e.g. no hydraulics on a manual bender) isn&apos;t counted against it.
+            </div>
           </div>
         </>
       );
@@ -460,30 +458,32 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
           </div>
         </div>
       );
-    case "usaManufacturingDisclosure":
+    case "usaManufacturingClaim":
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> a disclosure-based tier (0–5) based solely on the manufacturer's published claims. This is not a legal opinion and not an FTC compliance ruling.
+            <span className="font-semibold">What we score:</span> only the strength of the maker&apos;s own &ldquo;Made in USA&rdquo; claim. Not a legal opinion or factory audit.
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Tier mapping (5 max)</div>
-            <p className="text-[11px] text-gray-600">
-              Points equal the tier number (0–5). The specific meaning of each tier is defined by our documentation standard (claims about frames/dies/hydraulics/assembly).
-            </p>
+            <div className="font-semibold text-gray-900 mb-1">Points (2 max)</div>
+            <ul className="list-disc pl-5 space-y-1 text-[11px] text-gray-600">
+              <li>2 → flat &ldquo;Made in USA&rdquo; (no fine print)</li>
+              <li>1 → qualified/loose claim (&ldquo;assembled in USA,&rdquo; etc.)</li>
+              <li>0 → no USA claim</li>
+            </ul>
           </div>
         </div>
       );
-    case "originTransparency":
+    case "originDisclosure":
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> how clearly the manufacturer documents component origin (tier 0–5). This scores documentation quality only.
+            <span className="font-semibold">What we score:</span> how much of the machine&apos;s origin the maker documents, component by component. Country-neutral (imported disclosed = USA disclosed).
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Tier mapping (5 max)</div>
+            <div className="font-semibold text-gray-900 mb-1">One point per documented part (8 max)</div>
             <p className="text-[11px] text-gray-600">
-              Points equal the tier number (0–5).
+              Frame +2, dies/tooling +2, hydraulic/power +2, pump/motor +1, controls +1. Parts the machine lacks aren&apos;t counted against it.
             </p>
           </div>
         </div>

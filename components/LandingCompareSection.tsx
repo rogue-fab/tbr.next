@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { TOTAL_POINTS } from "../lib/scoring";
 import type { MandrelTier } from "../lib/validators";
 import MadeInBadge from "./MadeInBadge";
+import { classifyOrigin } from "../lib/originDisplay";
 
 const FALLBACK_IMG = "/images/products/placeholder.png";
 
@@ -263,16 +264,7 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
       if (power === "manual" && normPower !== "manual") return false;
       if (power === "hydraulic" && normPower !== "hydraulic") return false;
 
-      const c = (row.country ?? "").toLowerCase();
-      if (
-        origin === "usaOnly" &&
-        c &&
-        c !== "usa" &&
-        c !== "united states" &&
-        c !== "united states of america"
-      ) {
-        return false;
-      }
+      if (origin === "usaOnly" && !classifyOrigin(row.country).usa) return false;
 
       if (mandrelOnly && !isMandrelOn(row.mandrel)) return false;
 

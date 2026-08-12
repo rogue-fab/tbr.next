@@ -85,11 +85,15 @@ export const REQUIRED_SCORING_FIELDS: RequiredField[] = [
   // S-Bend Capability (3)
   { key: "sBendCapability", label: "S-Bend capable", kind: "bool" },
 
-  // USA Manufacturing disclosure (5)
-  { key: "usaManufacturingTier", label: "USA manufacturing disclosure tier", kind: "value" },
+  // USA Manufacturing Claim (2)
+  { key: "usaClaim", label: "USA manufacturing claim", kind: "value" },
 
-  // Origin Transparency (5)
-  { key: "originTransparencyTier", label: "Origin / transparency tier", kind: "value" },
+  // Origin Disclosure (8) — one state per major component
+  { key: "discloseFrame", label: "Frame origin disclosed?", kind: "value" },
+  { key: "discloseDies", label: "Dies/tooling origin disclosed?", kind: "value" },
+  { key: "discloseHydraulics", label: "Hydraulic/power origin disclosed?", kind: "value" },
+  { key: "discloseMotor", label: "Pump/motor origin disclosed?", kind: "value" },
+  { key: "discloseControls", label: "Controls/electronics origin disclosed?", kind: "value" },
 
   // Single-Source System (2)
   { key: "singleSourceSystemTier", label: "Single-source system", kind: "value" },

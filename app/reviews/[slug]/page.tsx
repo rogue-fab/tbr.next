@@ -49,6 +49,7 @@ type Product = {
   // Safe optional fields that may exist in the catalog:
   type?: string;
   country?: string;
+  usaClaim?: string;
   maxCapacity?: string | number;
   capacity?: string | number;
   max_od?: string | number;
@@ -89,7 +90,7 @@ const SAFE_FIELDS: Array<keyof Product> = [
   "brand",
   "model",
   "type",
-  "country",
+  "usaClaim",
   "capacity",
   "max_od",
   "maxWall",
@@ -106,6 +107,7 @@ function labelFor(k: keyof Product): string {
     type: "Type",
     // Explicitly disclosed as claimed by the manufacturer, not independently audited.
     country: "Country of manufacture (claimed)",
+    usaClaim: "USA origin claim",
     capacity: "Capacity",
     max_od: "Max OD",
     maxWall: "Max Wall",
@@ -529,31 +531,22 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                   {specs.map(([k, v]) => {
                     let valueStr = String(v);
 
-                    // Never surface the weak "Assembled in USA" phrasing; present the
-                    // qualified USA claim as "Made in USA (qualified claim)".
-                    if (
-                      k === "country" &&
-                      valueStr.toLowerCase().includes("assembled in usa")
-                    ) {
-                      valueStr = "Made in USA (qualified claim)";
+                    // Show origin in plain shop language — no FTC jargon, no
+                    // "assembled in USA" hedging, no editorializing about the maker.
+                    let showOriginNote = false;
+                    if (k === "usaClaim") {
+                      const s = valueStr.toLowerCase();
+                      if (
+                        s.includes("no usa") ||
+                        s.includes("imported") ||
+                        s.startsWith("0")
+                      ) {
+                        valueStr = "Imported / no USA claim";
+                      } else if (s.includes("usa") || s.includes("united states")) {
+                        valueStr = "Made in USA";
+                        showOriginNote = true;
+                      }
                     }
-
-                    // Expand "FTC-unqualified" with an inline explanation so users
-                    // understand what "unqualified" means without needing a separate note.
-                    if (
-                      k === "country" &&
-                      valueStr.toLowerCase().includes("ftc-unqualified")
-                    ) {
-                      valueStr = valueStr.replace(
-                        /FTC-unqualified/gi,
-                        "FTC-unqualified (unqualified means not-claiming exceptions or pretending to be something it's not)",
-                      );
-                    }
-
-                    // Show a short, conservative explanation for FTC "unqualified" Made in USA claims.
-                    const showFtcNote =
-                      k === "country" &&
-                      valueStr.toLowerCase().includes("ftc-unqualified");
 
                     return (
                       <div
@@ -569,15 +562,10 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                           </dd>
                         </div>
 
-                        {showFtcNote && (
+                        {showOriginNote && (
                           <p className="text-[0.7rem] text-muted-foreground">
-                            Here, &ldquo;unqualified&rdquo; means the manufacturer is
-                            claiming <span className="italic">Made in USA</span> without
-                            fine-print qualifiers. Whether critical parts are outsourced
-                            to other U.S. makers or not, buying a complete system from
-                            multiple sources adds hassle and can complicate warranty
-                            coverage across manufacturers. We repeat their claim; we do
-                            not independently certify country of origin.
+                            Manufacturer&rsquo;s own claim. We report it as published; we
+                            don&rsquo;t independently verify country of origin.
                           </p>
                         )}
                       </div>
