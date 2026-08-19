@@ -4,8 +4,7 @@ import { getAllTubeBendersWithOverlay, findTubeBenderWithOverlay } from "../../.
 import { generateAutoProsCons } from "../../../lib/proCons";
 import { slugOf, titleOf, slugForProduct } from "../../../lib/ids";
 import { getProductScore, TOTAL_POINTS } from "../../../lib/scoring";
-import ScoreBreakdownToggle from "../../../components/ScoreBreakdownToggle";
-import ReviewAuditPanel from "../../../components/ReviewAuditPanel";
+import ScoringAndSources from "../../../components/ScoringAndSources";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -476,52 +475,10 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
               )}
 
               {Array.isArray(score?.breakdown) && score.breakdown.length > 0 && (
-                <details
-                  className="mb-3 text-xs md:text-sm"
-                  open={scoreDetailsOpen}
-                >
-                  <summary className="cursor-pointer select-none font-medium">
-                    Score breakdown
-                  </summary>
-                  <div className="mt-2 space-y-1.5">
-                    {score.breakdown.map((item, idx) => {
-                      const scoreColorClass = (points: number, maxPoints: number): string => {
-                        if (!maxPoints || points == null) return "bg-gray-200 text-gray-800 dark:text-gray-200";
-                        const ratio = points / maxPoints;
-
-                        if (ratio >= 0.8) return "bg-emerald-500 text-white";          // strong green
-                        if (ratio >= 0.6) return "bg-amber-400 text-gray-900 dark:text-gray-100";         // yellow
-                        if (ratio >= 0.4) return "bg-orange-400 text-white";           // orange
-                        return "bg-red-500 text-white";                                // red
-                      };
-
-                      return (
-                        <div key={`${item.criteria}-${idx}`} className="border-b last:border-b-0 pb-1.5 last:pb-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
-                                {item.criteria}
-                              </div>
-                              {item.reasoning && (
-                                <div className="mt-0.5 text-[0.7rem] text-gray-500 dark:text-gray-400">
-                                  {item.reasoning}
-                                </div>
-                              )}
-                            </div>
-                            <span
-                              className={[
-                                "inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold",
-                                scoreColorClass(item.points, item.maxPoints),
-                              ].join(" ")}
-                            >
-                              {item.points}/{item.maxPoints}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </details>
+                <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                  See the full breakdown below — every category, exactly how it&apos;s
+                  scored, how this machine did, and the sources behind the data.
+                </p>
               )}
 
               {specs.length === 0 ? (
@@ -588,21 +545,14 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
           </aside>
         </div>
       </section>
-      {/* 
-        Score math + citation log:
-        This sits near the bottom of the review page, close to whatever
-        "expand citations" / audit UI you already have (ReviewAuditPanel).
-        Users have to explicitly expand this to see the full per-category math.
+      {/*
+        The single consolidated per-model scoring view: for every category,
+        the score + how it's scored + how this machine did + the sources — all
+        in one place. Replaces the old duplicate breakdowns and separate
+        citation panel.
       */}
-      <div className="mx-auto mt-6 max-w-6xl px-6 pb-10 space-y-4">
-        <ScoreBreakdownToggle score={score} />
-
-        {/* Citations / audit panel.
-            NOTE: ReviewAuditPanel already contains its own <details> disclosure,
-            so we do NOT wrap it in another <details> (nested disclosures get confusing). */}
-        <div className="mt-6">
-          {product && <ReviewAuditPanel product={product as any} />}
-        </div>
+      <div className="mx-auto mt-6 max-w-6xl px-6 pb-10">
+        {product && <ScoringAndSources score={score} product={product as any} />}
       </div>
 
       {debugScore && score?.breakdown?.length ? (

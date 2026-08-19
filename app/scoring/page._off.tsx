@@ -596,6 +596,9 @@ export default async function ScoringPage() {
           <p className="mt-3 max-w-3xl text-sm sm:text-base text-gray-600">
             Exact, unambiguous rules for how scores are calculated. When data is not published by the manufacturer, we score that category as <span className="font-semibold">0</span> rather than guessing.
           </p>
+          <p className="mt-3 max-w-3xl text-sm sm:text-base text-gray-600">
+            And it&apos;s not just rules on this page: <span className="font-semibold text-gray-900">every model&apos;s review shows the exact calculation for each category — how it scored, and the source behind the data</span>. Open any review and expand &ldquo;How this score was earned.&rdquo;
+          </p>
         </div>
       </div>
 
