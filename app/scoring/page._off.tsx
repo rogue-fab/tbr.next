@@ -238,29 +238,29 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> the documented entry-level starter system price
-            derived from the lowest published prices for frame plus dies plus power plus stand. If component pricing
-            is missing, we fall back to any published catalog price we have for the machine. This is a price tier,
-            not a value guess; capability is scored in the other categories.
+            <span className="font-semibold">What we score:</span> how much real capability you get per dollar. We add
+            up the capability points a machine earns in the other categories (67 possible — ease of use, diameter,
+            bend angle, stress/materials, dies, upgrades, mandrel, S-bend, single-source, warranty), divide by its
+            complete-system price (frame + dies + power + stand), and score the result on a fixed scale. A cheaper
+            machine that still does a lot scores high; an expensive one that doesn&apos;t scores low.
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Exact point tiers (20 max)</div>
+            <div className="font-semibold text-gray-900 mb-1">Fixed scale — capability points per $1,000 (20 max)</div>
             <ul className="list-disc pl-5 space-y-1">
-              <li>≤ $1500 → 20</li>
-              <li>≤ $2000 → 18</li>
-              <li>≤ $3000 → 15</li>
-              <li>≤ $4500 → 12</li>
-              <li>≤ $6500 → 9</li>
-              <li>&gt; $6500 → 7</li>
+              <li>≥ 30 → 20</li>
+              <li>25–29 → 17</li>
+              <li>20–24 → 14</li>
+              <li>15–19 → 11</li>
+              <li>12–14 → 8</li>
+              <li>9–11 → 5</li>
+              <li>6–8 → 3</li>
+              <li>&lt; 6 → 1 · no documented price → 0</li>
             </ul>
+            <div className="mt-2 text-[11px] text-gray-600">
+              This scale is fixed and published — a machine&apos;s value score is reproducible by hand and never
+              changes just because we add or remove other machines from the set.
+            </div>
           </div>
-          {maxima.entryPriceMinMax ? (
-            <p className="text-[11px] text-gray-600">
-              <span className="font-semibold">Current dataset:</span> entryPrice ranges from{" "}
-              <span className="font-semibold">${maxima.entryPriceMinMax.value.toFixed(0)}</span>{" "}
-              (see note below for how computed).
-            </p>
-          ) : null}
         </div>
       );
     case "maxDiameterRadius": {

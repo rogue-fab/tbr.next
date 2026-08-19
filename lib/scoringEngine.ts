@@ -104,6 +104,25 @@ function parseTier(raw: unknown, max: number): number {
   return Math.max(0, Math.min(max, n));
 }
 
+/**
+ * Fixed "capability points per $1,000" → Value-for-Money points (0–20).
+ *
+ * This is a PUBLISHED, fixed scale — not dataset-relative — so a machine's value
+ * score is reproducible by hand and never shifts just because the set of
+ * reviewed machines changes. `perThousand` = capabilityPoints / (price / 1000).
+ */
+export function valuePointsForRatio(perThousand: number): number {
+  if (!Number.isFinite(perThousand) || perThousand <= 0) return 0;
+  if (perThousand >= 30) return 20;
+  if (perThousand >= 25) return 17;
+  if (perThousand >= 20) return 14;
+  if (perThousand >= 15) return 11;
+  if (perThousand >= 12) return 8;
+  if (perThousand >= 9) return 5;
+  if (perThousand >= 6) return 3;
+  return 1;
+}
+
 export interface ScoringCriteria {
   name: string;
   maxPoints: number;
@@ -1013,19 +1032,18 @@ export function calculateTubeBenderScore(
   });
   totalScore += warrantySupportTier;
 
-  // 1. Value for Money (AUTOSCALED, mechanics-only)
+  // 1. Value for Money (FIXED "capability per $1,000" scale)
   //
-  // Raw value = (capabilityPoints / entryPrice)
-  // capabilityPoints includes ONLY these categories:
-  // 2,3,4,5,6,8,9,10,13,14
-  // Excludes: Value itself, USA/origin transparency, years-in-business.
+  // capabilityPoints = sum of the 10 capability categories (67 possible):
+  //   Ease, Max Diameter, Bend Angle, Stress/Materials, Dies, Upgrade, Mandrel,
+  //   S-Bend, Single-Source, Warranty. Excludes Value itself, the USA claim,
+  //   Origin disclosure, and Years in business.
   //
-  // Autoscale uses dataset P10/P90 provided by ctx.valueP10/valueP90:
-  // - Clamp rawValue into [P10,P90]
-  // - Map to points: 1..20 (maxPoints)
-  // If entryPrice missing/invalid -> scores 0 (no guessing).
+  // ratio = capabilityPoints / (entryPrice / 1000) = capability points earned
+  // per $1,000 of complete-system price, mapped to 0-20 on a fixed, published
+  // scale (see valuePointsForRatio). Reproducible by hand and stable over time.
+  // Missing/invalid price -> 0 (no guessing).
   const maxValuePoints = 20;
-  const minValuePoints = 1;
 
   const findPts = (name: string): number => {
     const it = scoreBreakdown.find((x) => x.criteria === name);
@@ -1048,33 +1066,13 @@ export function calculateTubeBenderScore(
   if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
     valueScore = 0;
     valueReason =
-      "No documented starter-system pricing (entryPrice) available (frame + dies + power + stand). This category scores 0 rather than guessing.";
+      "No documented complete-system price (frame + dies + power + stand). Value cannot be computed, so this category scores 0 rather than guessing.";
   } else {
-    const rawValue = capabilityPoints / entryPrice;
-    const p10 = Number(ctx?.valueP10 ?? NaN);
-    const p90 = Number(ctx?.valueP90 ?? NaN);
-
-    if (Number.isFinite(p10) && Number.isFinite(p90) && p90 > p10) {
-      valueScore = lerpPointsClamped(rawValue, p10, p90, minValuePoints, maxValuePoints);
-      valueReason =
-        `Autoscaled mechanics-only value using rawValue=(capabilityPoints/entryPrice). ` +
-        `capabilityPoints=${capabilityPoints}, entryPrice=${entryPrice.toFixed(0)}, rawValue=${rawValue.toExponential(3)}. ` +
-        `Dataset band: P10=${p10.toExponential(3)}, P90=${p90.toExponential(3)}. ` +
-        `Values are clamped into [P10,P90] and mapped to ${minValuePoints}..${maxValuePoints}.`;
-    } else {
-      // Backward-compatible fallback: simple entryPrice tiers (still evidence-based).
-      if (entryPrice <= 1500) valueScore = 20;
-      else if (entryPrice <= 2000) valueScore = 18;
-      else if (entryPrice <= 3000) valueScore = 15;
-      else if (entryPrice <= 4500) valueScore = 12;
-      else if (entryPrice <= 6500) valueScore = 9;
-      else valueScore = 7;
-
-      valueReason =
-        `Autoscale band missing (ctx.valueP10/valueP90). Falling back to legacy entryPrice tiering using entryPrice=${entryPrice.toFixed(
-          0,
-        )}.`;
-    }
+    const perThousand = capabilityPoints / (entryPrice / 1000);
+    valueScore = valuePointsForRatio(perThousand);
+    valueReason =
+      `${capabilityPoints} of 67 capability points ÷ $${entryPrice.toFixed(0)} complete-system price ` +
+      `= ${perThousand.toFixed(1)} capability points per $1,000. On our fixed value scale that is ${valueScore}/${maxValuePoints}.`;
   }
 
   // Overwrite the placeholder Value breakdown item (index 0).
