@@ -5,6 +5,10 @@ import { generateAutoProsCons } from "../../../lib/proCons";
 import { slugOf, titleOf, slugForProduct } from "../../../lib/ids";
 import { getProductScore, TOTAL_POINTS } from "../../../lib/scoring";
 import ScoringAndSources from "../../../components/ScoringAndSources";
+import JsonLd from "../../../components/JsonLd";
+import { reviewJsonLd, breadcrumbJsonLd } from "../../../lib/jsonld";
+import { siteBase } from "../../../lib/site";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -121,6 +125,53 @@ type PageProps = {
   params: { slug: string };
   searchParams?: { [key: string]: string | string[] | undefined };
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const slug = params.slug;
+  const product = (await findTubeBenderWithOverlay(
+    (b) =>
+      slugOf(b.id) === slugOf(slug) ||
+      slugOf((b as any).slug ?? "") === slugOf(slug) ||
+      slugForProduct(b as any) === slug,
+  )) as Product | undefined;
+
+  if (!product) {
+    return { title: "Review not found | TubeBenderReviews" };
+  }
+
+  const title = titleOf(product as any);
+  const { total } = getProductScore(product as any);
+  const base = siteBase();
+  const url = `${base}/reviews/${slugForProduct(product as any)}`;
+  const scored = typeof total === "number" ? ` — ${total}/100` : "";
+  const scoredPhrase = typeof total === "number" ? `Scored ${total}/100. ` : "";
+  const description = `${scoredPhrase}${title} review: full spec breakdown, transparent 100-point scoring, and cited sources — capacity, tooling cost, mandrel, S-bend, and value for money.`;
+  const rawImg = imagePathForSlug((product as any).slug ?? (product as any).id);
+  const image = /^https?:\/\//i.test(rawImg) ? rawImg : `${base}${rawImg}`;
+
+  return {
+    title: `${title} Review${scored}`,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      title: `${title} Review${scored}`,
+      description,
+      url,
+      images: [image],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} Review${scored}`,
+      description,
+      images: [image],
+    },
+  };
+}
 
 export default async function ReviewPage({ params, searchParams }: PageProps) {
   // Read from the merged catalog so admin overlay edits are reflected.
@@ -289,6 +340,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
   return (
     <main className="container mx-auto px-4 py-6">
+      <JsonLd data={[reviewJsonLd(product, score?.total ?? null), breadcrumbJsonLd(product)]} />
       <h1 className="text-2xl font-semibold mb-3">{title}</h1>
       {/* Hero image - keep as-is */}
       <div className="rounded-lg overflow-hidden border mb-4">

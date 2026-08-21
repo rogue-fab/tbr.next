@@ -5,6 +5,8 @@ import { selectPublicModels } from "../../lib/completeness";
 import { getProductScore, TOTAL_POINTS } from "../../lib/scoring";
 import { slugForProduct, titleOf } from "../../lib/ids";
 import MadeInBadge from "../../components/MadeInBadge";
+import JsonLd from "../../components/JsonLd";
+import { itemListJsonLd } from "../../lib/jsonld";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -48,6 +50,7 @@ export default async function ReviewsIndexPage() {
 
   return (
     <main className="container mx-auto px-4 py-6">
+      <JsonLd data={itemListJsonLd(rows.map((r) => ({ slug: r.slug, name: r.title })))} />
       <h1 className="mb-2 text-2xl font-semibold">Tube Bender Reviews</h1>
       <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
         Every model listed here has a full objective score and pricing snapshot.

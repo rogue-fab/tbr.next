@@ -3,6 +3,8 @@ import Header from "../components/Header";
 import type { Metadata } from "next";
 import { ThemeProvider } from "../components/ThemeProvider";
 import TempBanner from "../components/TempBanner";
+import JsonLd from "../components/JsonLd";
+import { organizationJsonLd, websiteJsonLd } from "../lib/jsonld";
 import Link from "next/link";
 
 const SITE_URL =
@@ -25,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased dark:bg-gray-950 dark:text-gray-100">
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <ThemeProvider>
           <div className="min-h-screen flex flex-col">
             <TempBanner />
