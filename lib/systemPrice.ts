@@ -29,16 +29,31 @@ export type SystemPrice = {
   entry: number | undefined;
 };
 
+/**
+ * Nominal stand cost imputed when a machine REQUIRES a stand to operate safely
+ * but the manufacturer does not sell one. Pricing it at $0 would make an
+ * incomplete offering look cheaper than it can actually be owned; $200 is a
+ * conservative figure for a basic cart/stand a buyer must source or build.
+ */
+export const IMPUTED_STAND_COST = 200;
+
+/** True when the admin marked the stand as "required but not sold" (imputed). */
+export function isStandImputed(p: any): boolean {
+  return String(p?.standStatus ?? "").toLowerCase().includes("imputed");
+}
+
 export function computeSystemPrice(p: any): SystemPrice {
+  const standImputed = isStandImputed(p);
+
   const frameMin = parseMoney(p?.framePriceMin);
   const dieMin = parseMoney(p?.diePriceMin);
   const hydraulicMin = parseMoney(p?.hydraulicPriceMin);
-  const standMin = parseMoney(p?.standPriceMin);
+  const standMin = standImputed ? IMPUTED_STAND_COST : parseMoney(p?.standPriceMin);
 
   const frameMax = parseMoney(p?.framePriceMax);
   const dieMax = parseMoney(p?.diePriceMax);
   const hydraulicMax = parseMoney(p?.hydraulicPriceMax);
-  const standMax = parseMoney(p?.standPriceMax);
+  const standMax = standImputed ? IMPUTED_STAND_COST : parseMoney(p?.standPriceMax);
 
   const hasMin =
     frameMin !== null || dieMin !== null || hydraulicMin !== null || standMin !== null;

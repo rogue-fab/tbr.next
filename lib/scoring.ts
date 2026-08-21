@@ -400,6 +400,9 @@ export function getProductScore(
     discloseMotor: p.discloseMotor ?? undefined,
     discloseControls: p.discloseControls ?? undefined,
     singleSourceSystemTier: p.singleSourceSystemTier ?? 0,
+    // Stand requirement: feeds the Single-Source coupling (a required-but-unsold
+    // stand means you can't buy a complete system from one source).
+    standStatus: p.standStatus ?? undefined,
     warrantyTier: p.warrantyTier ?? 0,
     portability: p.portability ?? undefined,
     wallThicknessCapacity:

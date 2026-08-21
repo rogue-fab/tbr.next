@@ -951,6 +951,17 @@ export default function ProductsTab() {
         "Highest price normal catalog stand / cart that is still representative for a typical buyer (no boutique or specialty stands).",
     },
     {
+      key: "standStatus",
+      label: "Stand requirement",
+      description:
+        "How a stand factors into the system price. 'Not needed' = the machine operates safely on a bench without a stand ($0). 'Sold by maker' = use the stand prices above. 'Required but not sold' = the machine needs a stand for safe use but the maker doesn't sell one, so we impute a nominal $200 (a basic cart you'd buy/build) instead of $0 — and it also zeroes Single-Source, since you can't get a complete system from one place.",
+      options: [
+        "Not needed (bench-stable, $0)",
+        "Sold by manufacturer (use stand price above)",
+        "Required but not sold — imputed $200",
+      ],
+    },
+    {
       key: "clrRange",
       label: "CLR range (display only)",
       description:

@@ -261,6 +261,15 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
               changes just because we add or remove other machines from the set.
             </div>
           </div>
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+            <span className="font-semibold">On the stand/base:</span> if a machine is stable and safe to use on a
+            bench with no stand, we count the stand as $0. But if a machine <span className="font-semibold">requires</span>{" "}
+            a stand for safe use and the manufacturer <span className="font-semibold">doesn&apos;t sell one</span>, we add a
+            nominal <span className="font-semibold">$200</span> to its system price (a basic cart you&apos;d have to buy or
+            build). Pricing a mandatory-but-missing part at $0 would reward an incomplete offering by making it look
+            cheaper than it can actually be owned. A machine in that situation also scores 0 on Single-Source, since you
+            can&apos;t buy a complete working system from one place.
+          </div>
         </div>
       );
     case "maxDiameterRadius": {

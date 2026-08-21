@@ -987,7 +987,13 @@ export function calculateTubeBenderScore(
     (bender as any).singleSourceSystemTier,
     2,
   );
-  const singleSourceScore = singleSourceTier === 2 ? 2 : 0;
+  // A machine that REQUIRES a stand the maker doesn't sell cannot be single-source
+  // (you must go elsewhere for a mandatory part), so force it to 0 regardless.
+  const standRequiredUnavailable = String((bender as any).standStatus ?? "")
+    .toLowerCase()
+    .includes("imputed");
+  const singleSourceScore =
+    !standRequiredUnavailable && singleSourceTier === 2 ? 2 : 0;
 
   scoreBreakdown.push({
     criteria: "Single-Source System",
@@ -996,6 +1002,8 @@ export function calculateTubeBenderScore(
     reasoning:
       singleSourceScore === 2
         ? "Complete, fully functional system (frame + dies + hydraulics/lever) available from one primary manufacturer/storefront."
+        : standRequiredUnavailable
+        ? "This machine requires a stand for safe operation but the manufacturer does not sell one, so a complete system cannot be bought from one source. Scores 0."
         : "No published/entered proof of a complete single-source system for this frame; this category scores 0 rather than guessing.",
   });
   totalScore += singleSourceScore;
@@ -1075,10 +1083,16 @@ export function calculateTubeBenderScore(
   } else {
     const perThousand = capabilityPoints / (entryPrice / 1000);
     valueScore = valuePointsForRatio(perThousand);
+    const standNote = String((bender as any).standStatus ?? "")
+      .toLowerCase()
+      .includes("imputed")
+      ? " Price includes a $200 imputed stand (required for safe use but not sold by the maker; pricing it at $0 would reward an incomplete offering)."
+      : "";
     valueReason =
       `Capability points = ${capBreakdown} = ${capabilityPoints} of 67. ` +
       `${capabilityPoints} ÷ $${entryPrice.toFixed(0)} complete-system price = ` +
-      `${perThousand.toFixed(1)} capability points per $1,000 → ${valueScore}/${maxValuePoints} on our fixed value scale.`;
+      `${perThousand.toFixed(1)} capability points per $1,000 → ${valueScore}/${maxValuePoints} on our fixed value scale.` +
+      standNote;
   }
 
   // Overwrite the placeholder Value breakdown item (index 0).
