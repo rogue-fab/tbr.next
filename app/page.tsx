@@ -7,6 +7,27 @@ import { computeSystemPrice } from "../lib/systemPrice";
 import { selectPublicModels } from "../lib/completeness";
 import { titleOf, slugForProduct } from "../lib/ids";
 import LandingCompareSection, { type LandingCompareRow } from "../components/LandingCompareSection";
+import JsonLd from "../components/JsonLd";
+import { faqJsonLd } from "../lib/jsonld";
+
+const HOME_FAQ = [
+  {
+    q: "How are tube benders scored on TubeBenderReviews?",
+    a: "Every machine is rated on a transparent 100-point system across 14 categories — value, diameter, bend angle, stress/materials, dies, mandrel, S-bend, upgrades, warranty, the USA-manufacturing claim, origin disclosure, and more. Each category uses fixed, published rules, so any score can be reproduced by hand, and every number links to the manufacturer document it came from.",
+  },
+  {
+    q: "How is value for money calculated?",
+    a: "We add up the capability points a machine earns (out of 67 possible), divide by its complete-system price (frame, dies, power, and stand), and score capability-per-$1,000 on a fixed, published scale. A cheaper machine that still does a lot scores high; an expensive one that doesn't scores low.",
+  },
+  {
+    q: "What happens when a manufacturer doesn't publish a spec?",
+    a: "That category scores 0. We never guess, infer, or assume undocumented specs — if it isn't published or documented for that machine, it doesn't earn points.",
+  },
+  {
+    q: "Can I see the exact math and sources behind a score?",
+    a: "Yes. Open any review and expand “How this score was earned” to see every category's points, exactly how it was scored, how that machine did, and the cited source for the underlying data.",
+  },
+];
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -206,6 +227,24 @@ export default async function Page() {
               Browse the reviews
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ — visible + FAQPage schema (extractable by AI answer engines) */}
+      <section className="mx-auto max-w-3xl px-6 pb-20">
+        <JsonLd data={faqJsonLd(HOME_FAQ)} />
+        <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Frequently asked questions
+        </h2>
+        <div className="divide-y divide-gray-200 dark:divide-gray-800 rounded-xl border border-gray-200 dark:border-gray-800">
+          {HOME_FAQ.map((item) => (
+            <details key={item.q} className="group px-4 py-3">
+              <summary className="cursor-pointer select-none text-sm font-medium text-gray-900 dark:text-gray-100">
+                {item.q}
+              </summary>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{item.a}</p>
+            </details>
+          ))}
         </div>
       </section>
     </main>

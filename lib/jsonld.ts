@@ -92,6 +92,19 @@ export function breadcrumbJsonLd(product: any) {
   };
 }
 
+/** FAQ schema — extractable Q&A for AI answer engines + potential rich results. */
+export function faqJsonLd(items: Array<{ q: string; a: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((it) => ({
+      "@type": "Question",
+      name: it.q,
+      acceptedAnswer: { "@type": "Answer", text: it.a },
+    })),
+  };
+}
+
 /** Ranked list of reviews (for the /reviews index). */
 export function itemListJsonLd(items: Array<{ slug: string; name: string }>) {
   const base = siteBase();
