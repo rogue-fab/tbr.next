@@ -457,7 +457,7 @@ export function calculateTubeBenderScore(
 
     let pts = 0;
     const a = angle ?? 0;
-    if (a >= 195) pts = 9;
+    if (a >= 190) pts = 9;
     else if (a >= 180) pts = 7;
     else if (a >= 120) pts = 4;
     else if (a > 0) pts = 2;
@@ -470,7 +470,7 @@ export function calculateTubeBenderScore(
       maxPoints,
       reasoning:
         angle != null
-          ? `Fixed angle tiers. Angle=${angle} deg.`
+          ? `Fixed angle tiers (≥190°=9, ≥180°=7, ≥120°=4, >0°=2). Angle=${angle}° → ${pts}/9.`
           : "No published/entered max bend angle value; this category scores 0 rather than guessing.",
     });
   }
@@ -1050,17 +1050,22 @@ export function calculateTubeBenderScore(
     return it ? it.points : 0;
   };
 
-  const capabilityPoints =
-    findPts("Ease of Use & Setup") +
-    findPts("Max Diameter & CLR Capability") +
-    findPts("Bend Angle Capability") +
-    findPts("Stress Capacity & Materials") +
-    findPts("Die Selection & Shapes") +
-    findPts("Upgrade Path & Modularity") +
-    findPts("Mandrel Compatibility") +
-    findPts("S-Bend Capability") +
-    findPts("Single-Source System") +
-    findPts("Warranty (Published Terms Only)");
+  // Itemize the 10 capability categories so the reader can see how the
+  // capability total was built (short label + points earned).
+  const capParts: Array<[string, number]> = [
+    ["Ease of Use", findPts("Ease of Use & Setup")],
+    ["Max Diameter", findPts("Max Diameter & CLR Capability")],
+    ["Bend Angle", findPts("Bend Angle Capability")],
+    ["Stress/Materials", findPts("Stress Capacity & Materials")],
+    ["Dies", findPts("Die Selection & Shapes")],
+    ["Upgrades", findPts("Upgrade Path & Modularity")],
+    ["Mandrel", findPts("Mandrel Compatibility")],
+    ["S-Bend", findPts("S-Bend Capability")],
+    ["Single-Source", findPts("Single-Source System")],
+    ["Warranty", findPts("Warranty (Published Terms Only)")],
+  ];
+  const capabilityPoints = capParts.reduce((s, [, p]) => s + p, 0);
+  const capBreakdown = capParts.map(([n, p]) => `${n} ${p}`).join(" + ");
 
   let valueReason: string;
   if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
@@ -1071,8 +1076,9 @@ export function calculateTubeBenderScore(
     const perThousand = capabilityPoints / (entryPrice / 1000);
     valueScore = valuePointsForRatio(perThousand);
     valueReason =
-      `${capabilityPoints} of 67 capability points ÷ $${entryPrice.toFixed(0)} complete-system price ` +
-      `= ${perThousand.toFixed(1)} capability points per $1,000. On our fixed value scale that is ${valueScore}/${maxValuePoints}.`;
+      `Capability points = ${capBreakdown} = ${capabilityPoints} of 67. ` +
+      `${capabilityPoints} ÷ $${entryPrice.toFixed(0)} complete-system price = ` +
+      `${perThousand.toFixed(1)} capability points per $1,000 → ${valueScore}/${maxValuePoints} on our fixed value scale.`;
   }
 
   // Overwrite the placeholder Value breakdown item (index 0).

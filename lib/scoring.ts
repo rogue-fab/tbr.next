@@ -384,7 +384,9 @@ export function getProductScore(
       p.maxBendAngle != null && String(p.maxBendAngle).trim() !== ""
         ? Number(toNumberOrNull(p.maxBendAngle))
         : undefined,
-    dieShapes: Array.isArray(p.dieShapes) ? p.dieShapes : [],
+    // Admin stores dieShapes as a comma-separated STRING; normalize to an array
+    // (was `Array.isArray(...) ? ... : []`, which silently zeroed string data).
+    dieShapes: normalizeStringList(p.dieShapes) ?? [],
     yearsInBusiness:
       p.yearsInBusiness != null && String(p.yearsInBusiness).trim() !== ""
         ? Number(toNumberOrNull(p.yearsInBusiness))

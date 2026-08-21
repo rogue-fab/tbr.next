@@ -991,7 +991,6 @@ export default function ProductsTab() {
                 "Round tube (OD)",
                 "Pipe sizes (NPS)",
                 "Square tube",
-                "Rectangular tube",
                 "EMT",
                 "Metric round",
                 "Metric square / rectangular",
@@ -1948,12 +1947,24 @@ function EditableField({
       return (
         <select
           value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
+          // Save on change with the fresh value directly. Relying on onBlur +
+          // a placeholder-less select meant that picking the first option when
+          // the field was empty fired no change event, so it reverted to "-".
+          onChange={(e) => {
+            const v = e.target.value;
+            setEditValue(v);
+            onSave(v);
+            setIsEditing(false);
+          }}
           onBlur={handleSave}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           autoFocus
           className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
         >
+          {/* Placeholder so an empty field has a matching option — otherwise the
+              browser shows option[0] while the value is "", and selecting that
+              option produces no change event. */}
+          {!options.includes("") && <option value="">— select —</option>}
           {options.map(option => (
             <option key={option} value={option}>{option}</option>
           ))}
@@ -2004,7 +2015,6 @@ function DieShapesMultiSelect({
     "Round tube",
     "Pipe",
     "Square tube",
-    "Rectangular tube",
     "EMT",
     "Metric round / square",
     "Plastic / urethane pressure dies",

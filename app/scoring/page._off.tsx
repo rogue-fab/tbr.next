@@ -153,8 +153,8 @@ function ExactRules({ catKey }: { catKey: string }) {
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900">Exact point tiers (9 max)</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li>≥ 195° → 9</li>
-              <li>180–194° → 7</li>
+              <li>≥ 190° → 9</li>
+              <li>180–189° → 7</li>
               <li>120–179° → 4</li>
               <li>&lt; 120° → 2</li>
               <li>missing/unknown → 0</li>
@@ -298,8 +298,8 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900">Exact point tiers (9 max)</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li>≥ 195° → 9</li>
-              <li>180–194° → 7</li>
+              <li>≥ 190° → 9</li>
+              <li>180–189° → 7</li>
               <li>120–179° → 4</li>
               <li>&lt; 120° → 2</li>
               <li>missing/unknown → 0</li>
