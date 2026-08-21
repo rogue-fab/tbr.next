@@ -317,6 +317,24 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     minSystemTotal !== null || maxSystemTotal !== null;
   // ---------------------------------------------------------------------------
 
+  // Factual "quick take" for the top of the review — extractable by AI engines.
+  const priceStr =
+    minSystemTotal != null && minSystemTotal > 0
+      ? maxSystemTotal != null && maxSystemTotal !== minSystemTotal
+        ? `$${minSystemTotal.toFixed(0)}–$${maxSystemTotal.toFixed(0)}`
+        : `$${minSystemTotal.toFixed(0)}+`
+      : null;
+  const scoredCats = (score?.breakdown ?? []).filter(
+    (b: any) => b?.maxPoints > 0 && b?.key && b.key !== "debugInput",
+  );
+  const topCat = scoredCats
+    .slice()
+    .sort(
+      (a: any, b: any) =>
+        b.points / b.maxPoints - a.points / a.maxPoints ||
+        b.maxPoints - a.maxPoints,
+    )[0];
+
   const specs = SAFE_FIELDS
     .map((k) => {
       let value = product[k];
@@ -342,7 +360,28 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
   return (
     <main className="container mx-auto px-4 py-6">
       <JsonLd data={[reviewJsonLd(product, score?.total ?? null), breadcrumbJsonLd(product)]} />
+      <nav aria-label="Breadcrumb" className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <ol className="flex flex-wrap items-center gap-1.5">
+          <li><Link href="/" className="hover:underline">Home</Link></li>
+          <li aria-hidden="true">›</li>
+          <li><Link href="/reviews" className="hover:underline">Reviews</Link></li>
+          <li aria-hidden="true">›</li>
+          <li className="font-medium text-gray-700 dark:text-gray-300" aria-current="page">
+            {title}
+          </li>
+        </ol>
+      </nav>
       <h1 className="text-2xl font-semibold mb-3">{title}</h1>
+      {score?.total != null && (
+        <p className="mb-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+          <span className="font-semibold text-gray-900 dark:text-gray-100">Quick take:</span>{" "}
+          The {title} scores{" "}
+          <span className="font-semibold">{score.total}/100</span> on our published,
+          source-cited 100-point system
+          {priceStr ? `, at a complete-system price of ${priceStr}` : ""}
+          {topCat ? `. Strongest category: ${topCat.criteria} (${topCat.points}/${topCat.maxPoints})` : ""}.
+        </p>
+      )}
       {/* Hero image - keep as-is */}
       <div className="rounded-lg overflow-hidden border mb-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -177,6 +177,37 @@ export default async function Page() {
           previewMode={!thresholdMet}
         />
       </section>
+
+      {/* Transparency band — the differentiator, front and center */}
+      <section className="mx-auto max-w-6xl px-6 pb-16">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 p-8 text-center shadow-sm sm:p-10">
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+            Every score. Every source. In the open.
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            No opinions dressed up as data. Every one of our 100 points is computed from
+            published specs on a fixed, reproducible scale — and every number links to the
+            manufacturer document it came from. Open any review and expand
+            <span className="font-medium text-gray-800 dark:text-gray-200">
+              {" "}“How this score was earned.”
+            </span>
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/scoring"
+              className="inline-flex items-center justify-center rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+            >
+              See the scoring methodology
+            </Link>
+            <Link
+              href="/reviews"
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 px-5 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+            >
+              Browse the reviews
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
