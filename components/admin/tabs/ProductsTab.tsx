@@ -741,9 +741,9 @@ export default function ProductsTab() {
     },
     {
       key: "hasAngleStop",
-      label: "* Angle stop available (mechanical or equivalent) (Yes/No)",
+      label: "* Mechanical bend-angle stop (Yes/No)",
       description:
-        "1 pt if the manufacturer documents a bend-angle stop (mechanical or equivalent). Auto-stop (electronic) is already tracked elsewhere; this is for simple stops too.",
+        "A physical hard stop that halts the BEND at a preset angle so you get the same angle every time without eyeballing a gauge — e.g. an adjustable stop/pin/set-screw on the degree ring, handle, or ram travel that the lever/ram bottoms out against. It's about repeatable bending, not tube rotation. NOT the electronic auto-stop (that's scored under Upgrade Path) and NOT a passive angle scale (that's the 'angle reference' row above). Yes only if the maker documents a mechanical stop. Machines that rely on a digital/auto stop instead will score 0 here — and pick it up in Upgrade Path.",
       options: ["", "Yes", "No"],
     },
     {
@@ -1854,10 +1854,10 @@ function EditableField({
   value, 
   onSave, 
   options,
-}: { 
-  value: string; 
-  onSave: (value: string) => void; 
-  options?: string[]; 
+}: {
+  value: string;
+  onSave: (value: string) => void;
+  options?: string[];
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -1874,38 +1874,31 @@ function EditableField({
     setIsEditing(false);
   };
 
+  // Dropdowns render as a PERSISTENT <select> (no click-to-edit toggle). The old
+  // toggle meant the first click only entered edit mode, and picking the option
+  // already displayed fired no change event, so the first selection "didn't
+  // stick". A persistent select commits every change immediately. (Hooks above
+  // run unconditionally, so this early return is rules-of-hooks safe.)
+  if (options) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onSave(e.target.value)}
+        className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
+      >
+        {!options.includes("") && <option value="">— select —</option>}
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
   // Cancel isn't wired; keep it simple and avoid extra state churn.
 
   if (isEditing) {
-    if (options) {
-      return (
-        <select
-          value={editValue}
-          // Save on change with the fresh value directly. Relying on onBlur +
-          // a placeholder-less select meant that picking the first option when
-          // the field was empty fired no change event, so it reverted to "-".
-          onChange={(e) => {
-            const v = e.target.value;
-            setEditValue(v);
-            onSave(v);
-            setIsEditing(false);
-          }}
-          onBlur={handleSave}
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          autoFocus
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400"
-        >
-          {/* Placeholder so an empty field has a matching option — otherwise the
-              browser shows option[0] while the value is "", and selecting that
-              option produces no change event. */}
-          {!options.includes("") && <option value="">— select —</option>}
-          {options.map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-      );
-    }
-
     return (
       <input
         type="text"

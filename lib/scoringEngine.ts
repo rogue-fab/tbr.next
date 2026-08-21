@@ -411,7 +411,7 @@ export function calculateTubeBenderScore(
   });
   totalScore += easePoints;
 
-  // 3. Max Diameter & CLR Capability (10 pts)
+  // 3. Max Diameter Capability (10 pts)
   // Fixed tiers only (FTC-safe, human reproducible). CLR is display-only (not scored).
   {
     const maxPoints = 10;
@@ -435,7 +435,7 @@ export function calculateTubeBenderScore(
 
     totalScore += pts;
     scoreBreakdown.push({
-      criteria: "Max Diameter & CLR Capability",
+      criteria: "Max Diameter Capability",
       points: pts,
       maxPoints,
       reasoning:
@@ -1054,7 +1054,7 @@ export function calculateTubeBenderScore(
   // capability total was built (short label + points earned).
   const capParts: Array<[string, number]> = [
     ["Ease of Use", findPts("Ease of Use & Setup")],
-    ["Max Diameter", findPts("Max Diameter & CLR Capability")],
+    ["Max Diameter", findPts("Max Diameter Capability")],
     ["Bend Angle", findPts("Bend Angle Capability")],
     ["Stress/Materials", findPts("Stress Capacity & Materials")],
     ["Dies", findPts("Die Selection & Shapes")],

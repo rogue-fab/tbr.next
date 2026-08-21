@@ -24,7 +24,7 @@ import valueSnapshot from "./autoscale/value_snapshot.json";
 const ENGINE_CRITERIA_TO_KEY: Record<string, string> = {
   "Value for Money": "valueForMoney",
   "Ease of Use & Setup": "easeOfUseSetup",
-  "Max Diameter & CLR Capability": "maxDiameterRadius",
+  "Max Diameter Capability": "maxDiameterRadius",
   "Bend Angle Capability": "bendAngleCapability",
   "Stress Capacity & Materials": "wallThicknessCapability",
   "Die Selection & Shapes": "dieSelectionShapes",
@@ -210,7 +210,7 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
   {
     index: 3,
     key: "maxDiameterRadius",
-    name: "Max Diameter & CLR Capability",
+    name: "Max Diameter Capability",
     maxPoints: 10,
     method: "scaled",
     tagline:
