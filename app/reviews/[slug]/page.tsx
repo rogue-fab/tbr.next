@@ -8,6 +8,7 @@ import ScoringAndSources from "../../../components/ScoringAndSources";
 import JsonLd from "../../../components/JsonLd";
 import { reviewJsonLd, breadcrumbJsonLd } from "../../../lib/jsonld";
 import { siteBase } from "../../../lib/site";
+import { classifyOrigin, formatOriginLabel } from "../../../lib/originDisplay";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -540,21 +541,15 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                   {specs.map(([k, v]) => {
                     let valueStr = String(v);
 
-                    // Show origin in plain shop language — no FTC jargon, no
-                    // "assembled in USA" hedging, no editorializing about the maker.
-                    let showOriginNote = false;
+                    // Origin: drive off the claim TIER (defensible), never assert
+                    // "Imported" — we can't verify manufacture, only what's published.
+                    let originNote = "";
                     if (k === "usaClaim") {
-                      const s = valueStr.toLowerCase();
-                      if (
-                        s.includes("no usa") ||
-                        s.includes("imported") ||
-                        s.startsWith("0")
-                      ) {
-                        valueStr = "Imported / no USA claim";
-                      } else if (s.includes("usa") || s.includes("united states")) {
-                        valueStr = "Made in USA";
-                        showOriginNote = true;
-                      }
+                      const o = classifyOrigin(valueStr);
+                      valueStr = formatOriginLabel(valueStr);
+                      originNote = o.usa
+                        ? "Manufacturer's own claim. We report it as published; we don't independently verify country of origin."
+                        : "This manufacturer does not publish where the machine is made, so we make no origin claim — treat it as imported or unknown.";
                     }
 
                     return (
@@ -571,10 +566,9 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                           </dd>
                         </div>
 
-                        {showOriginNote && (
+                        {originNote && (
                           <p className="text-[0.7rem] text-muted-foreground">
-                            Manufacturer&rsquo;s own claim. We report it as published; we
-                            don&rsquo;t independently verify country of origin.
+                            {originNote}
                           </p>
                         )}
                       </div>

@@ -20,26 +20,44 @@ export type OriginDisplay = {
   usa: boolean;
 };
 
-export function classifyOrigin(country?: string | null): OriginDisplay {
-  const s = (country ?? "").toLowerCase().trim();
-  if (!s) return { primary: "—", usa: false };
+export function classifyOrigin(value?: string | null): OriginDisplay {
+  const s = (value ?? "").toLowerCase().trim();
+  if (!s) return { primary: "Origin not disclosed", usa: false };
 
-  const nonUsa =
-    s.includes("non-usa") ||
-    s.includes("no usa") ||
-    s.includes("imported") ||
-    s.includes("international");
-  const usa = !nonUsa && (s.includes("usa") || s.includes("united states"));
+  // Preferred path: the usaClaim tier prefix ("0 – …", "1 – …", "2 – …").
+  // Drive the label off the tier NUMBER, not keyword-matching the descriptive
+  // text (the tier-1 option text contains the word "imported", which used to
+  // mis-flag qualified USA machines as Imported).
+  const tier = s.match(/^\s*([0-2])\b/);
+  if (tier) {
+    const t = Number(tier[1]);
+    if (t >= 2) return { primary: "Made in USA", usa: true };
+    if (t === 1) return { primary: "Made in USA", qualifier: "qualified claim", usa: true };
+    return { primary: "Origin not disclosed", usa: false };
+  }
 
-  if (usa) {
-    let qualifier: string | undefined;
-    // NOTE: "unqualified" contains "qualified", so test it first.
-    if (s.includes("unqualified")) qualifier = "FTC-unqualified";
-    else if (s.includes("qualified") || s.includes("assembled")) qualifier = "qualified claim";
+  // Legacy `country` bucket text. We NEVER assert "Imported" — we can't verify
+  // where a machine is made, only what the maker publishes. Non-USA / silent =>
+  // "Origin not disclosed" (a true, defensible statement about the claim, not
+  // an accusation about manufacture).
+  const explicitNonUsa = s.includes("non-usa") || s.includes("no usa");
+  const claimsUsa =
+    !explicitNonUsa &&
+    (s.includes("made in usa") ||
+      s.includes("assembled in usa") ||
+      s.includes("usa claim") ||
+      s.includes("united states"));
+  if (claimsUsa) {
+    const qualifier =
+      s.includes("unqualified")
+        ? undefined
+        : s.includes("qualified") || s.includes("assembled")
+        ? "qualified claim"
+        : undefined;
     return { primary: "Made in USA", qualifier, usa: true };
   }
 
-  return { primary: "Imported", usa: false };
+  return { primary: "Origin not disclosed", usa: false };
 }
 
 /** Single-line label (e.g. for the detail spec table) — never contains "Assembled in USA". */
