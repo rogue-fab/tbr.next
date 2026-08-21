@@ -797,6 +797,12 @@ export default function ProductsTab() {
         "Check every tube/pipe family this machine has a real, supported die line for. Use 'Other' only when a major shape type isn't covered by the options.",
     },
     {
+      key: "materials",
+      label: "* Materials compatibility (select all that apply)",
+      description:
+        "Check every material this machine is documented to bend. Feeds the Stress Capacity & Materials score (count of documented materials) and shows as tags on the review page.",
+    },
+    {
       key: "mandrel",
       label: "* Mandrel option",
       description:
@@ -987,64 +993,10 @@ export default function ProductsTab() {
     parseMoney(selectedProduct.hydraulicPriceMax) +
     parseMoney(selectedProduct.standPriceMax);
 
-              const DIE_SHAPE_OPTIONS = [
-                "Round tube (OD)",
-                "Pipe sizes (NPS)",
-                "Square tube",
-                "EMT",
-                "Metric round",
-                "Metric square / rectangular",
-                "Plastic / urethane pressure dies",
-                "Other",
-              ] as const;
-
-              const MATERIAL_OPTIONS = [
-                "Mild steel",
-                "Stainless steel",
-                "4130 chromoly",
-                "Aluminum",
-                "Titanium",
-                "Copper",
-                "Brass",
-              ] as const;
-
-  const dieShapesRaw = selectedProduct.dieShapes ?? "";
-  const selectedDieShapes = new Set(
-    String(dieShapesRaw)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
-  );
-
-  const materialsRaw = selectedProduct.materials ?? "";
-              const selectedMaterials = new Set(
-                String(materialsRaw)
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              );
-
-              const toggleMaterial = (label: string) => {
-                const next = new Set(selectedMaterials);
-                if (next.has(label)) {
-                  next.delete(label);
-                } else {
-                  next.add(label);
-                }
-                const serialized = Array.from(next).join(", ");
-    updateProduct(selectedProduct.id, "materials", serialized);
-  };
-
-  const toggleDieShape = (label: string) => {
-    const next = new Set(selectedDieShapes);
-    if (next.has(label)) {
-      next.delete(label);
-    } else {
-      next.add(label);
-    }
-    const serialized = Array.from(next).join(", ");
-    updateProduct(selectedProduct.id, "dieShapes", serialized);
-  };
+  // Die shapes and materials are both edited inline in the specs grid (with
+  // citations) via <DieShapesMultiSelect> / <MaterialsMultiSelect>. The old
+  // bottom "Materials compatibility" button group and the unused DIE_SHAPE_OPTIONS
+  // helpers were removed to keep a single, citation-backed place for each.
 
   // --- Auto Pros/Cons (generated) -------------------------------------------
   const splitLines = (raw?: string | null): string[] =>
@@ -1409,6 +1361,13 @@ export default function ProductsTab() {
                                     updateProduct(selectedProduct.id, "dieShapes", val)
                                   }
                                 />
+                              ) : row.key === "materials" ? (
+                                <MaterialsMultiSelect
+                                  value={value}
+                                  onChange={(val) =>
+                                    updateProduct(selectedProduct.id, "materials", val)
+                                  }
+                                />
                               ) : notPublished ? (
                                 <div className="px-2 py-1 text-[0.72rem] italic text-gray-500">
                                   Not published by manufacturer
@@ -1750,34 +1709,9 @@ export default function ProductsTab() {
                         }
                       />
                     </div>
-                    <div>
-                      <div className="mb-1 font-semibold text-gray-800">
-                        Materials compatibility
-                      </div>
-                      <p className="mb-2 text-[0.7rem] text-gray-500">
-                  Check all materials this machine is suitable for. Displayed
-                  as read-only tags on the review page.
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {MATERIAL_OPTIONS.map((label) => {
-                          const active = selectedMaterials.has(label);
-                          return (
-                            <button
-                              key={label}
-                              type="button"
-                              onClick={() => toggleMaterial(label)}
-                              className={[
-                                "rounded-full border px-2.5 py-0.5 text-[0.7rem]",
-                                active
-                                  ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                                  : "border-gray-300 bg-gray-50 text-gray-700",
-                              ].join(" ")}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="text-[0.7rem] text-gray-400">
+                      Materials compatibility is now edited in the specs grid
+                      above (with citations), alongside die shapes.
                     </div>
                   </div>
 
@@ -2042,6 +1976,65 @@ function DieShapesMultiSelect({
   return (
     <div className="flex flex-wrap gap-1">
       {SHAPES.map((label) => {
+        const active = selected.has(label);
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => toggle(label)}
+            className={[
+              "rounded-full border px-2.5 py-0.5 text-[0.7rem]",
+              active
+                ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                : "border-gray-300 bg-gray-50 text-gray-700",
+            ].join(" ")}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MaterialsMultiSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  // Canonical labels; the Stress/Materials score counts these exact strings.
+  const MATERIALS = [
+    "Mild steel",
+    "Stainless steel",
+    "4130 chromoly",
+    "Aluminum",
+    "Titanium",
+    "Copper",
+    "Brass",
+  ] as const;
+
+  const selected = new Set(
+    String(value ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+
+  const toggle = (label: string) => {
+    const next = new Set(selected);
+    if (next.has(label)) {
+      next.delete(label);
+    } else {
+      next.add(label);
+    }
+    onChange(Array.from(next).join(", "));
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {MATERIALS.map((label) => {
         const active = selected.has(label);
         return (
           <button
