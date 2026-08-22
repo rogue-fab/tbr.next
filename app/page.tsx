@@ -1,6 +1,6 @@
 // Server component: deploy-safe landing page
 import Link from "next/link";
-import { Tag, ShieldCheck, TrendingUp } from "lucide-react";
+import { Tag, ShieldCheck, TrendingUp, Gauge, Layers, Eye } from "lucide-react";
 import { getAllTubeBendersWithOverlay } from "../lib/catalogOverlay";
 import { getProductScore } from "../lib/scoring";
 import { computeSystemPrice } from "../lib/systemPrice";
@@ -110,30 +110,36 @@ export default async function Page() {
 
           {/* Proof tiles */}
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left text-xs sm:text-sm">
-            <div className="rounded-lg bg-black/55 border-2 border-white/40 px-4 py-3 shadow-md">
-              <div className="font-semibold text-white">
-                11-Point Scoring Algorithm
+            {[
+              {
+                Icon: Gauge,
+                title: "100-Point Scoring System",
+                body: "14 categories weighted for real shop priorities — capacity, tooling cost, value, and more.",
+              },
+              {
+                Icon: Layers,
+                title: `${compareRows.length} ${compareRows.length === 1 ? "Model" : "Models"} Reviewed`,
+                body: "Popular fabrication benders scored on one common, published framework.",
+              },
+              {
+                Icon: Eye,
+                title: "100% Transparent",
+                body: "Every score shows its math and cites its source — check any call yourself.",
+              },
+            ].map(({ Icon, title, body }) => (
+              <div
+                key={title}
+                className="group rounded-xl border border-white/25 bg-white/10 px-4 py-3.5 shadow-lg backdrop-blur-sm transition-colors hover:border-orange-400/60 hover:bg-white/15"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="font-semibold text-white">{title}</div>
+                </div>
+                <div className="mt-1.5 text-white/70">{body}</div>
               </div>
-              <div className="mt-1 text-white/70">
-                Weighted for real shop priorities like capacity, tooling cost, and uptime.
-              </div>
-            </div>
-            <div className="rounded-lg bg-black/55 border-2 border-white/40 px-4 py-3 shadow-md">
-              <div className="font-semibold text-white">
-                {compareRows.length} {compareRows.length === 1 ? "Model" : "Models"} Reviewed
-              </div>
-              <div className="mt-1 text-white/70">
-                Popular fabrication benders compared on a common scoring framework.
-              </div>
-            </div>
-            <div className="rounded-lg bg-black/55 border-2 border-white/40 px-4 py-3 shadow-md">
-              <div className="font-semibold text-white">
-                100% Transparent Methodology
-              </div>
-              <div className="mt-1 text-white/70">
-                Clear criteria and scoring so you can sanity-check every recommendation.
-              </div>
-            </div>
+            ))}
           </div>
 
             {/* Trust line (above buttons) */}
