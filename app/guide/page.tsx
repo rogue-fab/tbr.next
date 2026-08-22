@@ -2,6 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { SmartTubeBenderFinder } from "../../components/guide/SmartTubeBenderFinder";
+import BuyersGuide from "../../components/guide/BuyersGuide";
 import { readIds } from "../../lib/compare";
 import { allTubeBenders } from "../../lib/catalog";
 import { slugOf } from "../../lib/ids";
@@ -56,7 +57,9 @@ export default function GuidePage() {
   return (
     <div>
       <SmartTubeBenderFinder />
-      
+
+      <BuyersGuide />
+
       {/* Compare CTA - only show when items are selected */}
       {canonicalIds.length > 0 && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
