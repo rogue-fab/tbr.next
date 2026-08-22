@@ -3,6 +3,7 @@ import Header from "../components/Header";
 import type { Metadata } from "next";
 import { ThemeProvider } from "../components/ThemeProvider";
 import TempBanner from "../components/TempBanner";
+import PageViewTracker from "../components/PageViewTracker";
 import JsonLd from "../components/JsonLd";
 import { organizationJsonLd, websiteJsonLd } from "../lib/jsonld";
 import Link from "next/link";
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased dark:bg-gray-950 dark:text-gray-100">
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
+        <PageViewTracker />
         <ThemeProvider>
           <div className="min-h-screen flex flex-col">
             <TempBanner />
