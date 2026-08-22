@@ -48,7 +48,7 @@ export const REQUIRED_SCORING_FIELDS: RequiredField[] = [
   { key: "hasManual", label: "Manual available", kind: "bool" },
   { key: "hasOnMachineInstructions", label: "On-machine instructions", kind: "bool" },
   { key: "hasAngleReference", label: "Built-in bend angle reference", kind: "bool" },
-  { key: "hasAngleStop", label: "Angle stop available", kind: "bool" },
+  { key: "hasSpringbackGuidance", label: "Springback/overbend guidance documented", kind: "bool" },
   { key: "rotationAid", label: "Rotation aid type", kind: "value" },
   { key: "quickDieChange", label: "Quick die change aid", kind: "bool" },
   { key: "hasMfrYoutubeModelContent", label: "Official YouTube model content", kind: "bool" },

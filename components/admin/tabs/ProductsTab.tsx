@@ -740,10 +740,10 @@ export default function ProductsTab() {
       options: ["", "Yes", "No"],
     },
     {
-      key: "hasAngleStop",
-      label: "* Mechanical bend-angle stop (Yes/No)",
+      key: "hasSpringbackGuidance",
+      label: "* Springback / overbend guidance documented (Yes/No)",
       description:
-        "A physical hard stop that halts the BEND at a preset angle so you get the same angle every time without eyeballing a gauge — e.g. an adjustable stop/pin/set-screw on the degree ring, handle, or ram travel that the lever/ram bottoms out against. It's about repeatable bending, not tube rotation. NOT the electronic auto-stop (that's scored under Upgrade Path) and NOT a passive angle scale (that's the 'angle reference' row above). Yes only if the maker documents a mechanical stop. Machines that rely on a digital/auto stop instead will score 0 here — and pick it up in Upgrade Path.",
+        "Does the manufacturer publish help for SPRINGBACK — the way a tube relaxes back a few degrees after you release the bend, so you must over-bend to hit your target angle? A maker who provides a springback chart, an overbend note, or degree-of-overbend guidance is saving the buyer trial-and-error scrap. Yes only if it's actually documented (spec sheet, manual, or site). If they say nothing about it, score 0 — don't infer.",
       options: ["", "Yes", "No"],
     },
     {

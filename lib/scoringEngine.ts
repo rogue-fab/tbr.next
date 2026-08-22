@@ -249,7 +249,7 @@ export interface ScoringInput {
   hasManual?: boolean;
   hasOnMachineInstructions?: boolean;
   hasAngleReference?: boolean;
-  hasAngleStop?: boolean;
+  hasSpringbackGuidance?: boolean;
   rotationAid?: "none" | "magnet_on_tube" | "clamp_on_analog" | "clamp_on_digital" | "chuck_or_indexer" | string;
   quickDieChange?: boolean;
   hasMfrYoutubeModelContent?: boolean;
@@ -314,7 +314,7 @@ function easeChecklistPoints(input: ScoringInput): number {
   if (input.hasManual) pts += 1;
   if (input.hasOnMachineInstructions) pts += 1;
   if (input.hasAngleReference) pts += 1;
-  if (input.hasAngleStop) pts += 1;
+  if (input.hasSpringbackGuidance) pts += 1;
 
   const ra = String(input.rotationAid ?? "").trim().toLowerCase();
   // 1 pt only for clamp-on (analog/digital) or chuck/indexer. Magnet-only or none = 0.
@@ -405,7 +405,7 @@ export function calculateTubeBenderScore(
     reasoning:
       `Portability: ${easePort}/3. Evidence checklist: ${easeChk}/7. ` +
       `Manual=${bender.hasManual ? "Yes" : "No"}, On-machine instructions=${bender.hasOnMachineInstructions ? "Yes" : "No"}, ` +
-      `Angle reference=${bender.hasAngleReference ? "Yes" : "No"}, Angle stop=${bender.hasAngleStop ? "Yes" : "No"}, ` +
+      `Angle reference=${bender.hasAngleReference ? "Yes" : "No"}, Springback guidance=${bender.hasSpringbackGuidance ? "Yes" : "No"}, ` +
       `Rotation aid=${String(bender.rotationAid ?? "none")}, Quick die change=${bender.quickDieChange ? "Yes" : "No"}, ` +
       `Mfr YouTube model content=${bender.hasMfrYoutubeModelContent ? "Yes" : "No"}.`,
   });

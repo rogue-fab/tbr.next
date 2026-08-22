@@ -96,7 +96,7 @@ function ExactRules({ catKey }: { catKey: string }) {
               <li>Manual available (downloadable or explicitly included)</li>
               <li>On-machine operation instructions/tips shown/promised</li>
               <li>Built-in bend angle reference (scale/reference; loose magnetic cube does not count)</li>
-              <li>Angle stop available (mechanical or equivalent)</li>
+              <li>Springback / overbend compensation documented (a chart, overbend note, or degree-of-overbend guidance)</li>
               <li>Rotation aid: chuck/indexer or clamp-on analog/digital (magnet-only scores 0; fails on non-ferrous)</li>
               <li>Quick die change engineered aid documented</li>
               <li>Official manufacturer YouTube instructional content for this exact model (top-10 YT results for BRAND+MODEL)</li>

@@ -11,7 +11,7 @@ export const SCORING_EXPLAINERS: Record<string, string> = {
   valueForMoney:
     "Value = capability points earned (of 67 possible — the sum of the 10 capability categories below) ÷ the complete-system price, expressed per $1,000, on a fixed published scale: ≥30 per $1k → 20 pts · 25–29 → 17 · 20–24 → 14 · 15–19 → 11 · 12–14 → 8 · 9–11 → 5 · 6–8 → 3 · under 6 → 1 · no documented price → 0. The scale is fixed, so a score never shifts when other machines change.",
   easeOfUseSetup:
-    "Two parts, capped at 10. PORTABILITY (0–3): rolling as standard = 3 · portable with a rolling option = 2 · portable = 1 · fixed/bolt-down = 0. EVIDENCE CHECKLIST (0–7): +1 each for a downloadable manual, on-machine operating instructions, a built-in bend-angle reference, an angle stop, a real rotation aid (clamp-on analog/digital or chuck/indexer — a magnet-on-tube or none scores 0), a documented quick-die-change aid, and official YouTube content for this exact model.",
+    "Two parts, capped at 10. PORTABILITY (0–3): rolling as standard = 3 · portable with a rolling option = 2 · portable = 1 · fixed/bolt-down = 0. EVIDENCE CHECKLIST (0–7): +1 each for a downloadable manual, on-machine operating instructions, a built-in bend-angle reference, documented springback/overbend compensation, a real rotation aid (clamp-on analog/digital or chuck/indexer — a magnet-on-tube or none scores 0), a documented quick-die-change aid, and official YouTube content for this exact model.",
   maxDiameterRadius:
     "Largest round-tube OD the machine runs with catalog tooling, on fixed tiers: ≥2.5\" = 10 · ≥2.375\" = 9 · ≥2.25\" = 8 · ≥2.0\" = 7 · ≥1.75\" = 5 · ≥1.5\" = 3 · any smaller documented size = 2 · no published OD = 0. (CLR is shown for reference but not scored.)",
   bendAngleCapability:
@@ -50,7 +50,7 @@ export const CATEGORY_CITATION_FIELDS: Record<string, string[]> = {
   ],
   easeOfUseSetup: [
     "portability", "hasManual", "hasOnMachineInstructions", "hasAngleReference",
-    "hasAngleStop", "rotationAid", "quickDieChange", "hasMfrYoutubeModelContent",
+    "hasSpringbackGuidance", "rotationAid", "quickDieChange", "hasMfrYoutubeModelContent",
   ],
   maxDiameterRadius: ["maxCapacity"],
   bendAngleCapability: ["bendAngle"],
@@ -79,7 +79,7 @@ export const CITATION_FIELD_LABELS: Record<string, string> = {
   standPriceMin: "Stand price (min)", standPriceMax: "Stand price (max)",
   portability: "Portability", hasManual: "Manual available",
   hasOnMachineInstructions: "On-machine instructions", hasAngleReference: "Angle reference",
-  hasAngleStop: "Angle stop", rotationAid: "Rotation aid", quickDieChange: "Quick die change",
+  hasSpringbackGuidance: "Springback / overbend guidance", rotationAid: "Rotation aid", quickDieChange: "Quick die change",
   hasMfrYoutubeModelContent: "Official model video",
   maxCapacity: "Max diameter (OD)", bendAngle: "Max bend angle",
   wallThicknessCapacity: "Wall thickness (1.75\" DOM)", materials: "Materials compatibility",

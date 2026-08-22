@@ -417,7 +417,7 @@ export function getProductScore(
     hasManual: toBool(p.hasManual),
     hasOnMachineInstructions: toBool(p.hasOnMachineInstructions),
     hasAngleReference: toBool(p.hasAngleReference),
-    hasAngleStop: toBool(p.hasAngleStop),
+    hasSpringbackGuidance: toBool(p.hasSpringbackGuidance),
     rotationAid: typeof p.rotationAid === "string" ? p.rotationAid : undefined,
     quickDieChange: toBool(p.quickDieChange),
     hasMfrYoutubeModelContent: toBool(p.hasMfrYoutubeModelContent),
