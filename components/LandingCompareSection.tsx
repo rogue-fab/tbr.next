@@ -6,6 +6,7 @@ import { TOTAL_POINTS } from "../lib/scoring";
 import type { MandrelTier } from "../lib/validators";
 import MadeInBadge from "./MadeInBadge";
 import { classifyOrigin } from "../lib/originDisplay";
+import { Hand, Wind, Zap } from "lucide-react";
 
 const FALLBACK_IMG = "/images/products/placeholder.png";
 
@@ -55,6 +56,59 @@ function normalizePower(powerType?: string | null): "manual" | "hydraulic" | "ot
   if (s.includes("manual")) return "manual";
   if (s.includes("hydraulic") || s.includes("electric") || s.includes("air")) return "hydraulic";
   return "other";
+}
+
+/** Attractive, themed power tiles — one lit tile per power option the machine offers. */
+function PowerPills({ value }: { value?: string | null }) {
+  const s = (value ?? "").toLowerCase();
+  const tiles: { key: string; label: string; Icon: typeof Hand; cls: string }[] = [];
+
+  if (s.includes("manual"))
+    tiles.push({
+      key: "manual",
+      label: "Manual",
+      Icon: Hand,
+      cls: "bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200",
+    });
+  if (s.includes("air"))
+    tiles.push({
+      key: "air",
+      label: "Air / Hyd",
+      Icon: Wind,
+      cls: "bg-sky-50 dark:bg-sky-950 border-sky-300 dark:border-sky-700 text-sky-700 dark:text-sky-300",
+    });
+  if (s.includes("electric"))
+    tiles.push({
+      key: "electric",
+      label: "Electric / Hyd",
+      Icon: Zap,
+      cls: "bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300",
+    });
+  // Generic "hydraulic" with no air/electric qualifier.
+  if (tiles.length === 0 && s.includes("hydraulic"))
+    tiles.push({
+      key: "hyd",
+      label: "Hydraulic",
+      Icon: Zap,
+      cls: "bg-sky-50 dark:bg-sky-950 border-sky-300 dark:border-sky-700 text-sky-700 dark:text-sky-300",
+    });
+
+  if (tiles.length === 0)
+    return <span className="text-gray-400 dark:text-gray-500">—</span>;
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tiles.map(({ key, label, Icon, cls }) => (
+        <span
+          key={key}
+          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}
+        >
+          <Icon className="h-3 w-3" aria-hidden="true" />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function normalizeMandrelTier(v?: MandrelTier | string | null): MandrelTier | "unknown" {
@@ -273,7 +327,7 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
   }, [rows, minScore, power, origin, mandrelOnly]);
 
   return (
-    <section className="mt-12 rounded-xl border bg-white/80 p-4 shadow-sm backdrop-blur">
+    <section className="mt-12 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/70 p-4 shadow-sm backdrop-blur">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">
@@ -375,7 +429,9 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
               return (
                 <tr
                   key={row.id}
-                  className={index % 2 === 1 ? "bg-gray-50/40" : ""}
+                  className={`transition-colors hover:bg-orange-50/50 dark:hover:bg-gray-800/60 ${
+                    index % 2 === 1 ? "bg-gray-50/40 dark:bg-gray-800/30" : ""
+                  }`}
                 >
                   <td className="px-3 py-3 align-middle">
                     <div className="flex items-center gap-3">
@@ -418,8 +474,8 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
                   <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {row.maxCapacity || "—"}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
-                    {row.powerType || "—"}
+                  <td className="px-3 py-3 align-middle">
+                    <PowerPills value={row.powerType} />
                   </td>
                   <td className="px-3 py-3 align-middle">
                     <MadeInBadge country={row.country} />
