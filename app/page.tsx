@@ -27,6 +27,14 @@ const HOME_FAQ = [
     q: "Can I see the exact math and sources behind a score?",
     a: "Yes. Open any review and expand “How this score was earned” to see every category's points, exactly how it was scored, how that machine did, and the cited source for the underlying data.",
   },
+  {
+    q: "Is TubeBenderReviews independent — doesn't RogueFab own it?",
+    a: "Full disclosure: this site is published by Joseph Gambino, founder of Rogue Fabrication, which makes RogueFab benders. We don't hide that. What keeps it honest is the method — every machine, RogueFab included, is scored by the same fixed, published rules, and every point shows its math and cites its source, so you can check any result yourself. See our About & Disclosures page.",
+  },
+  {
+    q: "A spec looks wrong — how do I get it corrected?",
+    a: "Please tell us. We welcome anyone — a manufacturer or a shopper — to submit a review request if any scored spec doesn't match the manufacturer's current published data, and we'll correct and re-cite it. IMPORTANT: we score and cite MANUFACTURER-PUBLISHED data ONLY. We do not use third-party tests, forum results, or other reviews (that opens a can of worms we deliberately stay out of), so a correction must point to the manufacturer's own published spec. Send requests through the contact form on our About page.",
+  },
 ];
 
 export const dynamic = "force-dynamic";
@@ -251,6 +259,21 @@ export default async function Page() {
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{item.a}</p>
             </details>
           ))}
+        </div>
+
+        <div className="mt-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60 px-4 py-3 text-sm text-gray-700 dark:text-gray-400">
+          <span className="font-semibold text-gray-900 dark:text-gray-100">
+            See a spec that doesn&apos;t match a manufacturer&apos;s published data?
+          </span>{" "}
+          Manufacturers and shoppers alike are welcome to{" "}
+          <Link href="/about" className="font-medium text-orange-600 hover:underline">
+            submit a correction request
+          </Link>
+          . We cite{" "}
+          <span className="font-semibold text-gray-900 dark:text-gray-100">
+            manufacturer-published data only
+          </span>{" "}
+          — never third-party tests or reviews.
         </div>
       </section>
     </main>
