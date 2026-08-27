@@ -741,9 +741,9 @@ export default function ProductsTab() {
     },
     {
       key: "hasSpringbackGuidance",
-      label: "* Springback / overbend guidance documented (Yes/No)",
+      label: "* Springback / overbend help published (Yes/No)",
       description:
-        "Does the manufacturer publish help for SPRINGBACK — the way a tube relaxes back a few degrees after you release the bend, so you must over-bend to hit your target angle? A maker who provides a springback chart, an overbend note, or degree-of-overbend guidance is saving the buyer trial-and-error scrap. Yes only if it's actually documented (spec sheet, manual, or site). If they say nothing about it, score 0 — don't infer.",
+        "Springback = the few degrees a tube relaxes back after the bend, so you must over-bend to hit your target. BINARY TEST — score YES only if the maker's OWN published docs give the user something actionable: EITHER (a) a specific overbend figure — a degrees-to-overbend value, a springback value, or a chart — OR (b) a written method to measure springback and set the overbend for a given material/die. A vague 'expect some springback' with no number and no method = NO. A robot can check it: is there a usable NUMBER or a usable METHOD, yes/no? (Example: RogueFab publishes the measure-and-compensate method in its bending guide, so it qualifies; a maker that says nothing scores 0.)",
       options: ["", "Yes", "No"],
     },
     {
