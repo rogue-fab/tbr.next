@@ -9,6 +9,8 @@ import {
   isModelActive,
   isRequiredFieldComplete,
   isFieldNotPublished,
+  isFieldAiProposed,
+  isFieldVerified,
   ACTIVE_THRESHOLD,
 } from '../../../lib/completeness';
 // Admin grid reads from /api/admin/products; writes hit /api/admin/products/[id]
@@ -369,7 +371,19 @@ export default function ProductsTab() {
   // NOTE: Batch 4.1 removes autosave. All edits are local until Save Draft.
   const updateProduct = async (id: string, field: string, value: string) => {
     setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const next: Product = { ...p, [field]: value };
+        // Editing an AI-proposed field takes human ownership (it becomes a
+        // human entry, which counts as verified).
+        const ap = p.aiProposed as Record<string, boolean> | undefined;
+        if (ap && ap[field]) {
+          const copy = { ...ap };
+          delete copy[field];
+          next.aiProposed = copy;
+        }
+        return next;
+      }),
     );
     setIsDirty(true);
   };
@@ -401,6 +415,43 @@ export default function ProductsTab() {
         // Clear the underlying value when marking not-published.
         if (next) (updated as any)[key] = '';
         return updated;
+      }),
+    );
+    setIsDirty(true);
+  };
+
+  // Human sign-off: tick a field as verified (or clear it). This is what turns
+  // an AI-drafted value into publish-ready data.
+  const toggleVerified = (id: string, key: string, next: boolean) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const prevMap =
+          p.verified && typeof p.verified === 'object' && !Array.isArray(p.verified)
+            ? (p.verified as Record<string, boolean>)
+            : {};
+        const nextMap: Record<string, boolean> = { ...prevMap };
+        if (next) nextMap[key] = true;
+        else delete nextMap[key];
+        return { ...p, verified: nextMap };
+      }),
+    );
+    setIsDirty(true);
+  };
+
+  // Verify every AI-drafted field on this model in one click (after review).
+  const verifyAllAiDrafts = (id: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const nextMap: Record<string, boolean> =
+          p.verified && typeof p.verified === 'object' && !Array.isArray(p.verified)
+            ? { ...(p.verified as Record<string, boolean>) }
+            : {};
+        for (const f of REQUIRED_SCORING_FIELDS) {
+          if (isRequiredFieldComplete(p, f) && !isFieldVerified(p, f)) nextMap[f.key] = true;
+        }
+        return { ...p, verified: nextMap };
       }),
     );
     setIsDirty(true);
@@ -1041,7 +1092,8 @@ export default function ProductsTab() {
   // A model goes ACTIVE (and shows on the public site) only when every scoring
   // field is filled or marked "not published by manufacturer".
   const completeness = computeCompleteness(selectedProduct);
-  const selectedActive = completeness.complete;
+  // Public-active now requires filled AND human-verified (isModelActive).
+  const selectedActive = completeness.verifiedComplete;
   const activeCount = products.filter((p) => isModelActive(p)).length;
   const thresholdMet = activeCount >= ACTIVE_THRESHOLD;
   // --------------------------------------------------------------------------
@@ -1212,11 +1264,14 @@ export default function ProductsTab() {
                   {selectedActive ? "ACTIVE — shows on site" : "INCOMPLETE — hidden from site"}
                 </span>
                 <span className="text-sm font-semibold text-gray-900">
-                  {completeness.filled}/{completeness.total} scoring fields complete
+                  {completeness.filled}/{completeness.total} filled ·{" "}
+                  <span className={completeness.verifiedComplete ? "text-emerald-700" : "text-amber-700"}>
+                    {completeness.verified}/{completeness.total} verified
+                  </span>
                 </span>
               </div>
 
-              {completeness.missing.length > 0 ? (
+              {completeness.missing.length > 0 && (
                 <div className="mt-2 text-xs text-amber-900">
                   <div className="font-semibold">
                     Still needed ({completeness.missing.length}) — enter a value or tick
@@ -1230,9 +1285,39 @@ export default function ProductsTab() {
                     ))}
                   </ul>
                 </div>
-              ) : (
+              )}
+
+              {completeness.unverified.length > 0 && (
+                <div className="mt-2 rounded border border-amber-300 bg-white px-2 py-1.5 text-xs text-amber-900">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">
+                      {completeness.unverified.length} AI-drafted field(s) awaiting your sign-off
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => verifyAllAiDrafts(selectedProduct.id)}
+                      className="shrink-0 rounded border border-amber-500 bg-amber-100 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-900 hover:bg-amber-200"
+                    >
+                      Verify all (after review)
+                    </button>
+                  </div>
+                  <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 pl-1">
+                    {completeness.unverified.map((m) => (
+                      <li key={m.key} className="list-disc list-inside">
+                        {m.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-1 text-[0.7rem] text-amber-700">
+                    Check the source on each, then tick its “Verified” box (or just edit it). This
+                    model stays hidden from the public site until every field is verified.
+                  </div>
+                </div>
+              )}
+
+              {completeness.verifiedComplete && (
                 <div className="mt-2 text-xs text-emerald-800">
-                  Every scoring field is accounted for. This model is live on the public site.
+                  Every scoring field is filled and verified. This model is live on the public site.
                 </div>
               )}
             </div>
@@ -1355,6 +1440,12 @@ export default function ProductsTab() {
                           const fieldComplete = reqField
                             ? isRequiredFieldComplete(selectedProduct, reqField)
                             : true;
+                          const aiProposed = reqField
+                            ? isFieldAiProposed(selectedProduct, row.key)
+                            : false;
+                          const verified = reqField
+                            ? isFieldVerified(selectedProduct, reqField)
+                            : false;
 
                           return (
                             <>
@@ -1408,6 +1499,33 @@ export default function ProductsTab() {
                                     }
                                   />
                                   <span>Not published by mfr</span>
+                                </label>
+                              )}
+                              {reqField && fieldComplete && !notPublished && (
+                                <label
+                                  className={`mt-1 flex items-center gap-1 text-[0.65rem] font-medium ${
+                                    verified ? "text-emerald-700" : "text-amber-700"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="h-3 w-3"
+                                    checked={verified}
+                                    onChange={(e) =>
+                                      toggleVerified(
+                                        selectedProduct.id,
+                                        row.key,
+                                        e.target.checked,
+                                      )
+                                    }
+                                  />
+                                  <span>
+                                    {verified
+                                      ? "Verified ✓"
+                                      : aiProposed
+                                      ? "AI draft — verify"
+                                      : "Verify"}
+                                  </span>
                                 </label>
                               )}
                               {reqField && !fieldComplete && (

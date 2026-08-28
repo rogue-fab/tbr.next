@@ -113,6 +113,35 @@ export function isFieldNotPublished(fields: any, key: string): boolean {
   return getNotPublishedMap(fields)[key] === true;
 }
 
+/** Fields written by the AI hunt (drafts awaiting human sign-off). */
+export function getAiProposedMap(fields: any): Record<string, boolean> {
+  const v = fields?.aiProposed;
+  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, boolean>;
+  return {};
+}
+
+export function isFieldAiProposed(fields: any, key: string): boolean {
+  return getAiProposedMap(fields)[key] === true;
+}
+
+/** Fields a human has explicitly verified (checkbox sign-off). */
+export function getVerifiedMap(fields: any): Record<string, boolean> {
+  const v = fields?.verified;
+  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, boolean>;
+  return {};
+}
+
+/**
+ * Is a required field HUMAN-VERIFIED? A field is verified when it is filled AND
+ * either a human typed it (it is not AI-proposed) OR a human explicitly ticked
+ * the verify box. AI-proposed drafts must be signed off before they count.
+ */
+export function isFieldVerified(fields: any, field: RequiredField): boolean {
+  if (!isRequiredFieldComplete(fields, field)) return false;
+  if (getVerifiedMap(fields)[field.key] === true) return true;
+  return !isFieldAiProposed(fields, field.key);
+}
+
 function valueFilled(v: unknown): boolean {
   return String(v ?? "").trim() !== "";
 }
@@ -154,37 +183,56 @@ export function isRequiredFieldComplete(fields: any, field: RequiredField): bool
 export type CompletenessResult = {
   total: number;
   filled: number;
+  /** Filled AND human-verified. */
+  verified: number;
   /** Fields still missing (never entered and not marked not-published). */
   missing: RequiredField[];
+  /** Filled but still AI-proposed / awaiting a human sign-off. */
+  unverified: RequiredField[];
   /** filled / total, 0..1. */
   ratio: number;
-  /** True only when every required field is satisfied. */
+  /** True when every required field is filled. */
   complete: boolean;
+  /** True when every required field is filled AND human-verified. */
+  verifiedComplete: boolean;
 };
 
 /** Compute how complete a single model is against the required scoring fields. */
 export function computeCompleteness(fields: any): CompletenessResult {
   const total = REQUIRED_SCORING_FIELDS.length;
   const missing: RequiredField[] = [];
+  const unverified: RequiredField[] = [];
   let filled = 0;
+  let verified = 0;
 
   for (const field of REQUIRED_SCORING_FIELDS) {
-    if (isRequiredFieldComplete(fields, field)) filled += 1;
-    else missing.push(field);
+    if (isRequiredFieldComplete(fields, field)) {
+      filled += 1;
+      if (isFieldVerified(fields, field)) verified += 1;
+      else unverified.push(field);
+    } else {
+      missing.push(field);
+    }
   }
 
   return {
     total,
     filled,
+    verified,
     missing,
+    unverified,
     ratio: total > 0 ? filled / total : 0,
     complete: missing.length === 0,
+    verifiedComplete: missing.length === 0 && unverified.length === 0,
   };
 }
 
-/** True when the model has every scoring field filled or marked not-published. */
+/**
+ * True when the model is public-ready: every scoring field filled AND
+ * human-verified. AI-drafted data never activates until a human signs it off.
+ */
 export function isModelActive(fields: any): boolean {
-  return computeCompleteness(fields).complete;
+  return computeCompleteness(fields).verifiedComplete;
 }
 
 function scoreOf(p: any): number {
