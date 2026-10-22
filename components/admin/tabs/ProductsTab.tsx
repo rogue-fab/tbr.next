@@ -10,6 +10,7 @@ import {
   isRequiredFieldComplete,
   isFieldNotPublished,
   isFieldAiProposed,
+  getAiProposedMap,
   isFieldVerified,
   ACTIVE_THRESHOLD,
 } from '../../../lib/completeness';
@@ -451,6 +452,11 @@ export default function ProductsTab() {
         for (const f of REQUIRED_SCORING_FIELDS) {
           if (isRequiredFieldComplete(p, f) && !isFieldVerified(p, f)) nextMap[f.key] = true;
         }
+        // Non-scoring AI drafts too (e.g. usaClaimReason), so their public
+        // citation credits the human sign-off.
+        for (const [key, on] of Object.entries(getAiProposedMap(p))) {
+          if (on && String((p as any)[key] ?? "").trim()) nextMap[key] = true;
+        }
         return { ...p, verified: nextMap };
       }),
     );
@@ -703,6 +709,13 @@ export default function ProductsTab() {
         '1 – Qualified/loose claim ("Assembled in USA", "American made", or "Made in USA" with imported parts disclosed)',
         "0 – No USA claim (imported, foreign, or silent)",
       ],
+    },
+    {
+      key: "usaClaimReason",
+      label: "Why this claim tier (shown publicly)",
+      description:
+        "Fill this whenever the claim tier is lower than the maker's words alone suggest, or could be questioned. Notes = plain explanation quoting the maker; Source 1 = the exact page that justifies it (e.g. the maker's own page listing an imported part). Not scored.",
+      options: ["", "Imported part disclosed by maker", "Qualified wording"],
     },
     // --- Origin Disclosure (#12): 1 row per major component, 8 pts total ---
     // "Documented" = maker publishes a SPECIFIC origin for that part (USA or

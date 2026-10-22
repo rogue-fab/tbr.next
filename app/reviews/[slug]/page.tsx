@@ -586,6 +586,8 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                     let originNote = "";
                     let originQuote = "";
                     let originSource = "";
+                    let reasonText = "";
+                    let reasonSource = "";
                     if (k === "usaClaim") {
                       const o = classifyOrigin(valueStr);
                       valueStr = formatOriginLabel(valueStr);
@@ -602,6 +604,13 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                           : /^https?:\/\//i.test(originSource)
                           ? "See the maker's own wording:"
                           : "";
+                      }
+                      // Any tier call that could be questioned (e.g. a "Made in
+                      // USA" claim scored 1 because the maker's own page lists
+                      // an imported part) carries a public reason + exact page.
+                      if (String((product as any)?.usaClaimReason ?? "").trim()) {
+                        reasonText = String((product as any)?.usaClaimReasonNotes ?? "").trim();
+                        reasonSource = String((product as any)?.usaClaimReasonSource1 ?? "").trim();
                       }
                     }
 
@@ -627,6 +636,26 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                                 {" "}
                                 <a
                                   href={originSource}
+                                  target="_blank"
+                                  rel="noopener noreferrer nofollow"
+                                  className="underline"
+                                >
+                                  Source
+                                </a>
+                              </>
+                            )}
+                          </p>
+                        )}
+
+                        {reasonText && (
+                          <p className="text-[0.7rem] text-gray-700 dark:text-gray-300">
+                            <span className="font-semibold">Why this rating: </span>
+                            {reasonText}
+                            {/^https?:\/\//i.test(reasonSource) && (
+                              <>
+                                {" "}
+                                <a
+                                  href={reasonSource}
                                   target="_blank"
                                   rel="noopener noreferrer nofollow"
                                   className="underline"

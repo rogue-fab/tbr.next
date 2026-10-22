@@ -29,7 +29,7 @@ export const SCORING_EXPLAINERS: Record<string, string> = {
   sBendCapability:
     "A true S-bend — two opposite-direction bends with ≤0.125\" straight (tangent) between them, proven by specs, photos, or repeatable test pieces: yes = 3 · otherwise (or marketing 'S-bends' with inches of straight) = 0.",
   usaManufacturingClaim:
-    "Scores the maker's own origin CLAIM only (not verified origin): a flat, FTC-unqualified \"Made in USA\" = 2 · a qualified/loose claim (\"assembled in USA\", \"American made\", or \"Made in USA\" with imported parts disclosed) = 1 · no USA claim = 0.",
+    "Scores the maker's own origin CLAIM only (not verified origin): a flat, FTC-unqualified \"Made in USA\" = 2 · a qualified/loose claim (\"assembled in USA\", \"American made\", or \"Made in USA\" with imported parts disclosed) = 1 · no USA claim = 0. If the maker's OWN pages disclose an imported major component sold for that machine, a \"Made in USA\" claim scores 1, and the review names the exact page and explains why.",
   originDisclosure:
     "+1 per major component whose specific origin the maker documents — USA or imported both count (we reward disclosure, not country): frame +2, dies/tooling +2, hydraulic/power unit +2, pump/motor +1, controls/electronics +1 (8 max). A part the machine doesn't have (e.g. no hydraulics on a manual bender) isn't counted against it.",
   singleSourceSystem:
@@ -63,7 +63,7 @@ export const CATEGORY_CITATION_FIELDS: Record<string, string[]> = {
   ],
   mandrelCompatibility: ["mandrel"],
   sBendCapability: ["sBendCapability"],
-  usaManufacturingClaim: ["usaClaim"],
+  usaManufacturingClaim: ["usaClaim", "usaClaimReason"],
   originDisclosure: [
     "discloseFrame", "discloseDies", "discloseHydraulics", "discloseMotor", "discloseControls",
   ],
@@ -89,7 +89,8 @@ export const CITATION_FIELD_LABELS: Record<string, string> = {
   autoStop: "Auto stop", thickWallUpgrade: "Thick-wall tooling",
   thinWallUpgrade: "Thin-wall tooling", wiperDieSupport: "Wiper die support",
   mandrel: "Mandrel option", sBendCapability: "S-bend capability",
-  usaClaim: "USA manufacturing claim", discloseFrame: "Frame origin",
+  usaClaim: "USA manufacturing claim", usaClaimReason: "Why this claim tier",
+  discloseFrame: "Frame origin",
   discloseDies: "Dies origin", discloseHydraulics: "Hydraulic/power origin",
   discloseMotor: "Pump/motor origin", discloseControls: "Controls origin",
   singleSourceSystemTier: "Single-source system", warrantyTier: "Warranty",

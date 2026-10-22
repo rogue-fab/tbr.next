@@ -286,7 +286,7 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     maxPoints: 2,
     method: "tier",
     tagline:
-      "Scores only the strength of the maker's own \"Made in USA\" claim — a loose claim earns a little, a flat FTC-unqualified claim earns a little more. The real origin points come from Origin Disclosure.",
+      "Scores only the strength of the maker's own \"Made in USA\" claim — a loose claim earns a little, a flat FTC-unqualified claim earns a little more. If the maker's own pages disclose an imported major component sold for that machine, a \"Made in USA\" claim counts as qualified, and the review names the exact page and explains why. The real origin points come from Origin Disclosure.",
   },
   {
     index: 12,
