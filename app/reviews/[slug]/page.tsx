@@ -582,13 +582,27 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
 
                     // Origin: drive off the claim TIER (defensible), never assert
                     // "Imported" — we can't verify manufacture, only what's published.
+                    // For a USA claim, show the maker's own words + link, not ours.
                     let originNote = "";
+                    let originQuote = "";
+                    let originSource = "";
                     if (k === "usaClaim") {
                       const o = classifyOrigin(valueStr);
                       valueStr = formatOriginLabel(valueStr);
                       originNote = o.usa
-                        ? "Manufacturer's own claim. We report it as published; we don't independently verify country of origin."
-                        : "This manufacturer does not publish where the machine is made, so we make no origin claim — treat it as imported or unknown.";
+                        ? "The manufacturer's own wording, quoted with a link. We don't independently verify where machines are made; any component origins the maker publishes are listed under Origin Disclosure below."
+                        : "The manufacturer doesn't publish where this machine is made, so we make no origin claim.";
+                      if (o.usa) {
+                        // Only echo notes that actually quote the maker; short
+                        // working notes ("Page text") just get the link.
+                        const notes = String((product as any)?.usaClaimNotes ?? "").trim();
+                        originSource = String((product as any)?.usaClaimSource1 ?? "").trim();
+                        originQuote = /["“”]/.test(notes)
+                          ? notes
+                          : /^https?:\/\//i.test(originSource)
+                          ? "See the maker's own wording:"
+                          : "";
+                      }
                     }
 
                     return (
@@ -604,6 +618,25 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
                             {valueStr}
                           </dd>
                         </div>
+
+                        {originQuote && (
+                          <p className="text-[0.7rem] text-gray-700 dark:text-gray-300">
+                            {originQuote}
+                            {/^https?:\/\//i.test(originSource) && (
+                              <>
+                                {" "}
+                                <a
+                                  href={originSource}
+                                  target="_blank"
+                                  rel="noopener noreferrer nofollow"
+                                  className="underline"
+                                >
+                                  Source
+                                </a>
+                              </>
+                            )}
+                          </p>
+                        )}
 
                         {originNote && (
                           <p className="text-[0.7rem] text-muted-foreground">

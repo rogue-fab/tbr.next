@@ -1,9 +1,9 @@
 // components/MadeInBadge.tsx
 //
-// Compact origin badge for the compare/list views: prominent "Made in USA",
-// tiny muted FTC qualifier beneath. Both USA buckets render identically in
-// style so a genuinely USA-built machine never reads as weaker than a
-// competitor's blanket "Made in USA". Presentation only (see lib/originDisplay).
+// Compact origin badge for the compare/list views: the maker's claim
+// ("Made in USA" or "USA claim"), tiny muted qualifier beneath. Both USA buckets
+// share one style; the wording carries the difference. Presentation only (see
+// lib/originDisplay).
 
 import { classifyOrigin } from "../lib/originDisplay";
 

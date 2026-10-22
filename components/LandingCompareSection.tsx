@@ -381,7 +381,7 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
                 onChange={(e) => setOrigin(e.target.value as typeof origin)}
               >
                 <option value="any">Any</option>
-                <option value="usaOnly">USA only</option>
+                <option value="usaOnly">USA claim</option>
               </select>
             </label>
             <label className="flex items-center gap-1">

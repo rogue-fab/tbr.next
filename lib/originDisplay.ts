@@ -2,9 +2,11 @@
 //
 // Shared, presentation-only mapping of the internal `country` origin buckets to
 // what the reader actually sees. Goals:
-//   - "Made in USA" is the prominent claim for any USA-origin bucket.
-//   - The FTC qualification jargon ("FTC-unqualified" / "qualified claim") is
-//     kept only as a tiny secondary note (meaningless to most readers).
+//   - We only ever report the MAKER'S claim, never our own origin finding.
+//   - "Made in USA" is shown only for a flat (tier 2) claim, labelled as the
+//     maker's claim. A qualified (tier 1) claim reads "USA claim · qualified",
+//     never a bare "Made in USA" — a maker whose own pages disclose imported
+//     parts must not get a clean "Made in USA" badge from us.
 //   - The "Assembled in USA" phrasing is never emitted anywhere.
 //
 // This does NOT change scoring or the stored data — Category 11 (USA
@@ -12,9 +14,9 @@
 // the underlying tiers.
 
 export type OriginDisplay = {
-  /** Prominent label, e.g. "Made in USA", "Imported", or "—". */
+  /** Prominent label, e.g. "Made in USA", "USA claim", or "Origin not disclosed". */
   primary: string;
-  /** Tiny secondary qualifier, e.g. "FTC-unqualified" or "qualified claim". */
+  /** Tiny secondary qualifier, e.g. "maker's claim" or "qualified". */
   qualifier?: string;
   /** True for any USA-origin claim (used for emphasis styling). */
   usa: boolean;
@@ -31,8 +33,8 @@ export function classifyOrigin(value?: string | null): OriginDisplay {
   const tier = s.match(/^\s*([0-2])\b/);
   if (tier) {
     const t = Number(tier[1]);
-    if (t >= 2) return { primary: "Made in USA", usa: true };
-    if (t === 1) return { primary: "Made in USA", qualifier: "qualified claim", usa: true };
+    if (t >= 2) return { primary: "Made in USA", qualifier: "maker's claim", usa: true };
+    if (t === 1) return { primary: "USA claim", qualifier: "qualified", usa: true };
     return { primary: "Origin not disclosed", usa: false };
   }
 
@@ -48,13 +50,11 @@ export function classifyOrigin(value?: string | null): OriginDisplay {
       s.includes("usa claim") ||
       s.includes("united states"));
   if (claimsUsa) {
-    const qualifier =
-      s.includes("unqualified")
-        ? undefined
-        : s.includes("qualified") || s.includes("assembled")
-        ? "qualified claim"
-        : undefined;
-    return { primary: "Made in USA", qualifier, usa: true };
+    const qualified =
+      !s.includes("unqualified") && (s.includes("qualified") || s.includes("assembled"));
+    return qualified
+      ? { primary: "USA claim", qualifier: "qualified", usa: true }
+      : { primary: "Made in USA", qualifier: "maker's claim", usa: true };
   }
 
   return { primary: "Origin not disclosed", usa: false };

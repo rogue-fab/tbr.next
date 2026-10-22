@@ -38,6 +38,19 @@ function str(v: unknown): string {
   return v == null ? "" : String(v).trim();
 }
 
+/** Owner's reviewer code, credited when they sign off an AI-researched field. */
+const OWNER_REVIEWER_CODE = "JRG1001";
+
+/**
+ * Who stands behind a citation. AI-researched fields (UserCode "AI") only go
+ * public after the owner ticks "verified" in admin, so credit both honestly.
+ */
+function citationByline(product: Record<string, any>, field: string, by: string): string {
+  if (by.toUpperCase() !== "AI") return by ? `Verified by ${by}` : "";
+  const verified = product?.verified?.[field] === true;
+  return verified ? `Researched by AI · verified by ${OWNER_REVIEWER_CODE}` : "Researched by AI";
+}
+
 function citationsForCategory(
   product: Record<string, any>,
   catKey: string,
@@ -57,7 +70,7 @@ function citationsForCategory(
       source,
       accessed,
       notes,
-      by,
+      by: citationByline(product, f, by),
     });
   }
   return out;
@@ -179,7 +192,7 @@ export default function ScoringAndSources({ score, product }: Props) {
                           )}
                           <div className="mt-0.5 flex flex-wrap gap-x-3 text-[0.65rem] text-gray-400 dark:text-gray-500">
                             {c.accessed && <span>Accessed {c.accessed}</span>}
-                            {c.by && <span>Verified by {c.by}</span>}
+                            {c.by && <span>{c.by}</span>}
                             {c.notes && <span className="text-gray-500 dark:text-gray-400">{c.notes}</span>}
                           </div>
                         </li>
