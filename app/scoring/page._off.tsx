@@ -332,8 +332,19 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
             <li>Published max wall thickness for <span className="font-semibold">1.75&quot; OD DOM</span> (<span className="font-mono">wallThicknessCapacity</span>) → 0–6 pts</li>
             <li>Documented compatible materials list (<span className="font-mono">materials</span>) → 0–4 pts</li>
           </ul>
-          <div className="mt-2 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-2">
-            <span className="font-semibold">Hard rule:</span> If <span className="font-mono">wallThicknessCapacity</span> is missing/unknown, the entire category scores 0 — we do not infer stress capacity from a materials list alone.
+          <div className="mt-2 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-2 space-y-1">
+            <p>
+              <span className="font-semibold">Scored independently:</span> a missing wall figure costs only the thickness points. Materials the maker documents still count.
+            </p>
+            <p>
+              <span className="font-semibold">Carry-down rule (when a maker doesn&apos;t publish a 1.75&quot; figure):</span> if the maker publishes its max wall only for a <span className="font-semibold">larger</span> tube, we credit that <span className="font-semibold">same</span> wall at 1.75&quot;. Example: a bender rated for 2.5&quot; × .120&quot; is credited .120&quot; at 1.75&quot;.
+            </p>
+            <p>
+              <span className="font-semibold">Why that&apos;s fair and conservative:</span> the force needed to bend a tube grows roughly with its diameter squared times its wall. At the same wall, a 1.75&quot; tube needs about half the force of a 2.5&quot; tube, so a machine rated for the larger tube can certainly bend the smaller one at that wall. We never scale the number up (the true 1.75&quot; capacity may well be thicker, but nobody published it), and we never carry a rating from a smaller tube up to 1.75&quot;.
+            </p>
+            <p>
+              Every carried-down figure says so on that machine&apos;s review, with the size it was published at and a link to the maker&apos;s spec.
+            </p>
           </div>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
             <div className="font-semibold text-gray-900 mb-1">Thickness points (0–6)</div>
@@ -344,7 +355,7 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
               <li>≥ 0.188&quot; → 4</li>
               <li>≥ 0.250&quot; → 5</li>
               <li>≥ 0.875&quot; → 6 (solid bar; half of 1.75&quot; is 0.875&quot;)</li>
-              <li>missing/unknown → 0 (entire category becomes 0)</li>
+              <li>missing/unknown at 1.75&quot; and every larger size → 0 thickness points (materials still scored)</li>
             </ul>
             <div className="font-semibold text-gray-900 mt-3 mb-1">Materials points (0–4)</div>
             <p className="text-[11px] text-gray-600 mb-2">

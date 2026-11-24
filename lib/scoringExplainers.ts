@@ -17,7 +17,7 @@ export const SCORING_EXPLAINERS: Record<string, string> = {
   bendAngleCapability:
     "Maximum published bend angle, on fixed tiers: ≥190° = 9 · ≥180° = 7 · ≥120° = 4 · any smaller documented angle = 2 · no published angle = 0.",
   wallThicknessCapability:
-    "Two parts, capped at 10; if no wall spec for 1.75\" OD DOM is published the WHOLE category is 0 (no inferring strength). WALL THICKNESS (0–6): ≥0.875\" (solid bar) = 6 · ≥0.250\" = 5 · ≥0.188\" = 4 · ≥0.156\" = 3 · ≥0.120\" = 2 · ≥0.095\" = 1. MATERIALS (0–4): count of documented materials from steel, stainless, 4130, aluminum, titanium, copper, brass — 7 = 4 · 5–6 = 3 · 3–4 = 2 · 1–2 = 1 · 0 = 0.",
+    "Two independent parts, capped at 10. WALL THICKNESS uses the maker's published max wall for 1.75\" OD DOM; if it's only published for a LARGER tube, that same wall is credited at 1.75\" (a smaller tube at the same wall needs less force) and never scaled up; nothing published at 1.75\" or larger = 0 thickness points. WALL THICKNESS (0–6): ≥0.875\" (solid bar) = 6 · ≥0.250\" = 5 · ≥0.188\" = 4 · ≥0.156\" = 3 · ≥0.120\" = 2 · ≥0.095\" = 1. MATERIALS (0–4): count of documented materials from steel, stainless, 4130, aluminum, titanium, copper, brass — 7 = 4 · 5–6 = 3 · 3–4 = 2 · 1–2 = 1 · 0 = 0.",
   dieSelectionShapes:
     "+1 point for each die family the maker documents for this frame (8 max): round tube, pipe, square tube, EMT, metric round, metric square, plastic/urethane pressure dies, and any other clearly documented shape.",
   yearsInBusiness:
@@ -54,7 +54,7 @@ export const CATEGORY_CITATION_FIELDS: Record<string, string[]> = {
   ],
   maxDiameterRadius: ["maxCapacity"],
   bendAngleCapability: ["bendAngle"],
-  wallThicknessCapability: ["wallThicknessCapacity", "materials"],
+  wallThicknessCapability: ["wallThicknessCapacity", "wallThicknessPublishedAtOD", "materials"],
   dieSelectionShapes: ["dieShapes"],
   yearsInBusiness: ["yearsInBusiness"],
   upgradePathModularity: [
@@ -82,7 +82,8 @@ export const CITATION_FIELD_LABELS: Record<string, string> = {
   hasSpringbackGuidance: "Springback / overbend guidance", rotationAid: "Rotation aid", quickDieChange: "Quick die change",
   hasMfrYoutubeModelContent: "Official model video",
   maxCapacity: "Max diameter (OD)", bendAngle: "Max bend angle",
-  wallThicknessCapacity: "Wall thickness (1.75\" DOM)", materials: "Materials compatibility",
+  wallThicknessCapacity: "Wall thickness (1.75\" DOM)", wallThicknessPublishedAtOD: "Wall figure published at OD (carried down)",
+  materials: "Materials compatibility",
   dieShapes: "Die shapes", yearsInBusiness: "Years in business",
   hasPowerUpgradePath: "Power upgrade path", lengthStop: "Length stop",
   rotationIndexing: "Rotation indexing", angleMeasurement: "Angle measurement",

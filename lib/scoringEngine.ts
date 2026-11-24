@@ -260,6 +260,8 @@ export interface ScoringInput {
   countryOfOrigin?: string;
   bendAngle?: number;
   wallThicknessCapacity?: string | number;
+  /** OD (inches) the wall figure is actually published at, when not 1.75". Drives the carry-down rule. */
+  wallThicknessPublishedAtOD?: number;
   features?: string[];
   materials?: string[];
   dieShapes?: string[];
@@ -477,19 +479,33 @@ export function calculateTubeBenderScore(
 
   // 5. Stress Capacity & Materials (10 points)
   //
-  // Evidence-only scoring:
+  // Evidence-only scoring, two independent parts:
   // - Thickness points (0–6) from published max wall thickness for 1.75" OD DOM.
   // - Materials points (0–4) from count of documented compatible materials (from a fixed list).
+  // A missing wall figure costs only the thickness points; materials still count.
   //
-  // Non-negotiable FTC rule:
-  // If wall thickness is missing/unknown, the ENTIRE category scores 0 (we do not infer stress capacity).
+  // Carry-down rule: when the maker publishes the max wall only at a LARGER OD
+  // (wallThicknessPublishedAtOD > 1.75), we credit that same wall at 1.75". A
+  // tube's bending resistance grows with roughly OD² × wall, so the same wall on
+  // a smaller tube needs less force: the figure is a proven floor, never scaled
+  // up. A rating published only at a SMALLER OD is never carried up.
   let thicknessScore = 0;
   let materialScore = 0;
   const wallRaw = bender.wallThicknessCapacity;
+  const atOD = bender.wallThicknessPublishedAtOD;
+  const carriedDown = typeof atOD === "number" && Number.isFinite(atOD) && atOD > 1.75;
+  const carriedUp = typeof atOD === "number" && Number.isFinite(atOD) && atOD < 1.75;
+  const wallBasis = (w: unknown) =>
+    carriedDown
+      ? `${w}" max wall is published at ${atOD}" OD, not 1.75"; credited at 1.75" under our carry-down rule (the same wall on a smaller tube takes less force, so this is a floor, never scaled up).`
+      : `${w}" published max wall for 1.75" OD DOM.`;
   let wallReasonPart: string;
   let materialReasonPart = "";
 
-  if (wallRaw !== undefined && wallRaw !== null && wallRaw !== "") {
+  if (wallRaw !== undefined && wallRaw !== null && wallRaw !== "" && carriedUp) {
+    thicknessScore = 0;
+    wallReasonPart = `${wallRaw}" max wall is published only at ${atOD}" OD, smaller than 1.75"; we never carry a rating up to a larger tube, so thickness scores 0.`;
+  } else if (wallRaw !== undefined && wallRaw !== null && wallRaw !== "") {
     const thickness = parseFloat(String(wallRaw));
     if (Number.isFinite(thickness)) {
       // Thickness points (0–6) — fixed thresholds
@@ -505,29 +521,36 @@ export function calculateTubeBenderScore(
         wallReasonPart = `Supports solid bar bending up to 1.75" diameter (0.875").`;
       } else if (thickness >= 0.25) {
         thicknessScore = 5;
-        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+        wallReasonPart = wallBasis(wallRaw);
       } else if (thickness >= 0.188) {
         thicknessScore = 4;
-        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+        wallReasonPart = wallBasis(wallRaw);
       } else if (thickness >= 0.156) {
         thicknessScore = 3;
-        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+        wallReasonPart = wallBasis(wallRaw);
       } else if (thickness >= 0.12) {
         thicknessScore = 2;
-        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+        wallReasonPart = wallBasis(wallRaw);
       } else if (thickness >= 0.095) {
         thicknessScore = 1;
-        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM.`;
+        wallReasonPart = wallBasis(wallRaw);
       } else {
         thicknessScore = 0;
-        wallReasonPart = `${wallRaw}" published max wall for 1.75" OD DOM (below scoring threshold).`;
+        wallReasonPart = `${wallBasis(wallRaw)} Below the scoring threshold.`;
       }
     } else {
       thicknessScore = 0;
       wallReasonPart = `Unparseable wall thickness value: ${String(wallRaw)}.`;
     }
+  } else {
+    // No published wall data at or above the reference size: thickness only.
+    thicknessScore = 0;
+    wallReasonPart =
+      "No max wall thickness published for 1.75\" OD DOM or any larger tube; thickness points are 0 rather than guessing.";
+  }
 
-    // Materials scoring (0–4 points)
+  {
+    // Materials scoring (0–4 points), independent of wall thickness
     // Fixed list (count only what is explicitly documented):
     // Steel, Stainless, 4130, Aluminum, Titanium, Copper, Brass
     // Points:
@@ -595,12 +618,6 @@ export function calculateTubeBenderScore(
           ? `Documented materials (${coveredCount}/7): ${covered.join(", ")}.`
           : "Materials list provided but none matched the scored material list (steel, stainless, 4130, aluminum, titanium, copper, brass).";
     }
-  } else {
-    // No published wall data at the reference size: entire category scores 0.
-    thicknessScore = 0;
-    materialScore = 0;
-    wallReasonPart =
-      "No published max wall thickness for 1.75\" OD DOM; this category is scored as 0 rather than guessing.";
   }
 
   const wallScore = Math.max(0, Math.min(10, thicknessScore + materialScore));

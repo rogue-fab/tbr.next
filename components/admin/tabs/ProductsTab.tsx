@@ -852,7 +852,13 @@ export default function ProductsTab() {
       key: "wallThicknessCapacity",
       label: '* Wall Thickness (1.75" DOM, inches)',
       description:
-        'Max wall for 1.75" DOM used for wall thickness scoring. Use the thickest published spec.',
+        'Max wall for 1.75" DOM used for wall thickness scoring. Use the thickest published spec. If the maker only publishes a max wall at a LARGER tube, enter that same wall here (never scaled) and fill the row below.',
+    },
+    {
+      key: "wallThicknessPublishedAtOD",
+      label: 'Wall figure published at OD (inches) — only if NOT 1.75"',
+      description:
+        'Carry-down rule. Leave blank when the maker publishes a 1.75" figure. If the max wall is only published at a larger tube (e.g. 2.5" × .120"), enter that OD (2.5): the same wall is credited at 1.75" because a smaller tube at the same wall needs less force, and the public review says it was carried down. A rating published only at a smaller tube is never carried up (thickness scores 0).',
     },
     {
       key: "dieShapes",

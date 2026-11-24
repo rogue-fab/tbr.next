@@ -232,7 +232,7 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     maxPoints: 10,
     method: "scaled",
     tagline:
-      "Published max wall thickness for 1.75\" OD DOM (0–6), plus a simple count of documented compatible materials (0–4). Missing wall thickness scores 0 for the entire category.",
+      "Published max wall thickness for 1.75\" OD DOM (0–6), plus a simple count of documented compatible materials (0–4), scored independently. If the maker publishes its max wall only at a larger tube, we credit that same wall at 1.75\" (a smaller tube at the same wall takes less force), never scaled up, and the review says so.",
   },
   {
     index: 6,
@@ -409,6 +409,7 @@ export function getProductScore(
       p.wallThicknessCapacity != null && String(p.wallThicknessCapacity).trim() !== ""
         ? Number(toNumberOrNull(p.wallThicknessCapacity))
         : undefined,
+    wallThicknessPublishedAtOD: toNumberOrNull(p.wallThicknessPublishedAtOD) ?? undefined,
     materials: normalizeStringList(p.materials),
     dieShapesTier: p.dieShapesTier ?? undefined,
     mandrel: p.mandrel ?? "none",
