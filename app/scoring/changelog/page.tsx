@@ -29,7 +29,7 @@ const CHANGES: Change[] = [
     why:
       "Diameter decides which jobs a bender can take at all, so it was underweighted. Value already re-counts every capability point (it is capability ÷ price), so at 20 points it double-rewarded cheap capability. The old all-or-nothing S-bend rule gave nothing to machines that do S-bends with a longer straight, even when the maker publishes the number.",
     effect:
-      "RogueFab models (max 2.0\" OD) lost 2–3 points. Machines rated for 2.5\" gained up to 4. No ranking changed. All scores are recomputed from the same published data, and every review shows the new math.",
+      "RogueFab models (max 2.0\" OD) lost 2–3 points (M625 92→90, M605 91→89, M601 87→84). Most machines rated for 2.3–2.5\" gained 1–5 (for example Pro-Tools BRUTE 38→43, JD2 Model 32 58→62, which moved it ahead of the JMR RaceLine). Low-priced machines with smaller capacity lost a little (Affordable Bender 38→35, Woodward WFB2 42→41). The top three didn't change. All scores are recomputed from the same published data, and every review shows the new math.",
   },
   {
     date: "November 2026",
