@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { Settings } from "lucide-react";
 import ThemeToggle from "./ThemeToggle"; // your existing toggle
 
+// "Home" is hidden on phones (the logo already goes home) so the bar fits at 375px.
 const links = [
-  { href: "/", label: "Home" },
-  { href: "/finder", label: "Finder" },
+  { href: "/", label: "Home", hideOnMobile: true },
+  { href: "/guide", label: "Finder" },
   { href: "/compare", label: "Compare" },
   { href: "/scoring", label: "Scoring" },
   { href: "/about", label: "About" },
@@ -26,7 +27,7 @@ export default function Header() {
           {/* Brand link */}
           <Link
             href="/"
-            className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100 hover:opacity-90 transition max-w-[60%]"
+            className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100 hover:opacity-90 transition shrink-0"
             aria-label="Return to homepage"
           >
             <Settings className="w-4 h-4 text-gray-700 dark:text-gray-300 flex-shrink-0" />
@@ -36,7 +37,7 @@ export default function Header() {
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5 sm:gap-1">
             {links.map((l) => {
               const active =
                 l.href === "/"
@@ -48,7 +49,8 @@ export default function Header() {
                   key={l.href}
                   href={l.href}
                   className={[
-                    "rounded-md px-3 py-1 text-sm transition",
+                    "rounded-md px-2 sm:px-3 py-1 text-sm transition",
+                    "hideOnMobile" in l && l.hideOnMobile ? "hidden sm:inline-block" : "",
                     active
                       ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-800",
