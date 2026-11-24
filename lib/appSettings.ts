@@ -77,3 +77,33 @@ export async function setTempBannerSetting(
 
   return merged;
 }
+
+// ---------------------------------------------------------------------------
+// Price checks: one record per model, written by the price-scrub job (an AI run
+// that re-reads each maker's price pages). A check that finds a changed price
+// does NOT edit the published price — it drafts the change for owner sign-off.
+// Stored in app_settings so no schema change is needed.
+
+const PRICE_CHECKS_KEY = "price_checks";
+
+export type PriceCheck = {
+  /** ISO timestamp of the last check. */
+  checkedAt: string;
+  /** unchanged = every price matched · changed = a draft was written · unreachable = page failed. */
+  result: "unchanged" | "changed" | "unreachable";
+  notes?: string;
+  by?: string;
+};
+
+export type PriceChecks = Record<string, PriceCheck>;
+
+/** Read all price-check records. Returns {} when none exist yet or on error. */
+export async function getPriceChecks(): Promise<PriceChecks> {
+  try {
+    const rows = await sql`select value from app_settings where key = ${PRICE_CHECKS_KEY} limit 1`;
+    const v = rows[0]?.value;
+    return v && typeof v === "object" ? (v as PriceChecks) : {};
+  } catch {
+    return {};
+  }
+}
