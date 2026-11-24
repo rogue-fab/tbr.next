@@ -9,11 +9,11 @@
 // how each point is earned, so a reader can recompute the score by hand.
 export const SCORING_EXPLAINERS: Record<string, string> = {
   valueForMoney:
-    "Value = capability points earned (of 67 possible — the sum of the 10 capability categories below) ÷ the complete-system price, expressed per $1,000, on a fixed published scale: ≥30 per $1k → 20 pts · 25–29 → 17 · 20–24 → 14 · 15–19 → 11 · 12–14 → 8 · 9–11 → 5 · 6–8 → 3 · under 6 → 1 · no documented price → 0. The scale is fixed, so a score never shifts when other machines change.",
+    "Value = capability points earned (of 71 possible — the sum of the 10 capability categories below) ÷ the complete-system price, expressed per $1,000, on a fixed published scale: ≥30 per $1k → 16 pts · 25–29 → 14 · 20–24 → 11 · 15–19 → 9 · 12–14 → 6 · 9–11 → 4 · 6–8 → 2 · under 6 → 1 · no documented price → 0. (Weighted 16, down from 20 in Nov 2026, because Value already re-counts every capability point.) The scale is fixed, so a score never shifts when other machines change.",
   easeOfUseSetup:
     "Two parts, capped at 10. PORTABILITY (0–3): rolling as standard = 3 · portable with a rolling option = 2 · portable = 1 · fixed/bolt-down = 0. EVIDENCE CHECKLIST (0–7): +1 each for a downloadable manual, on-machine operating instructions, a built-in bend-angle reference, published springback/overbend help (a specific overbend number OR a written measure-and-compensate method — not a vague 'expect springback'), a real rotation aid (clamp-on analog/digital or chuck/indexer — a magnet-on-tube or none scores 0), a documented quick-die-change aid, and official YouTube content for this exact model.",
   maxDiameterRadius:
-    "Largest round-tube OD the machine runs with catalog tooling, on fixed tiers: ≥2.5\" = 10 · ≥2.375\" = 9 · ≥2.25\" = 8 · ≥2.0\" = 7 · ≥1.75\" = 5 · ≥1.5\" = 3 · any smaller documented size = 2 · no published OD = 0. (CLR is shown for reference but not scored.)",
+    "Largest round-tube OD the machine runs with catalog tooling, on fixed tiers: ≥2.5\" = 14 · ≥2.375\" = 12 · ≥2.25\" = 11 · ≥2.0\" = 9 · ≥1.75\" = 6 · ≥1.5\" = 4 · any smaller documented size = 2 · no published OD = 0. (Weighted 14, up from 10 in Nov 2026: diameter decides which jobs a bender can take at all.) (CLR is shown for reference but not scored.)",
   bendAngleCapability:
     "Maximum published bend angle, on fixed tiers: ≥190° = 9 · ≥180° = 7 · ≥120° = 4 · any smaller documented angle = 2 · no published angle = 0.",
   wallThicknessCapability:
@@ -27,7 +27,7 @@ export const SCORING_EXPLAINERS: Record<string, string> = {
   mandrelCompatibility:
     "Documented mandrel support for this specific frame: bronze/nickel-class system = 4 · economy (plastic/aluminum/steel) mandrel = 2 · none or not documented = 0. No guessing.",
   sBendCapability:
-    "A true S-bend — two opposite-direction bends with ≤0.125\" straight (tangent) between them, proven by specs, photos, or repeatable test pieces: yes = 3 · otherwise (or marketing 'S-bends' with inches of straight) = 0.",
+    "A true S-bend — two opposite-direction bends with ≤0.125\" straight (tangent) between them, proven by specs, photos, or repeatable test pieces = 3 · the maker documents S-bends AND publishes a minimum straight between them that is longer than 0.125\" = 2 · S-bend photos or claims with no published number, or no S-bend documentation = 0.",
   usaManufacturingClaim:
     "Scores the maker's own origin CLAIM only (not verified origin): a flat, FTC-unqualified \"Made in USA\" = 2 · a qualified/loose claim (\"assembled in USA\", \"American made\", or \"Made in USA\" with imported parts disclosed) = 1 · no USA claim = 0. If the maker's OWN pages disclose an imported major component sold for that machine, a \"Made in USA\" claim scores 1, and the review names the exact page and explains why.",
   originDisclosure:
@@ -62,7 +62,7 @@ export const CATEGORY_CITATION_FIELDS: Record<string, string[]> = {
     "autoStop", "thickWallUpgrade", "thinWallUpgrade", "wiperDieSupport",
   ],
   mandrelCompatibility: ["mandrel"],
-  sBendCapability: ["sBendCapability"],
+  sBendCapability: ["sBendCapability", "sBendMinStraight"],
   usaManufacturingClaim: ["usaClaim", "usaClaimReason"],
   originDisclosure: [
     "discloseFrame", "discloseDies", "discloseHydraulics", "discloseMotor", "discloseControls",
@@ -89,7 +89,7 @@ export const CITATION_FIELD_LABELS: Record<string, string> = {
   rotationIndexing: "Rotation indexing", angleMeasurement: "Angle measurement",
   autoStop: "Auto stop", thickWallUpgrade: "Thick-wall tooling",
   thinWallUpgrade: "Thin-wall tooling", wiperDieSupport: "Wiper die support",
-  mandrel: "Mandrel option", sBendCapability: "S-bend capability",
+  mandrel: "Mandrel option", sBendCapability: "S-bend capability", sBendMinStraight: "Min straight between S-bends",
   usaClaim: "USA manufacturing claim", usaClaimReason: "Why this claim tier",
   discloseFrame: "Frame origin",
   discloseDies: "Dies origin", discloseHydraulics: "Hydraulic/power origin",

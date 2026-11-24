@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Tag, ShieldCheck, TrendingUp, Gauge, Layers, Eye } from "lucide-react";
 import { getAllTubeBendersWithOverlay } from "../lib/catalogOverlay";
-import { getProductScore } from "../lib/scoring";
+import { getProductScore, getDocumentationCeiling } from "../lib/scoring";
 import { computeSystemPrice } from "../lib/systemPrice";
 import { selectPublicModels } from "../lib/completeness";
 import { titleOf, slugForProduct } from "../lib/ids";
@@ -17,7 +17,7 @@ const HOME_FAQ = [
   },
   {
     q: "How is value for money calculated?",
-    a: "We add up the capability points a machine earns (out of 67 possible), divide by its complete-system price (frame, dies, power, and stand), and score capability-per-$1,000 on a fixed, published scale. A cheaper machine that still does a lot scores high; an expensive one that doesn't scores low.",
+    a: "We add up the capability points a machine earns (out of 71 possible), divide by its complete-system price (frame, dies, power, and stand), and score capability-per-$1,000 on a fixed, published scale. A cheaper machine that still does a lot scores high; an expensive one that doesn't scores low.",
   },
   {
     q: "What happens when a manufacturer doesn't publish a spec?",
@@ -54,19 +54,19 @@ export default async function Page() {
   const { visible: products, thresholdMet } = selectPublicModels(allProducts);
 
   const compareRows: LandingCompareRow[] = products.map((p) => {
-    const { total: score } = getProductScore(p as any);
+    const scored = getProductScore(p as any);
+    const score = scored.total;
+    const { ceiling: docCeiling, missing: docMissing } = getDocumentationCeiling(p as any);
     const { min: priceMin, max: priceMax } = computeSystemPrice(p as any);
 
-    // Normalize S-bend capability: accept both boolean and "Yes"/"No" from admin
-    let sBend: boolean | null = null;
-    const rawSB = (p as any).sBendCapability;
-    if (typeof rawSB === "boolean") {
-      sBend = rawSB;
-    } else if (typeof rawSB === "string") {
-      const s = rawSB.trim().toLowerCase();
-      if (s === "yes") sBend = true;
-      else if (s === "no") sBend = false;
-    }
+    // S-bend tier comes from the score itself (3 = true S-bend, 2 = partial), so the
+    // table can never disagree with the points.
+    const sbPts = scored.breakdown?.find((b) => b.criteria === "S-Bend Capability")?.points ?? 0;
+    const sbStraightRaw = Number((p as any).sBendMinStraight);
+    const sBend = {
+      tier: sbPts >= 3 ? ("full" as const) : sbPts >= 2 ? ("partial" as const) : ("none" as const),
+      straight: Number.isFinite(sbStraightRaw) && sbStraightRaw > 0 ? sbStraightRaw : null,
+    };
 
     return {
       id: p.id,
@@ -85,6 +85,8 @@ export default async function Page() {
       country: (p as any).usaClaim ?? (p as any).country ?? null,
       mandrel: (p as any).mandrel ?? null,
       sBend,
+      docCeiling,
+      docMissing,
       image: (p as any).image ?? null,
     };
   });
@@ -112,7 +114,7 @@ export default async function Page() {
             Find the Right Tube Bender in Minutes.
           </h1>
           <p className="mt-8 text-sm sm:text-base text-white/80 max-w-2xl mx-auto">
-            Compare real-world capacity, die and tooling costs, footprint, and workflow speed across
+            Compare published capacity, complete-setup price, dies, mandrel and S-bend capability across
             popular shop benders — all in one place.
           </p>
 

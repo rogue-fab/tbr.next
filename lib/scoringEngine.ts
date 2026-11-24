@@ -105,7 +105,7 @@ function parseTier(raw: unknown, max: number): number {
 }
 
 /**
- * Fixed "capability points per $1,000" → Value-for-Money points (0–20).
+ * Fixed "capability points per $1,000" → Value-for-Money points (0–16).
  *
  * This is a PUBLISHED, fixed scale — not dataset-relative — so a machine's value
  * score is reproducible by hand and never shifts just because the set of
@@ -113,13 +113,15 @@ function parseTier(raw: unknown, max: number): number {
  */
 export function valuePointsForRatio(perThousand: number): number {
   if (!Number.isFinite(perThousand) || perThousand <= 0) return 0;
-  if (perThousand >= 30) return 20;
-  if (perThousand >= 25) return 17;
-  if (perThousand >= 20) return 14;
-  if (perThousand >= 15) return 11;
-  if (perThousand >= 12) return 8;
-  if (perThousand >= 9) return 5;
-  if (perThousand >= 6) return 3;
+  // 2026-11 rebalance: max cut 20 → 16 (Value already re-counts every capability point,
+  // so a 20-pt Value weight double-rewarded cheap capability). Thresholds unchanged.
+  if (perThousand >= 30) return 16;
+  if (perThousand >= 25) return 14;
+  if (perThousand >= 20) return 11;
+  if (perThousand >= 15) return 9;
+  if (perThousand >= 12) return 6;
+  if (perThousand >= 9) return 4;
+  if (perThousand >= 6) return 2;
   return 1;
 }
 
@@ -138,9 +140,9 @@ export interface ScoringCriteria {
 export const SCORING_CRITERIA: ScoringCriteria[] = [
   {
     name: "Value for Money",
-    maxPoints: 20,
+    maxPoints: 16,
     description: "Price-to-performance ratio based on base/minimum price of the range",
-    weight: 0.2,
+    weight: 0.16,
   },
   {
     name: "Ease of Use & Setup",
@@ -150,9 +152,9 @@ export const SCORING_CRITERIA: ScoringCriteria[] = [
   },
   {
     name: "Max Diameter Capacity",
-    maxPoints: 10,
+    maxPoints: 14,
     description: "Maximum tube diameter capability (CLR to be added later once fully documented).",
-    weight: 0.1,
+    weight: 0.14,
   },
   {
     name: "Bend Angle Capability",
@@ -196,7 +198,7 @@ export const SCORING_CRITERIA: ScoringCriteria[] = [
   {
     name: "S-Bend Capability",
     maxPoints: 3,
-    description: "Ability to create S-bends and complex geometries under a strict ≤0.125\" tangent rule.",
+    description: "True S-bend (≤0.125\" straight between opposite bends) = 3; documented S-bend with a published minimum straight > 0.125\" = 2.",
     weight: 0.03,
   },
   {
@@ -276,7 +278,9 @@ export interface ScoringInput {
   thinWallUpgrade?: string | boolean;
   wiperDieSupport?: string | boolean;
   mandrelBender?: string;
-  sBendCapability?: boolean;
+  sBendCapability?: boolean | string;
+  /** Maker-published minimum straight (inches) between opposite-direction bends. */
+  sBendMinStraight?: number;
   // Disclosure-based scoring tiers (from admin overlay)
   usaManufacturingTier?: string | number | null;
   originTransparencyTier?: string | number | null;
@@ -378,7 +382,7 @@ export function calculateTubeBenderScore(
   scoreBreakdown.push({
     criteria: "Value for Money",
     points: 0,
-    maxPoints: 20,
+    maxPoints: 16,
     reasoning: "Value for Money pending calculation.",
   });
 
@@ -413,10 +417,10 @@ export function calculateTubeBenderScore(
   });
   totalScore += easePoints;
 
-  // 3. Max Diameter Capability (10 pts)
+  // 3. Max Diameter Capability (14 pts; was 10 before the 2026-11 rebalance)
   // Fixed tiers only (FTC-safe, human reproducible). CLR is display-only (not scored).
   {
-    const maxPoints = 10;
+    const maxPoints = 14;
     const od = (() => {
       // legacy input is often a string field (maxCapacity) representing OD in inches
       const raw = bender?.maxCapacity ?? (bender as any)?.capacity ?? "";
@@ -426,12 +430,12 @@ export function calculateTubeBenderScore(
 
     let pts = 0;
     const v = od ?? 0;
-    if (v >= 2.5) pts = 10;
-    else if (v >= 2.375) pts = 9;
-    else if (v >= 2.25) pts = 8;
-    else if (v >= 2.0) pts = 7;
-    else if (v >= 1.75) pts = 5;
-    else if (v >= 1.5) pts = 3;
+    if (v >= 2.5) pts = 14;
+    else if (v >= 2.375) pts = 12;
+    else if (v >= 2.25) pts = 11;
+    else if (v >= 2.0) pts = 9;
+    else if (v >= 1.75) pts = 6;
+    else if (v >= 1.5) pts = 4;
     else if (v > 0) pts = 2;
     else pts = 0;
 
@@ -442,7 +446,7 @@ export function calculateTubeBenderScore(
       maxPoints,
       reasoning:
         od != null
-          ? `Fixed OD tiers. OD=${od} in. CLR is display-only (not scored).`
+          ? `Fixed OD tiers (≥2.5"=14, ≥2.375"=12, ≥2.25"=11, ≥2.0"=9, ≥1.75"=6, ≥1.5"=4, smaller=2). OD=${od} in → ${pts}/14. CLR is display-only (not scored).`
           : "No published/entered max OD (capacity) value; this category scores 0 rather than guessing. CLR is display-only (not scored).",
     });
   }
@@ -907,8 +911,10 @@ export function calculateTubeBenderScore(
     .join(" | ");
   const hasSBendEvidence = sbendEvidenceText.length > 0;
 
-  let sBendState: "yes" | "no" | "unknown" = "unknown";
-  if (typeof rawSBend === "boolean") {
+  let sBendState: "yes" | "partial" | "no" | "unknown" = "unknown";
+  if (typeof rawSBend === "string" && rawSBend.trim().toLowerCase().startsWith("partial")) {
+    sBendState = "partial";
+  } else if (typeof rawSBend === "boolean") {
     // If false but no evidence fields exist, treat as unknown (not entered) rather than a hard "No".
     sBendState = rawSBend ? "yes" : (hasSBendEvidence ? "no" : "unknown");
   } else if (typeof rawSBend === "string") {
@@ -920,11 +926,23 @@ export function calculateTubeBenderScore(
     sBendState = "unknown";
   }
 
-  if (sBendState === "yes") sBendScore = 3;
+  // Published minimum straight between opposite bends, when the maker gives one.
+  const sbStraightRaw = Number((bender as any).sBendMinStraight);
+  const sbStraight = Number.isFinite(sbStraightRaw) && sbStraightRaw >= 0 ? sbStraightRaw : null;
+  let sBendTierLabel: "full" | "partial" | "none" = "none";
+  if (sBendState === "yes" && (sbStraight == null || sbStraight <= 0.125)) sBendTierLabel = "full";
+  else if ((sBendState === "yes" || sBendState === "partial") && sbStraight != null && sbStraight > 0.125) sBendTierLabel = "partial";
+  else if (sBendState === "partial" && sbStraight != null && sbStraight <= 0.125) sBendTierLabel = "full";
+  if (sBendTierLabel === "full") sBendScore = 3;
+  else if (sBendTierLabel === "partial") sBendScore = 2;
 
   const sBendReason =
-    sBendState === "yes"
-      ? "Meets TubeBenderReviews S-bend definition: two opposite-direction bends with ≤0.125\" straight (tangent) between them, verified via specs/photos."
+    sBendTierLabel === "full"
+      ? "Meets TubeBenderReviews S-bend definition: two opposite-direction bends with ≤0.125\" straight (tangent) between them, verified via specs/photos. Full credit: 3/3."
+      : sBendTierLabel === "partial"
+      ? `Maker documents opposite-direction (S) bends with a published minimum of ${sbStraight}" straight between them. That is more than our 0.125" true S-bend limit, so partial credit: 2/3.`
+      : sBendState === "partial"
+      ? "Maker shows S-bends but publishes no minimum straight between them. Partial credit needs a published number, so this scores 0."
       : sBendState === "no"
       ? "Published/entered data does not qualify under the TubeBenderReviews S-bend definition (≤0.125\" tangent between opposite bends). Marketing \"S-bend\" claims with inches of straight between bends do not qualify."
       : "No published/entered S-bend capability data for this frame; this category scores 0 rather than guessing.";
@@ -1059,16 +1077,16 @@ export function calculateTubeBenderScore(
 
   // 1. Value for Money (FIXED "capability per $1,000" scale)
   //
-  // capabilityPoints = sum of the 10 capability categories (67 possible):
+  // capabilityPoints = sum of the 10 capability categories (71 possible):
   //   Ease, Max Diameter, Bend Angle, Stress/Materials, Dies, Upgrade, Mandrel,
   //   S-Bend, Single-Source, Warranty. Excludes Value itself, the USA claim,
   //   Origin disclosure, and Years in business.
   //
   // ratio = capabilityPoints / (entryPrice / 1000) = capability points earned
-  // per $1,000 of complete-system price, mapped to 0-20 on a fixed, published
+  // per $1,000 of complete-system price, mapped to 0-16 on a fixed, published
   // scale (see valuePointsForRatio). Reproducible by hand and stable over time.
   // Missing/invalid price -> 0 (no guessing).
-  const maxValuePoints = 20;
+  const maxValuePoints = 16;
 
   const findPts = (name: string): number => {
     const it = scoreBreakdown.find((x) => x.criteria === name);
@@ -1106,7 +1124,7 @@ export function calculateTubeBenderScore(
       ? " Price includes a $200 imputed stand (required for safe use but not sold by the maker; pricing it at $0 would reward an incomplete offering)."
       : "";
     valueReason =
-      `Capability points = ${capBreakdown} = ${capabilityPoints} of 67. ` +
+      `Capability points = ${capBreakdown} = ${capabilityPoints} of 71. ` +
       `${capabilityPoints} ÷ $${entryPrice.toFixed(0)} complete-system price = ` +
       `${perThousand.toFixed(1)} capability points per $1,000 → ${valueScore}/${maxValuePoints} on our fixed value scale.` +
       standNote;

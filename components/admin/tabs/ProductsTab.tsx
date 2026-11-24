@@ -883,10 +883,16 @@ export default function ProductsTab() {
     },
     {
       key: "sBendCapability",
-      label: "* S-Bend capable (Yes/No)",
+      label: "* S-Bend capable (Yes/Partial/No)",
       description:
-        "Yes/No: documented ability to create a true S-bend: two opposite-direction bends with effectively no straight between them. For scoring we require ≤0.125\" straight (tangent) between bends, proven by specs, photos, or repeatable test pieces. Marketing examples with several inches of straight between bends do NOT qualify. This field is heavily weighted in scoring because true S-bend capability unlocks complex chassis and header work.",
-      options: ["", "Yes", "No"],
+        "Yes/No: documented ability to create a true S-bend: two opposite-direction bends with effectively no straight between them. For scoring we require ≤0.125\" straight (tangent) between bends, proven by specs, photos, or repeatable test pieces. Marketing examples with several inches of straight between bends do NOT qualify. Yes = 3 pts. Partial = the maker documents S-bends AND publishes a minimum straight longer than 0.125\" (enter it below) = 2 pts. Photos with no published number = No.",
+      options: ["", "Yes", "Partial", "No"],
+    },
+    {
+      key: "sBendMinStraight",
+      label: "S-Bend min straight between bends (inches)",
+      description:
+        "The maker's published minimum straight between two opposite-direction bends (any tube size; note which in the citation). Required for Partial credit. Shown on the homepage S-bend column. Leave blank if not published.",
     },
     {
       key: "hasPowerUpgradePath",

@@ -23,7 +23,12 @@ export type LandingCompareRow = {
   powerType?: string | null;
   country?: string | null;
   mandrel?: string | null;
-  sBend?: boolean | null;
+  /** S-bend tier from the score: full = ≤0.125" straight (3 pts), partial = longer published straight (2 pts). */
+  sBend?: { tier: "full" | "partial" | "none"; straight: number | null } | null;
+  /** Score if the maker published every documentation-only item (hardware unchanged). */
+  docCeiling?: number | null;
+  /** Documentation-only items missing today. */
+  docMissing?: string[];
   /** Optional product image; falls back if missing */
   image?: string | null;
 };
@@ -49,13 +54,15 @@ function formatPriceRange(min: number | null, max: number | null): string {
   return lo ?? hi ?? "—";
 }
 
-function normalizePower(powerType?: string | null): "manual" | "hydraulic" | "other" | "unknown" {
+/** Which power options a model is offered with. A model offered both ways matches both filters. */
+function powerOptions(powerType?: string | null): { manual: boolean; hydraulic: boolean } {
   const s = (powerType ?? "").toLowerCase();
-  if (!s) return "unknown";
-  if (s.includes("manual") && s.includes("hydraulic")) return "other";
-  if (s.includes("manual")) return "manual";
-  if (s.includes("hydraulic") || s.includes("electric") || s.includes("air")) return "hydraulic";
-  return "other";
+  return { manual: s.includes("manual"), hydraulic: /hydraulic|air|electric/.test(s) };
+}
+
+function formatOd(raw?: string | null): string {
+  const n = parseFloat(String(raw ?? "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? `${Number(n.toFixed(3))}"` : "—";
 }
 
 /** Attractive, themed power tiles — one lit tile per power option the machine offers. */
@@ -158,15 +165,39 @@ function MandrelPill({ value }: { value?: MandrelTier | string | null }) {
   );
 }
 
-function SBendPill({ value }: { value?: boolean | null }) {
-  if (value === true) {
+function fmtIn(n: number): string {
+  return `${Number(n.toFixed(3))}"`;
+}
+
+function SBendPill({ value }: { value?: LandingCompareRow["sBend"] }) {
+  if (value?.tier === "full") {
     return (
       <span
-        className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5
+        title="True S-bend: 0.125 in or less of straight between opposite bends (3 of 3 pts)"
+        className="inline-flex flex-col items-start whitespace-nowrap rounded-md px-2.5 py-0.5
                    text-[11px] font-medium border
                    bg-emerald-50 border-emerald-400 text-emerald-700"
       >
-        S-bending
+        <span>True S-bend · 3/3</span>
+        <span className="font-normal">
+          {value.straight != null ? fmtIn(value.straight) : '≤0.125"'} straight between bends
+        </span>
+      </span>
+    );
+  }
+
+  if (value?.tier === "partial") {
+    return (
+      <span
+        title="Partial S-bend credit: the maker publishes a minimum straight between opposite bends that is longer than our 0.125 in true S-bend limit (2 of 3 pts)"
+        className="inline-flex flex-col items-start whitespace-nowrap rounded-md px-2.5 py-0.5
+                   text-[11px] font-medium border
+                   bg-amber-50 border-amber-400 text-amber-800"
+      >
+        <span>Partial S-bend · 2/3</span>
+        <span className="font-normal">
+          needs {value.straight != null ? fmtIn(value.straight) : "—"} straight between bends
+        </span>
       </span>
     );
   }
@@ -177,12 +208,22 @@ function SBendPill({ value }: { value?: boolean | null }) {
                  text-[11px] font-medium border
                  bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
     >
-      No S-bends
+      Not documented · 0/3
     </span>
   );
 }
 
-function ScoreCircle({ score, href }: { score: number | null; href: string }) {
+function ScoreCircle({
+  score,
+  href,
+  docCeiling,
+  docMissing,
+}: {
+  score: number | null;
+  href: string;
+  docCeiling?: number | null;
+  docMissing?: string[];
+}) {
   const clamped =
     score == null
       ? null
@@ -247,6 +288,16 @@ function ScoreCircle({ score, href }: { score: number | null; href: string }) {
       >
         Pt. details
       </Link>
+      {score != null && docCeiling != null && docCeiling > score && (
+        <span
+          className="text-[0.65rem] leading-tight text-gray-500 dark:text-gray-400"
+          title={`Up to ${docCeiling} if the maker publishes: ${(docMissing ?? []).join(", ")}. The machine itself doesn't change.`}
+        >
+          up to {docCeiling}
+          <br />
+          if documented
+        </span>
+      )}
     </div>
   );
 }
@@ -314,9 +365,9 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
     return list.filter((row) => {
       if (minScore > 0 && (row.score ?? 0) < minScore) return false;
 
-      const normPower = normalizePower(row.powerType);
-      if (power === "manual" && normPower !== "manual") return false;
-      if (power === "hydraulic" && normPower !== "hydraulic") return false;
+      const opts = powerOptions(row.powerType);
+      if (power === "manual" && !opts.manual) return false;
+      if (power === "hydraulic" && !opts.hydraulic) return false;
 
       if (origin === "usaOnly" && !classifyOrigin(row.country).usa) return false;
 
@@ -466,13 +517,15 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
                     <ScoreCircle
                       score={row.score}
                       href={`/reviews/${row.slug}?score=details`}
+                      docCeiling={row.docCeiling}
+                      docMissing={row.docMissing}
                     />
                   </td>
                   <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
                     {formatPriceRange(row.priceMin, row.priceMax)}
                   </td>
                   <td className="px-3 py-3 align-middle text-sm text-gray-800 dark:text-gray-200">
-                    {row.maxCapacity || "—"}
+                    {formatOd(row.maxCapacity)}
                   </td>
                   <td className="px-3 py-3 align-middle">
                     <PowerPills value={row.powerType} />
@@ -500,6 +553,15 @@ export default function LandingCompareSection({ rows, modelsCompared, previewMod
           </tbody>
         </table>
       </div>
+      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        <span className="font-semibold">“Up to N if documented”</span> is the score a model would earn if its maker published
+        everything we score from documentation alone (manual, instructions, springback guidance, official video, where each
+        major part is made). The machine itself doesn&apos;t change. <span className="font-semibold">S-bend:</span> 3 points for
+        a true S-bend (≤0.125&quot; straight between opposite bends); 2 points when the maker publishes a longer minimum straight.{" "}
+        <Link href="/scoring/changelog" className="underline">
+          Scoring changelog
+        </Link>
+      </p>
     </section>
   );
 }
