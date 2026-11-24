@@ -9,6 +9,7 @@ import JsonLd from "../../../components/JsonLd";
 import { reviewJsonLd, breadcrumbJsonLd } from "../../../lib/jsonld";
 import { siteBase } from "../../../lib/site";
 import { classifyOrigin, formatOriginLabel } from "../../../lib/originDisplay";
+import { computeSystemPrice } from "../../../lib/systemPrice";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -274,44 +275,9 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
         .map((s) => s.trim())
         .filter(Boolean);
 
-  // --- Pricing: compute min/max system totals from component fields ----------
-  const parseMoney = (raw: unknown): number | null => {
-    if (raw === null || raw === undefined || raw === "") return null;
-    if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-    const parsed = parseFloat(String(raw).replace(/[^0-9.+-]/g, ""));
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
-  const frameMin = parseMoney((product as any).framePriceMin);
-  const dieMin = parseMoney((product as any).diePriceMin);
-  const hydraulicMin = parseMoney((product as any).hydraulicPriceMin);
-  const standMin = parseMoney((product as any).standPriceMin);
-
-  const frameMax = parseMoney((product as any).framePriceMax);
-  const dieMax = parseMoney((product as any).diePriceMax);
-  const hydraulicMax = parseMoney((product as any).hydraulicPriceMax);
-  const standMax = parseMoney((product as any).standPriceMax);
-
-  const hasMinComponents =
-    frameMin !== null ||
-    dieMin !== null ||
-    hydraulicMin !== null ||
-    standMin !== null;
-  const hasMaxComponents =
-    frameMax !== null ||
-    dieMax !== null ||
-    hydraulicMax !== null ||
-    standMax !== null;
-
-  const minSystemTotal =
-    hasMinComponents
-      ? (frameMin ?? 0) + (dieMin ?? 0) + (hydraulicMin ?? 0) + (standMin ?? 0)
-      : parseMoney(product.price);
-
-  const maxSystemTotal =
-    hasMaxComponents
-      ? (frameMax ?? 0) + (dieMax ?? 0) + (hydraulicMax ?? 0) + (standMax ?? 0)
-      : null;
+  // --- Pricing: same system totals the score uses (incl. the $200 imputed
+  // stand and unicode-dash-safe parsing) — see lib/systemPrice.ts ------------
+  const { min: minSystemTotal, max: maxSystemTotal } = computeSystemPrice(product);
 
   const hasPricingSnapshot =
     minSystemTotal !== null || maxSystemTotal !== null;
