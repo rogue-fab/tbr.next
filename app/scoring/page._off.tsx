@@ -115,14 +115,14 @@ function ExactRules({ catKey }: { catKey: string }) {
             maximum published round-tube OD capacity (<span className="font-mono">maxCapacity</span>). CLR is display-only (not scored) until CLR data is standardized across all models.
           </p>
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900">Exact point tiers (10 max)</div>
+            <div className="font-semibold text-gray-900">Exact point tiers (14 max)</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li>≥ 2.5 → 10</li>
-              <li>≥ 2.375 → 9</li>
-              <li>≥ 2.25 → 8</li>
-              <li>≥ 2.0 → 7</li>
-              <li>≥ 1.75 → 5</li>
-              <li>≥ 1.5 → 3</li>
+              <li>≥ 2.5 → 14</li>
+              <li>≥ 2.375 → 12</li>
+              <li>≥ 2.25 → 11</li>
+              <li>≥ 2.0 → 9</li>
+              <li>≥ 1.75 → 6</li>
+              <li>≥ 1.5 → 4</li>
               <li>&gt; 0 → 2</li>
               <li>missing/unknown → 0</li>
             </ul>
@@ -239,21 +239,21 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
             <span className="font-semibold">What we score:</span> how much real capability you get per dollar. We add
-            up the capability points a machine earns in the other categories (67 possible — ease of use, diameter,
+            up the capability points a machine earns in the other categories (71 possible — ease of use, diameter,
             bend angle, stress/materials, dies, upgrades, mandrel, S-bend, single-source, warranty), divide by its
             complete-system price (frame + dies + power + stand), and score the result on a fixed scale. A cheaper
             machine that still does a lot scores high; an expensive one that doesn&apos;t scores low.
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Fixed scale — capability points per $1,000 (20 max)</div>
+            <div className="font-semibold text-gray-900 mb-1">Fixed scale — capability points per $1,000 (16 max)</div>
             <ul className="list-disc pl-5 space-y-1">
-              <li>≥ 30 → 20</li>
-              <li>25–29 → 17</li>
-              <li>20–24 → 14</li>
-              <li>15–19 → 11</li>
-              <li>12–14 → 8</li>
-              <li>9–11 → 5</li>
-              <li>6–8 → 3</li>
+              <li>≥ 30 → 16</li>
+              <li>25–29 → 14</li>
+              <li>20–24 → 11</li>
+              <li>15–19 → 9</li>
+              <li>12–14 → 6</li>
+              <li>9–11 → 4</li>
+              <li>6–8 → 2</li>
               <li>&lt; 6 → 1 · no documented price → 0</li>
             </ul>
             <div className="mt-2 text-[11px] text-gray-600">
@@ -278,14 +278,14 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
       return (
         <>
           <div className="mt-3 rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900">Exact point tiers (10 max)</div>
+            <div className="font-semibold text-gray-900">Exact point tiers (14 max)</div>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li>≥ 2.5 → 10</li>
-              <li>≥ 2.375 → 9</li>
-              <li>≥ 2.25 → 8</li>
-              <li>≥ 2.0 → 7</li>
-              <li>≥ 1.75 → 5</li>
-              <li>≥ 1.5 → 3</li>
+              <li>≥ 2.5 → 14</li>
+              <li>≥ 2.375 → 12</li>
+              <li>≥ 2.25 → 11</li>
+              <li>≥ 2.0 → 9</li>
+              <li>≥ 1.75 → 6</li>
+              <li>≥ 1.5 → 4</li>
               <li>&gt; 0 → 2</li>
               <li>missing/unknown → 0</li>
             </ul>
@@ -464,13 +464,14 @@ function RulesBlock({ catKey, maxima }: { catKey: string; maxima: Record<string,
       return (
         <div className="space-y-2">
           <p className="text-xs text-gray-700">
-            <span className="font-semibold">What we score:</span> true/false for true S-bend capability. If it's not documented or not explicitly verified, it scores 0.
+            <span className="font-semibold">What we score:</span> how little straight a machine needs between two opposite-direction bends. If it's not documented, it scores 0.
           </p>
           <div className="rounded-md border bg-gray-50 p-3 text-xs text-gray-700">
-            <div className="font-semibold text-gray-900 mb-1">Binary (3 max)</div>
+            <div className="font-semibold text-gray-900 mb-1">Tiers (3 max)</div>
             <ul className="list-disc pl-5 space-y-1">
-              <li><span className="font-mono">sBendCapability</span> true → 3</li>
-              <li>false / missing → 0</li>
+              <li>True S-bend: ≤ 0.125&quot; straight between opposite bends, documented → 3</li>
+              <li>Documented S-bend with a published minimum straight longer than 0.125&quot; → 2 (the number is shown on the homepage)</li>
+              <li>S-bend photos or claims with no published number, or nothing documented → 0</li>
             </ul>
             <p className="mt-2 text-[11px] text-gray-600">
               Definition: two opposite-direction bends with ≤0.125&quot; straight (tangent) between them. Marketing photos with inches of straight do not qualify.
@@ -618,6 +619,10 @@ export default async function ScoringPage() {
           </p>
           <p className="mt-3 max-w-3xl text-sm sm:text-base text-gray-600">
             And it&apos;s not just rules on this page: <span className="font-semibold text-gray-900">every model&apos;s review shows the exact calculation for each category — how it scored, and the source behind the data</span>. Open any review and expand &ldquo;How this score was earned.&rdquo;
+          </p>
+          <p className="mt-3 max-w-3xl text-sm sm:text-base text-gray-600">
+            Every rule change, with its date, reason and effect on scores (RogueFab&apos;s included), is in the{" "}
+            <a href="/scoring/changelog" className="font-semibold underline">scoring changelog</a>.
           </p>
         </div>
       </div>

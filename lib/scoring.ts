@@ -193,10 +193,10 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     index: 1,
     key: "valueForMoney",
     name: "Value for Money",
-    maxPoints: 20,
+    maxPoints: 16,
     method: "scaled",
     tagline:
-      "How much real capability and completeness you get per dollar for a typical starter system (frame + dies + power + stand).",
+      "How much real capability and completeness you get per dollar for a typical starter system (frame + dies + power + stand). Weighted 16 (was 20 until Nov 2026): Value re-counts every capability point, so a heavier weight double-rewarded cheap capability.",
   },
   {
     index: 2,
@@ -211,10 +211,10 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     index: 3,
     key: "maxDiameterRadius",
     name: "Max Diameter Capability",
-    maxPoints: 10,
+    maxPoints: 14,
     method: "scaled",
     tagline:
-      "Realistic maximum round tube size you can run on this frame with catalog tooling today. CLR ranges will be added to the math once every machine has documented CLR data.",
+      "Realistic maximum round tube size you can run on this frame with catalog tooling today. Weighted 14 (was 10 until Nov 2026): diameter decides which jobs a bender can take at all, so it is the single most important capability spec. CLR ranges will be added to the math once every machine has documented CLR data.",
   },
   {
     index: 4,
@@ -275,9 +275,9 @@ export const SCORING_CATEGORIES: ScoringCategory[] = [
     key: "sBendCapability",
     name: "True S-Bend Capability",
     maxPoints: 3,
-    method: "binary",
+    method: "tier",
     tagline:
-      "Ability to make a true S-bend with ≤0.125\" straight between opposing bends, proven by documentation or repeatable test pieces. Marketing photos with several inches of straight do not count.",
+      "A true S-bend (≤0.125\" straight between opposing bends, proven by documentation or repeatable test pieces) = 3. A maker-documented S-bend with a published minimum straight longer than 0.125\" = 2. S-bend photos with no published number = 0.",
   },
   {
     index: 11,
@@ -430,7 +430,12 @@ export function getProductScore(
     thickWallUpgrade: toBool(p.thickWallUpgrade),
     thinWallUpgrade: toBool(p.thinWallUpgrade),
     wiperDieSupport: toBool(p.wiperDieSupport),
-    sBendCapability: toBool(p.sBendCapability),
+    // "Partial" = maker documents S-bends with a published minimum straight > 0.125" (2 pts).
+    sBendCapability:
+      typeof p.sBendCapability === "string" && p.sBendCapability.trim().toLowerCase().startsWith("partial")
+        ? "Partial"
+        : toBool(p.sBendCapability),
+    sBendMinStraight: toNumberOrNull(p.sBendMinStraight) ?? undefined,
   };
 
   // Expose the actual interpreted inputs for UI diagnostics.
@@ -515,4 +520,49 @@ export function getProductScore(
     console.warn("[scoring] failed to compute score:", err);
     return { total: null, source: "none", debugInput };
   }
+}
+
+/**
+ * Items whose points depend only on what the maker PUBLISHES, not on the
+ * machine's hardware. Used for the public "up to N if documented" figure.
+ */
+const DOCUMENTATION_ITEMS: { key: string; label: string; value: (p: any) => unknown }[] = [
+  { key: "hasManual", label: "manual", value: () => "Yes" },
+  { key: "hasOnMachineInstructions", label: "on-machine instructions", value: () => "Yes" },
+  { key: "hasSpringbackGuidance", label: "springback guidance", value: () => "Yes" },
+  { key: "hasMfrYoutubeModelContent", label: "official model video", value: () => "Yes" },
+  ...(["discloseFrame", "discloseDies", "discloseHydraulics", "discloseMotor", "discloseControls"] as const).map(
+    (key) => ({
+      key,
+      label: `${key.replace("disclose", "").toLowerCase()} origin`,
+      value: (p: any) => (String(p?.[key] ?? "").trim().toLowerCase().startsWith("n/a") ? p[key] : "Documented"),
+    }),
+  ),
+];
+
+export type DocumentationCeiling = {
+  /** Score today. */
+  now: number | null;
+  /** Score if the maker published every documentation-only item (hardware unchanged). */
+  ceiling: number | null;
+  /** Labels of the documentation-only items that are missing today. */
+  missing: string[];
+};
+
+/**
+ * "Points available if documented": re-scores the product as if the maker
+ * published every documentation-only item. Nothing about the machine changes.
+ */
+export function getDocumentationCeiling(product: any, ctx?: ScoringContext): DocumentationCeiling {
+  const now = getProductScore(product, ctx).total;
+  const filled: any = { ...product };
+  const missing: string[] = [];
+  for (const item of DOCUMENTATION_ITEMS) {
+    const before = getProductScore(filled, ctx).total ?? 0;
+    const trial = { ...filled, [item.key]: item.value(product) };
+    const after = getProductScore(trial, ctx).total ?? 0;
+    if (after > before) missing.push(item.label);
+    filled[item.key] = item.value(product);
+  }
+  return { now, ceiling: getProductScore(filled, ctx).total, missing };
 }

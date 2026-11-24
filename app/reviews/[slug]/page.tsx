@@ -11,6 +11,14 @@ import { siteBase } from "../../../lib/site";
 import { classifyOrigin, formatOriginLabel } from "../../../lib/originDisplay";
 import { computeSystemPrice } from "../../../lib/systemPrice";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { selectPublicModels } from "../../../lib/completeness";
+
+/** Only published (complete + verified) models get a public review page. */
+async function isPublicModel(id: string): Promise<boolean> {
+  const all = (await getAllTubeBendersWithOverlay()) as any[];
+  return selectPublicModels(all).visible.some((p: any) => p.id === id);
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -141,8 +149,8 @@ export async function generateMetadata({
       slugForProduct(b as any) === slug,
   )) as Product | undefined;
 
-  if (!product) {
-    return { title: "Review not found | TubeBenderReviews" };
+  if (!product || !(await isPublicModel((product as any).id))) {
+    return { title: "Review not found | TubeBenderReviews", robots: { index: false } };
   }
 
   const title = titleOf(product as any);
@@ -183,16 +191,10 @@ export default async function ReviewPage({ params, searchParams }: PageProps) {
     lookup.get(slugOf(params.slug)) ??
     (await findTubeBenderWithOverlay((b) => slugOf(b.id) === slugOf(params.slug) || slugOf(b.slug ?? "") === slugOf(params.slug)) as Product | undefined);
 
-  if (!product) {
-    return (
-      <main className="container mx-auto px-4 py-6">
-        <h1 className="text-2xl font-semibold mb-2">Not found</h1>
-        <p className="text-sm text-muted-foreground">
-          We couldn't find that review.{" "}
-          <Link className="underline" href="/reviews">Back to reviews</Link>
-        </p>
-      </main>
-    );
+  // Unknown slug, or a model that isn't published yet (incomplete/unverified data
+  // would show an unfair partial score): real 404, not a soft "not found" page.
+  if (!product || !selectPublicModels(all).visible.some((p) => p.id === product.id)) {
+    notFound();
   }
 
   const title = titleOf(product);

@@ -65,8 +65,26 @@ function dedupePreserveOrder(items: Product[]): Product[] {
 }
 
 type ComparePageProps = { searchParams?: { ids?: string | string[] } };
+function money(n: number): string {
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+function formatOd(raw: unknown): string {
+  const n = parseFloat(String(raw ?? "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? `${Number(n.toFixed(3))}"` : "—";
+}
+
+function mandrelLabel(raw: unknown): string {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s === "bronze" || s === "available" || s.includes("nickel")) return "Bronze";
+  if (s === "economy") return "Economy";
+  return "None";
+}
+
 export default async function ComparePage({ searchParams }: ComparePageProps) {
-  const products = (await getAllTubeBendersWithOverlay()) as Product[];
+  // Only PUBLIC (complete + verified) models can be compared. Unfinished models
+  // must not leak out through ?ids= with a partial, unverified score.
+  const products = selectPublicModels((await getAllTubeBendersWithOverlay()) as Product[]).visible as Product[];
   const tokens = parseIds(searchParams?.ids); // raw query tokens
 
   let rows: Product[] = [];
@@ -75,7 +93,7 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
     // No explicit ids: default to the public set (finished models once enough
     // exist; most-complete fallback before then). Explicit ?ids= comparisons
     // below still resolve ANY requested model, active or not.
-    rows = selectPublicModels(products).visible;
+    rows = products.slice().sort((a, b) => (getProductScore(b as any).total ?? -1) - (getProductScore(a as any).total ?? -1));
   } else {
     // Build a lookup map from the overlay-aware product list.
     const byId = new Map(products.map((p) => [p.id, p])); // fast direct ID match
@@ -93,13 +111,6 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
         const key = slugOf(trimmed);
         const fromLookup = lookup.get(key);
         if (fromLookup) return fromLookup;
-
-        // 3) Backwards-compat: numeric tokens as 1-based indexes into the product list
-        //    e.g. ids=3,2,1 -> products[2], products[1], products[0]
-        const n = Number(trimmed);
-        if (Number.isInteger(n) && n > 0 && n <= products.length) {
-          return products[n - 1];
-        }
 
         return undefined;
       })
@@ -129,7 +140,13 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
     <main className="container mx-auto px-4 py-6">
       <h1 className="text-2xl font-semibold mb-4">Compare</h1>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No matches.</p>
+        <p className="text-sm text-muted-foreground">
+          None of those models are published yet.{" "}
+          <Link className="underline" href="/compare">
+            Compare all published models
+          </Link>
+          .
+        </p>
       ) : (
         <div className="mb-4 overflow-x-auto">
           <table className="min-w-[640px] w-full text-sm border">
@@ -146,30 +163,23 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
             </thead>
             <tbody>
               {rows.map((p) => {
-                const { total: score } = getProductScore(p as any);
+                const scored = getProductScore(p as any);
+                const score = scored.total;
 
                 const { min: minSystemTotal, max: maxSystemTotal } = computeSystemPrice(p as any);
 
                 let priceLabel = "—";
-                if (minSystemTotal && maxSystemTotal && maxSystemTotal > 0 && maxSystemTotal !== minSystemTotal) {
-                  priceLabel = `$${minSystemTotal.toFixed(0)}–$${maxSystemTotal.toFixed(0)}`;
+                if (minSystemTotal && maxSystemTotal && maxSystemTotal > 0 && Math.round(maxSystemTotal) !== Math.round(minSystemTotal)) {
+                  priceLabel = `${money(minSystemTotal)} – ${money(maxSystemTotal)}`;
                 } else if (minSystemTotal && minSystemTotal > 0) {
-                  priceLabel = `$${minSystemTotal.toFixed(0)}+`;
+                  priceLabel = money(minSystemTotal);
                 }
 
-                const maxDiameter = p.maxCapacity ?? (p.max_od != null ? String(p.max_od) : "");
+                const maxDiameter = formatOd(p.maxCapacity ?? p.max_od);
 
-                let sBendLabel = "—";
-                const rawSB = (p as any).sBendCapability;
-                if (typeof rawSB === "boolean") {
-                  sBendLabel = rawSB ? "Yes" : "No";
-                } else if (typeof rawSB === "string" && rawSB.trim()) {
-                  sBendLabel = rawSB.trim();
-                }
-
-                const mandrelLabel = p.mandrel && String(p.mandrel).trim().length > 0
-                  ? String(p.mandrel)
-                  : "—";
+                // S-bend label comes from the score itself so the table can't disagree with the points.
+                const sbPts = scored.breakdown?.find((b) => b.criteria === "S-Bend Capability")?.points ?? 0;
+                const sBendLabel = sbPts >= 3 ? "True S-bend (3/3)" : sbPts >= 2 ? "Partial (2/3)" : "Not documented (0/3)";
 
                 return (
                   <tr key={p.id} className="odd:bg-background even:bg-muted/10">
@@ -191,10 +201,10 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
                       {p.powerType ?? "—"}
                     </td>
                     <td className="p-2 border-b">
-                      {maxDiameter || "—"}
+                      {maxDiameter}
                     </td>
                     <td className="p-2 border-b">
-                      {mandrelLabel}
+                      {mandrelLabel(p.mandrel)}
                     </td>
                     <td className="p-2 border-b">
                       {sBendLabel}
